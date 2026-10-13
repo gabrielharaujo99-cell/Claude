@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link id="fontes" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&display=swap">
+  <?!= include('ui/estilos'); ?>
+</head>
+<body>
+  <div id="app"><div class="tela-carregando"><div class="pulso"></div><p>Carregando…</p></div></div>
+  <div id="camada-modal"></div>
+  <div id="toasts" aria-live="polite"></div>
+  <?!= include('ui/js-base'); ?>
+  <?!= include('ui/js-inicio'); ?>
+  <?!= include('ui/js-funil'); ?>
+  <?!= include('ui/js-oportunidade'); ?>
+  <?!= include('ui/js-telas'); ?>
+  <?!= include('ui/js-admin'); ?>
+  <script>iniciar();</script>
+</body>
+</html>
