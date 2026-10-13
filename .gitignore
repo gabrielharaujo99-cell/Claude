@@ -1,0 +1,4 @@
+node_modules/
+dev/.dados.json
+dev/screens/
+.clasp.json

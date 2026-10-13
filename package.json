@@ -1,0 +1,11 @@
+{
+  "name": "flow-crm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CRM em Kanban para agências, no Google Apps Script com Planilha Google como banco de dados.",
+  "scripts": {
+    "dev": "node dev/servidor.js",
+    "test": "node --test test/*.test.js",
+    "smoke": "node dev/smoke.js"
+  }
+}
