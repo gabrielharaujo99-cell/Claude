@@ -13,10 +13,18 @@ TELAS.funil = {
       titulo: 'Funil de <em>vendas</em>',
       banner: {
         compacto: true,
-        texto: '<b>' + abertas.length + '</b> oportunidade(s) abertas valem <b>' + dinheiro(total, true) + '</b>; ponderado pela chance de cada etapa, <b>' + dinheiro(pond, true) + '</b>.' +
-          (nParadas ? ' <span class="al">' + nParadas + ' parada(s)</span> pedindo um empurrão.' : ''),
-        visual: { tipo: 'orbita', valor: String(chance), unidade: '%', rot: 'chance média', prog: chance / 100,
-          sats: [{ ic: 'propostas', rot: 'Propostas', ir: 'propostas' }, { ic: 'clientes', rot: 'Clientes', ir: 'clientes' }, { ic: 'tarefas', rot: 'Tarefas', ir: 'tarefas' }] },
+        chip: 'Funil de vendas · ' + cfg.empresa,
+        manchete: abertas.length + (abertas.length === 1 ? ' oportunidade vale ' : ' oportunidades valem ') + '<em>' + dinheiro(total, true) + '</em>',
+        texto: 'Ponderado pela chance de cada etapa, <b>' + dinheiro(pond, true) + '</b> (' + chance + '% do total).' +
+          (nParadas ? ' <span class="al">' + nParadas + ' parada(s)</span> pedindo um empurrão.' : ' Nada parado.'),
+        painel: { tipo: 'lista', titulo: 'Por etapa', total: dinheiro(total, true), itens: (function () {
+          const etapas = cfg.etapas.filter(function (e) { return e.tipo === 'aberta'; }).map(function (e) {
+            const l = abertas.filter(function (o) { return o.etapa === e.id; });
+            return { e: e, n: l.length, v: l.reduce(function (s, o) { return s + totalOp(o); }, 0) };
+          });
+          const max = Math.max.apply(null, etapas.map(function (x) { return x.v; }).concat([1]));
+          return etapas.map(function (x) { return { l: x.e.nome + ' · ' + x.n, v: dinheiro(x.v, true), p: x.v / max, c: x.e.cor }; });
+        })() },
       },
       acoes:
         '<label class="busca">' + icone('busca') + '<input class="entrada" type="search" id="f-busca" placeholder="Buscar cliente ou oportunidade" value="' + esc(f.busca) + '" aria-label="Buscar"></label>' +
@@ -79,7 +87,7 @@ function cardOp(o) {
   const tarefas = S.dados.tarefas.filter(function (t) { return t.oportunidadeId === o.id && t.status !== 'feito'; }).length;
   const e = etapa(o.etapa);
   const fee = o.contrato === 'fee';
-  return '<button type="button" class="op" draggable="' + (pode('colaborador') ? 'true' : 'false') + '" data-op="' + esc(o.id) + '">' +
+  return '<button type="button" class="op" draggable="' + (pode('colaborador') ? 'true' : 'false') + '" data-op="' + esc(o.id) + '"' + (e ? ' style="--e:' + esc(e.cor) + '"' : '') + '>' +
     '<span class="cli">' + esc(nomeCliente(o.clienteId) || 'Sem cliente') + '</span>' +
     '<span class="tit">' + esc(o.titulo) + '</span>' +
     '<span class="val">' + dinheiro(fee ? o.valor : totalOp(o)) + (fee ? ' <small>/mês · ' + o.meses + 'm</small>' : '') + '</span>' +

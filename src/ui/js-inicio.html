@@ -91,8 +91,8 @@ function montarShell() {
         '<div class="lateral-pe"><span class="rotulo">' + esc(cfg.produto) + ' · v' + esc(d.versao) + '</span></div>' +
       '</nav>' +
       '<main class="principal">' +
-        '<header class="topo"><span class="hero-aurora" aria-hidden="true"></span>' +
-          '<div class="topo-titulo"><span class="rotulo" id="topo-rotulo"></span><h1 id="topo-titulo"></h1><p class="topo-texto" id="topo-texto"></p></div>' +
+        '<header class="topo"><span class="hero-aurora" aria-hidden="true"></span><canvas class="hero-fx" aria-hidden="true"></canvas>' +
+          '<div class="topo-titulo"><span class="rotulo" id="topo-rotulo"></span><h1 id="topo-titulo"></h1><p class="topo-texto" id="topo-texto"></p><div class="hero-stats" id="hero-stats"></div></div>' +
           '<div class="topo-acoes" id="topo-acoes"></div><div class="topo-visual" id="topo-visual"></div></header>' +
         '<div id="tela"></div>' +
       '</main>' +
@@ -209,14 +209,30 @@ function inicioPorArea(saudacao, primeiroNome, dataHoje) {
   }
   if (d.eu.financeiro) lado += '<div class="cartao"><div class="cartao-cab"><h2>Financeiro</h2><button class="btn btn-fantasma btn-peq" data-ir-tela="financeiro">Abrir pipeline' + icone('seta') + '</button></div><div class="cartao-corpo"><p class="mudo" style="margin:0">Contratos, reajustes e cobranças no pipeline de clientes.</p></div></div>';
   const vencendo = minhas.filter(function (t) { return t.prazo && t.prazo <= hoje; }).length;
-  const formas = temArea('social') ? ['coracao', 'balao'] : temArea('trafego') ? ['alvo', 'barras'] : d.eu.financeiro ? ['moeda', 'barras'] : ['folha', 'pulso'];
+  // Sinais das áreas da pessoa, para o painel do banner.
+  const sinais = [{ l: 'Suas tarefas em dia', p: prop(minhas.length - vencendo, minhas.length), v: (minhas.length - vencendo) + ' de ' + minhas.length }];
+  if (temArea('social')) {
+    const pend = d.posts.filter(function (x) { return x.status !== 'publicado'; });
+    const atr = pend.filter(function (x) { return x.data && x.data < hoje; }).length;
+    sinais.push({ l: 'Conteúdos no prazo', p: prop(pend.length - atr, pend.length), v: (pend.length - atr) + ' de ' + pend.length });
+  }
+  if (temArea('trafego')) {
+    const ativas = d.campanhas.filter(function (c) { return c.status === 'ativa'; });
+    const comDado = ativas.filter(function (c) { return d.resultados.some(function (x) { return x.campanhaId === c.id && x.data >= d30; }); }).length;
+    sinais.push({ l: 'Campanhas com resultado', p: prop(comDado, ativas.length), v: comDado + ' de ' + ativas.length });
+  }
+  if (d.eu.financeiro) {
+    const ativos = d.contratos.filter(function (c) { return c.status === 'ativo'; });
+    const atr = d.contratos.filter(function (c) { return c.fase === 'atraso'; }).length;
+    sinais.push({ l: 'Contratos em dia', p: prop(ativos.length - atr, ativos.length), v: (ativos.length - atr) + ' de ' + ativos.length });
+  }
+  const saude = Math.round(100 * sinais.reduce(function (s, x) { return s + x.p; }, 0) / sinais.length);
   return {
     rotulo: dataHoje, titulo: saudacao + ', <b>' + esc(primeiroNome) + '</b>.',
     banner: {
-      texto: minhas.length
-        ? 'Você tem <b>' + minhas.length + ' tarefa(s)</b> em aberto' + (vencendo ? ', <span class="al">' + vencendo + ' vencendo hoje ou atrasada(s)</span>' : ', nenhuma atrasada') + '. Os números das suas áreas estão logo abaixo.'
-        : 'Nada pendente com você agora. Os números das suas áreas estão logo abaixo.',
-      visual: { tipo: 'pontos', formas: formas },
+      manchete: saudacao + ', <b>' + esc(primeiroNome) + '</b>.' + (minhas.length ? ' Você tem <em>' + minhas.length + ' tarefa' + (minhas.length === 1 ? '' : 's') + '</em> em aberto.' : ' Nada <em>pendente</em> agora.'),
+      texto: (vencendo ? '<span class="al">' + vencendo + ' vencendo hoje ou atrasada(s)</span>. ' : 'Nenhuma atrasada. ') + 'Os números das suas áreas estão logo abaixo.',
+      painel: { tipo: 'anel', titulo: 'Seu ritmo', valor: String(saude), unidade: '%', rot: 'em dia', prog: saude / 100, barras: sinais },
     },
     corpo: '<div class="conteudo">' + blocos + '<div class="painel"><div>' + tarefas + '</div><div>' + (lado || '') + '</div></div></div>',
     montar: function (el) {
@@ -326,21 +342,30 @@ TELAS.inicio = {
           '<span class="pilula' + (atrasado ? ' alerta' : '') + '">' + icone('calendario').replace('<svg', '<svg width="12" height="12"') + dataCurta(o.previsao) + '</span></li>';
       }).join('') + '</ul>' : '<div class="vazio">Defina a previsão de fechamento nas oportunidades.</div>') + '</div></div>';
 
-    // Saúde do funil: parcela das oportunidades abertas que está andando (não parada).
-    const saude = abertas.length ? Math.round(100 * (abertas.length - paradas.length) / abertas.length) : 100;
+    // Saúde da operação (como no Be Flow): média de quatro sinais, cada um de 0 a 1.
     const vencendo = minhas.filter(function (t) { return t.prazo && t.prazo <= hoje; }).length;
+    const abertasEquipe = d.tarefas.filter(function (t) { return t.status !== 'feito'; });
+    const emDia = abertasEquipe.filter(function (t) { return !t.prazo || t.prazo >= hoje; }).length;
+    const props = d.propostas || [], enviadas = props.filter(function (p) { return p.status === 'enviada'; }).length;
+    const decididas = props.filter(function (p) { return p.status === 'aprovada' || p.status === 'recusada'; }).length;
+    const sinais = [
+      { l: 'Funil andando', p: prop(abertas.length - paradas.length, abertas.length), v: (abertas.length - paradas.length) + ' de ' + abertas.length },
+      { l: 'Tarefas em dia', p: prop(emDia, abertasEquipe.length), v: emDia + ' de ' + abertasEquipe.length },
+      { l: 'Propostas respondidas', p: prop(decididas, decididas + enviadas), v: decididas + ' de ' + (decididas + enviadas) },
+      { l: 'Chance ponderada', p: prop(ponderado, pipeline) },
+    ];
+    const saude = Math.round(100 * sinais.reduce(function (s, x) { return s + x.p; }, 0) / sinais.length);
     return {
       rotulo: dataHoje,
       titulo: saudacao + ', <b>' + esc(primeiroNome) + '</b>.',
       banner: {
-        texto: 'O funil soma <b>' + dinheiro(pipeline, true) + '</b> em ' + abertas.length + (abertas.length === 1 ? ' oportunidade' : ' oportunidades') +
-          ', com previsão ponderada de <b>' + dinheiro(ponderado, true) + '</b>.' +
+        manchete: saudacao + ', <b>' + esc(primeiroNome) + '</b>. O funil soma <em>' + dinheiro(pipeline, true) + '</em>.',
+        texto: abertas.length + (abertas.length === 1 ? ' oportunidade aberta' : ' oportunidades abertas') + ', com previsão ponderada de <b>' + dinheiro(ponderado, true) + '</b>.' +
           (paradas.length || vencendo
             ? ' Atenção: ' + [paradas.length ? '<span class="al">' + paradas.length + ' parada(s)</span> há ' + cfg.diasParado + '+ dias' : '',
                 vencendo ? '<span class="al">' + vencendo + ' tarefa(s) sua(s)</span> vencendo' : ''].filter(Boolean).join(' e ') + '.'
             : ' Tudo andando no ritmo.'),
-        visual: { tipo: 'orbita', valor: String(saude), unidade: '%', rot: 'saúde do funil', prog: saude / 100,
-          sats: [{ ic: 'funil', rot: 'Funil', ir: 'funil' }, { ic: 'propostas', rot: 'Propostas', ir: 'propostas' }, { ic: 'clientes', rot: 'Clientes', ir: 'clientes' }, { ic: 'tarefas', rot: 'Tarefas', ir: 'tarefas' }] },
+        painel: { tipo: 'anel', titulo: 'Saúde da operação', valor: String(saude), unidade: '%', rot: 'saúde', prog: saude / 100, barras: sinais },
       },
       acoes: pode('colaborador') ? '<button class="btn btn-primario" data-nova-op>' + icone('mais') + 'Nova oportunidade</button>' : '',
       corpo: '<div class="conteudo">' + kpis + '<div class="painel"><div>' + funil + atencao + '</div><div>' + tarefas + fechamentos + '</div></div></div>',

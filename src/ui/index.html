@@ -6,8 +6,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link id="fontes" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@200;300;400;500;600&display=swap">
-  <script>try { document.documentElement.setAttribute('data-tema', localStorage.getItem('flowloop.tema') || 'claro'); } catch (e) {}</script>
+  <link id="fontes" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@200;300;400;500;600;700&display=swap">
+  <script>try {
+    // As preferências antigas ficavam em "seokflow.*": copia para "flowloop.*" para ninguém perder tema e menu.
+    ['tema', 'menuRecolhido', 'logoParticulas', 'bvAdiado'].forEach(function (k) {
+      if (localStorage.getItem('flowloop.' + k) == null && localStorage.getItem('seokflow.' + k) != null) localStorage.setItem('flowloop.' + k, localStorage.getItem('seokflow.' + k));
+    });
+    document.documentElement.setAttribute('data-tema', localStorage.getItem('flowloop.tema') || 'claro');
+  } catch (e) {}</script>
   <?!= include('ui/estilos'); ?>
 </head>
 <body>
@@ -31,6 +37,7 @@
   <?!= include('ui/js-admin'); ?>
   <?!= include('ui/js-recursos'); ?>
   <?!= include('ui/js-boasvindas'); ?>
+  <?!= include('ui/design'); ?>
   <script>iniciar();</script>
 </body>
 </html>

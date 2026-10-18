@@ -293,9 +293,13 @@ TELAS.trafego = {
       rotulo: tfNomePeriodo(f.periodo) + ' · ' + tfCurta(per.de) + ' a ' + tfCurta(per.ate) + ' · ▲▼ vs. anterior',
       titulo: 'Tráfego <em>pago</em>',
       banner: {
-        texto: '<b>' + dinheiro(atual.inv, true) + '</b> investidos geraram <b>' + tfInt(atual.leads) + '</b> lead(s), com CPL de <b>' + tfCpl(atual.cpl) + '</b> e ROAS de <b>' + tfRoas(atual.roas) + '</b>.' +
-          (alertas.length ? ' <span class="al">' + alertas.length + ' campanha(s)</span> pedem atenção.' : ''),
-        visual: { tipo: 'pontos', formas: ['alvo', 'barras'] },
+        compacto: true,
+        chip: 'Tráfego pago · ' + tfNomePeriodo(f.periodo),
+        manchete: '<em>' + dinheiro(atual.inv, true) + '</em> investidos, <b>' + tfInt(atual.leads) + '</b> leads',
+        texto: 'CPL de <b>' + tfCpl(atual.cpl) + '</b> e ROAS de <b>' + tfRoas(atual.roas) + '</b> no período.' + (alertas.length ? ' <span class="al">' + alertas.length + ' campanha(s)</span> pedem atenção.' : ' Tudo dentro do esperado.'),
+        painel: temSemanas ? { tipo: 'colunas', titulo: 'Investimento · 12 semanas', total: dinheiro(total12.inv, true),
+          itens: semanas.map(function (s, i) { return { l: i % 3 === 0 ? s.ini.slice(8, 10) + '/' + s.ini.slice(5, 7) : '', v: s.t.inv, rot: 'Semana de ' + dataCurta(s.ini) + ': ' + dinheiro(s.t.inv), destaque: !!s.andamento }; }),
+          pe: (verbaMes ? '<b>' + Math.round(100 * gastoMes / verbaMes) + '%</b> da verba do mês usada' : 'Sem verba mensal ativa') } : null,
       },
       acoes: '<select class="entrada filtro" id="tf-per" aria-label="Período">' + opcoes(TF_PERIODOS, f.periodo) + '</select>' +
         '<select class="entrada filtro" id="tf-cli" aria-label="Cliente">' + opcoes(clientes, f.cliente, 'Todos os clientes') + '</select>' +

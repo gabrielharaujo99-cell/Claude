@@ -14,8 +14,13 @@ TELAS.clientes = {
     return {
       titulo: 'Carteira de <em>clientes</em>',
       banner: {
-        texto: '<b>' + ativos.length + '</b> cliente(s) ativos' + (porSeg.length ? ': ' + porSeg.map(function (x) { return esc(x.s) + ' <b>' + x.n + '</b>'; }).join(' · ') : '') + '.',
-        visual: { tipo: 'pontos', formas: ['pessoas', 'folha'] },
+        chip: 'Carteira de clientes',
+        manchete: '<em>' + ativos.length + '</em> ' + (ativos.length === 1 ? 'cliente ativo' : 'clientes ativos') + ' na carteira',
+        texto: porSeg.length ? 'Distribuídos pelos segmentos do wellness: ' + porSeg.map(function (x) { return esc(x.s) + ' <b>' + x.n + '</b>'; }).join(' · ') + '.' : 'Cadastre os clientes e escolha o segmento de cada um.',
+        painel: porSeg.length ? { tipo: 'lista', titulo: 'Por segmento', total: String(ativos.length), itens: (function () {
+          const max = Math.max.apply(null, porSeg.map(function (x) { return x.n; }).concat([1]));
+          return porSeg.map(function (x) { return { l: x.s, v: String(x.n), p: x.n / max }; });
+        })() } : null,
       },
       acoes: '<label class="busca">' + icone('busca') + '<input class="entrada" type="search" id="c-busca" placeholder="Buscar cliente" value="' + esc(f.busca) + '" aria-label="Buscar"></label>' +
         '<select class="entrada filtro" id="c-seg" aria-label="Segmento">' + opcoes(cfg.segmentos, f.segmento, 'Todos os segmentos') + '</select>' +
@@ -173,9 +178,14 @@ TELAS.tarefas = {
       titulo: titulos[f.quem] || titulos.minhas,
       banner: {
         compacto: true,
-        texto: '<b>' + abertasT.length + '</b> em aberto' + (hojeN ? ', <b>' + hojeN + '</b> para hoje' : '') +
-          (atrasadasT ? ' e <span class="al">' + atrasadasT + ' atrasada(s)</span>.' : '. Nenhuma atrasada.'),
-        visual: { tipo: 'pontos', formas: ['check', 'relogio'] },
+        chip: { minhas: 'Minhas tarefas', todas: 'Tarefas da equipe', pessoa: 'Quadro por pessoa' }[f.quem] || 'Tarefas',
+        manchete: '<em>' + abertasT.length + '</em> ' + (abertasT.length === 1 ? 'tarefa' : 'tarefas') + ' em aberto',
+        texto: (hojeN ? '<b>' + hojeN + '</b> para hoje' : 'Nada para hoje') + (atrasadasT ? ' e <span class="al">' + atrasadasT + ' atrasada(s)</span>.' : '. Nenhuma atrasada.'),
+        painel: { tipo: 'anel', titulo: 'Em dia', valor: String(Math.round(100 * prop(abertasT.length - atrasadasT, abertasT.length))), unidade: '%', rot: 'no prazo',
+          prog: prop(abertasT.length - atrasadasT, abertasT.length), barras: ['afazer', 'fazendo', 'feito'].map(function (s, i) {
+            const n = lista.filter(function (t) { return t.status === s; }).length;
+            return { l: NOME_STATUS_T[s], v: String(n), p: prop(n, lista.length), c: COR_HP[i] };
+          }) },
       },
       acoes: '<div class="segmentado" role="group" id="t-quem">' + [['minhas', 'Minhas'], ['todas', 'Toda a equipe'], ['pessoa', 'Por pessoa']].map(function (x) {
         return '<button data-v="' + x[0] + '" aria-pressed="' + (f.quem === x[0]) + '">' + x[1] + '</button>';
@@ -308,9 +318,14 @@ TELAS.propostas = {
     return {
       titulo: 'Propostas <em>comerciais</em>',
       banner: {
-        texto: '<b>' + dinheiro(soma('enviada'), true) + '</b> aguardando resposta em ' + nEnv + ' proposta(s). Aprovadas somam <b>' + dinheiro(soma('aprovada'), true) + '</b>' +
-          (decididas.length ? ', com taxa de aprovação de <b>' + taxa + '</b>.' : '.'),
-        visual: { tipo: 'pontos', formas: ['documento', 'check'] },
+        chip: 'Propostas comerciais',
+        manchete: '<em>' + dinheiro(soma('enviada'), true) + '</em> aguardando resposta',
+        texto: nEnv + ' proposta(s) com o cliente. Aprovadas somam <b>' + dinheiro(soma('aprovada'), true) + '</b>' + (decididas.length ? ', com taxa de aprovação de <b>' + taxa + '</b>.' : '.'),
+        painel: { tipo: 'anel', titulo: 'Aprovação', valor: decididas.length ? taxa.replace('%', '') : '—', unidade: decididas.length ? '%' : '', rot: 'aprovadas',
+          prog: decididas.length ? parseInt(taxa, 10) / 100 : 0, barras: Object.keys(NOME_STATUS_P).map(function (s, i) {
+            const n = todas.filter(function (p) { return p.status === s; }).length;
+            return { l: NOME_STATUS_P[s], v: String(n), p: prop(n, todas.length), c: COR_HP[i] };
+          }) },
       },
       acoes: '<div class="segmentado" role="group" id="p-status">' + [['', 'Todas']].concat(Object.keys(NOME_STATUS_P).map(function (k) { return [k, NOME_STATUS_P[k]]; })).map(function (x) {
         return '<button data-v="' + x[0] + '" aria-pressed="' + (f.status === x[0]) + '">' + x[1] + '</button>';
@@ -405,8 +420,9 @@ TELAS.horas = {
       titulo: 'Horas por <em>cliente</em>',
       banner: {
         compacto: true,
+        chip: 'Horas da equipe',
+        manchete: 'Horas por <em>cliente</em>',
         texto: 'Onde o tempo da equipe está indo: horas lançadas por cliente e por pessoa, no período escolhido.',
-        visual: { tipo: 'pontos', formas: ['relogio', 'pulso'] },
       },
       acoes: '<select class="entrada filtro" id="h-per" aria-label="Período">' + opcoes([{ v: 'semana', t: 'Esta semana' }, { v: 'mes', t: 'Este mês' }, { v: 'anterior', t: 'Mês passado' }, { v: 'tudo', t: 'Tudo' }], f.periodo) + '</select>' +
         (pode('gestor') ? '<select class="entrada filtro" id="h-pessoa" aria-label="Pessoa">' + opcoes(S.dados.equipe.map(function (m) { return { v: m.email, t: m.nome }; }), f.email, 'Toda a equipe') + '</select>' : '') +

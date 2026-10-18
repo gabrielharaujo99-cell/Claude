@@ -348,7 +348,7 @@ function aplicarMarca(m) {
   r.setProperty('--raio', (Number(m.raio) || 0) + 'px');
   const familias = [m.fonteTitulos, m.fonteTexto].filter(function (f, i, a) { return f && a.indexOf(f) === i; });
   const href = 'https://fonts.googleapis.com/css2?' + familias.map(function (f) {
-    return 'family=' + f.trim().replace(/\s+/g, '+') + ':wght@200;300;400;500;600';
+    return 'family=' + f.trim().replace(/\s+/g, '+') + ':wght@200;300;400;500;600;700';
   }).join('&') + '&display=swap';
   const link = document.getElementById('fontes');
   if (link && link.href !== href) link.href = href;

@@ -184,9 +184,16 @@ TELAS.social = {
     return {
       titulo: 'Social <em>media</em>',
       banner: {
-        texto: '<b>' + nPub + '</b> publicado(s) no mês, <b>' + nAg + '</b> agendado(s) para os próximos 7 dias e <b>' + nApr + '</b> com o cliente para aprovar.' +
-          (nAtr ? ' <span class="al">' + nAtr + ' atrasado(s)</span>.' : ''),
-        visual: { tipo: 'pontos', formas: ['coracao', 'balao'] },
+        compacto: true,
+        chip: 'Social media · produção de conteúdo',
+        manchete: '<em>' + nPub + '</em> ' + (nPub === 1 ? 'conteúdo publicado' : 'conteúdos publicados') + ' no mês',
+        texto: '<b>' + nAg + '</b> agendado(s) para os próximos 7 dias e <b>' + nApr + '</b> com o cliente para aprovar.' + (nAtr ? ' <span class="al">' + nAtr + ' atrasado(s)</span>.' : ' Nada atrasado.'),
+        painel: (function () {
+          const pend = posts.filter(function (p) { return p.status !== 'publicado'; }).length, max = Math.max(nPub, nAg, nApr, nAtr, 1);
+          return { tipo: 'anel', titulo: 'Esteira', valor: String(Math.round(100 * prop(pend - nAtr, pend))), unidade: '%', rot: 'no prazo', prog: prop(pend - nAtr, pend), barras: [
+            { l: 'Publicados no mês', v: String(nPub), p: nPub / max, c: COR_HP[0] }, { l: 'Agendados · 7 dias', v: String(nAg), p: nAg / max, c: COR_HP[2] },
+            { l: 'Em aprovação', v: String(nApr), p: nApr / max, c: COR_HP[3] }, { l: 'Atrasados', v: String(nAtr), p: nAtr / max, c: COR_HP[1] }] };
+        })(),
       },
       acoes: (temAlgo
         ? '<label class="busca">' + icone('busca') + '<input class="entrada" type="search" id="sm-busca" placeholder="Buscar conteúdo ou cliente" value="' + esc(f.busca) + '" aria-label="Buscar"></label>' +
