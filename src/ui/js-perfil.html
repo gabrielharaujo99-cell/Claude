@@ -1,0 +1,249 @@
+<script>
+/**
+ * Barra da marca: presença (quem está online, com foto), tema, e o cartão de perfil ao clicar na sua foto,
+ * no jeito do Google Workspace. Também o perfil das outras pessoas e a edição do seu (foto, nome, cargo, telefone).
+ */
+const NOME_TELA = { inicio: 'Início', cvision: 'C-Vision', social: 'Social media', trafego: 'Tráfego', funil: 'Funil', propostas: 'Propostas', financeiro: 'Financeiro', clientes: 'Clientes', tarefas: 'Tarefas', horas: 'Horas', admin: 'Admin' };
+const NOME_AREA_TELA = { social: 'Social media', trafego: 'Tráfego', comercial: 'Comercial', financeiro: 'Financeiro' };
+let PRESENCA_TIMER = null;
+
+function eu() { return membro(S.dados.eu.email) || S.dados.eu; }
+function online(email) { return (S.dados.online || []).some(function (p) { return p.email === email; }); }
+function temaAtual() { return document.documentElement.getAttribute('data-tema') || 'claro'; }
+
+function ligarBarra() {
+  desenharPresenca();
+  desenharBotaoTema();
+  document.getElementById('abrir-perfil').onclick = abrirCartaoPerfil;
+  document.getElementById('tema-rapido').onclick = function () { trocarTema(temaAtual() === 'claro' ? 'escuro' : 'claro'); };
+  document.getElementById('presenca').addEventListener('click', function (e) {
+    const a = e.target.closest('[data-pessoa]');
+    if (a) return abrirPessoa(a.dataset.pessoa);
+    if (e.target.closest('[data-mais]')) abrirQuemEstaOnline();
+  });
+}
+
+function desenharBotaoTema() {
+  const b = document.getElementById('tema-rapido');
+  if (!b) return;
+  const claro = temaAtual() === 'claro';
+  b.innerHTML = icone(claro ? 'lua' : 'sol');
+  b.title = claro ? 'Tema escuro' : 'Tema claro';
+}
+
+// Quem está online agora, menos você (você aparece no seu avatar, com a bolinha verde).
+function desenharPresenca() {
+  const box = document.getElementById('presenca');
+  if (!box) return;
+  const outros = (S.dados.online || []).filter(function (p) { return p.email !== S.dados.eu.email && membro(p.email); });
+  const vis = outros.slice(0, 5);
+  box.innerHTML = vis.map(function (p) {
+    return avatar(p.email, '', true).replace('<span class="avatar', '<span data-pessoa="' + esc(p.email) + '" class="avatar').replace(' · online"', ' · online em ' + esc(NOME_TELA[p.tela] || produto()) + '"');
+  }).join('') + (outros.length > 5 ? '<button type="button" class="mais" data-mais>+' + (outros.length - 5) + '</button>' : '');
+  box.title = outros.length ? outros.length + ' pessoa(s) online agora' : '';
+}
+
+function iniciarPresenca() {
+  avisarPresenca();
+  clearInterval(PRESENCA_TIMER);
+  PRESENCA_TIMER = setInterval(avisarPresenca, 45000);
+  window.addEventListener('pagehide', function () { try { google.script.run.sair(); } catch (e) { /* fechando */ } });
+}
+
+function avisarPresenca() {
+  if (!S.dados) return;
+  chamar('ping', S.tela, BUILD).then(function (r) {
+    const lista = Array.isArray(r) ? r : r && r.online;
+    if (r && r.build && BUILD !== 'dev' && r.build !== BUILD) avisarVersaoNova();
+    if (!lista) return;
+    S.dados.online = lista;
+    desenharPresenca();
+  }).catch(function () { /* sem rede: tenta na próxima */ });
+}
+
+function abrirQuemEstaOnline() {
+  const lista = (S.dados.online || []).filter(function (p) { return membro(p.email); });
+  const m = modal({
+    titulo: 'Online agora', estreito: true,
+    corpo: '<ul class="pf-online">' + lista.map(function (p) {
+      const pm = membro(p.email);
+      return '<li data-pessoa="' + esc(p.email) + '">' + avatar(p.email, 'g', true) + '<div style="flex:1;min-width:0"><b style="font-weight:500">' + esc(pm.nome) + '</b>' +
+        '<div class="mudo pequeno">' + esc(pm.cargo || NOME_PAPEL[pm.papel]) + ' · em ' + esc(NOME_TELA[p.tela] || produto()) + '</div></div></li>';
+    }).join('') + '</ul>',
+  });
+  m.el.querySelectorAll('[data-pessoa]').forEach(function (li) { li.onclick = function () { m.fechar(); abrirPessoa(li.dataset.pessoa); }; });
+}
+
+async function trocarTema(t) {
+  aplicarTema(t);
+  desenharBotaoTema();
+  S.dados.eu.tema = t;
+  const c = document.querySelector('.pf-cartao');
+  if (c) c.querySelectorAll('.pf-tema').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.v === t); });
+  try { await chamar('salvarPerfil', { tema: t }); } catch (e) { /* fica só neste navegador */ }
+}
+
+// ---------- cartão de perfil (clique na sua foto) ----------
+function abrirCartaoPerfil() {
+  if (document.querySelector('.pf-fundo')) return fecharCartaoPerfil();
+  const me = eu(), papel = NOME_PAPEL[S.dados.eu.papel];
+  const areas = (S.dados.eu.areas || []).map(function (a) { return NOME_AREA_TELA[a]; });
+  const fundo = document.createElement('div');
+  fundo.className = 'pf-fundo';
+  fundo.innerHTML = '<div class="pf-cartao" role="dialog" aria-label="Seu perfil">' +
+    '<div class="pf-topo"><span>' + esc(me.email) + '</span><button type="button" class="btn btn-fantasma btn-icone btn-peq" data-fechar-pf aria-label="Fechar">' + icone('fechar') + '</button></div>' +
+    '<div class="pf-centro">' +
+      '<button type="button" class="pf-foto" data-foto title="Trocar a foto">' + avatar(me.email, 'xg') + '<span class="pf-cam">' + icone('camera') + '</span></button>' +
+      '<div class="pf-ola">Olá, ' + esc(String(me.nome).split(' ')[0]) + '!</div>' +
+      (me.cargo ? '<span class="mudo">' + esc(me.cargo) + '</span>' : '') +
+      '<div class="pf-selo"><span class="pilula destaque">' + esc(papel) + '</span>' + (S.dados.eu.cvision ? '<span class="pilula ok">C-Vision</span>' : '') + '</div>' +
+      (areas.length ? '<span class="mudo pequeno">' + esc(areas.join(' · ')) + '</span>' : '') +
+      '<button type="button" class="btn" data-gerenciar style="margin-top:6px;text-transform:none;letter-spacing:0;font-size:13px">Gerenciar o seu perfil</button>' +
+    '</div>' +
+    '<div class="pf-temas" role="group" aria-label="Tema">' + TEMAS.map(function (t) {
+      return '<button type="button" class="pf-tema" data-v="' + t.id + '" aria-pressed="' + (temaAtual() === t.id) + '"><i></i>' + esc(t.nome) + '</button>';
+    }).join('') + '</div>' +
+    '<div class="pf-lista">' +
+      '<button type="button" data-ver>' + icone('usuario') + 'Ver perfil</button>' +
+      '<button type="button" data-config>' + icone('admin') + 'Configurações</button>' +
+      '<a href="https://accounts.google.com/AccountChooser?continue=' + encodeURIComponent(S.dados.urlApp || '') + '" target="_top">' + icone('trocar') + 'Trocar de conta Google</a>' +
+      '<a class="sair" href="https://accounts.google.com/Logout" target="_top">' + icone('sair') + 'Sair</a>' +
+    '</div>' +
+    '<div class="pf-pe">' + esc(S.dados.config.produto + ' · ' + S.dados.config.empresa) + '</div></div>';
+  document.body.appendChild(fundo);
+  const fechar = fecharCartaoPerfil;
+  fundo.addEventListener('mousedown', function (e) { if (e.target === fundo) fechar(); });
+  fundo.querySelector('[data-fechar-pf]').onclick = fechar;
+  fundo.querySelector('[data-foto]').onclick = function () { escolherFoto(); };
+  fundo.querySelector('[data-gerenciar]').onclick = function () { fechar(); abrirEditarPerfil(); };
+  fundo.querySelector('[data-ver]').onclick = function () { fechar(); abrirPessoa(S.dados.eu.email); };
+  fundo.querySelector('[data-config]').onclick = function () { fechar(); if (pode('admin')) irPara('admin'); else abrirEditarPerfil(); };
+  fundo.querySelectorAll('.pf-tema').forEach(function (b) { b.onclick = function () { trocarTema(b.dataset.v); }; });
+  document.addEventListener('keydown', escPerfil);
+}
+
+function escPerfil(e) { if (e.key === 'Escape') fecharCartaoPerfil(); }
+function fecharCartaoPerfil() {
+  const f = document.querySelector('.pf-fundo');
+  if (f) f.remove();
+  document.removeEventListener('keydown', escPerfil);
+}
+
+// ---------- foto: escolher, recortar quadrada e reduzir antes de enviar ----------
+function escolherFoto() {
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'image/jpeg,image/png,image/webp';
+  inp.onchange = async function () {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    try {
+      const url = await reduzirFoto(f);
+      await salvarMeuPerfil({ foto: url }, 'Foto atualizada.');
+    } catch (e) { toast(e.message, { erro: true }); }
+  };
+  inp.click();
+}
+
+function reduzirFoto(arquivo) {
+  return new Promise(function (ok, erro) {
+    if (!/^image\/(jpeg|png|webp)$/.test(arquivo.type)) return erro(new Error('Use uma imagem JPG, PNG ou WEBP.'));
+    const leitor = new FileReader();
+    leitor.onerror = function () { erro(new Error('Não deu para ler a imagem.')); };
+    leitor.onload = function () {
+      const img = new Image();
+      img.onerror = function () { erro(new Error('Imagem inválida.')); };
+      img.onload = function () {
+        const lado = Math.min(img.width, img.height), tam = 192;
+        const cv = document.createElement('canvas');
+        cv.width = cv.height = tam;
+        cv.getContext('2d').drawImage(img, (img.width - lado) / 2, (img.height - lado) / 2, lado, lado, 0, 0, tam, tam);
+        let q = 0.88, url = cv.toDataURL('image/jpeg', q);
+        while (url.length > 46000 && q > 0.4) { q -= 0.12; url = cv.toDataURL('image/jpeg', q); }
+        if (url.length > 46000) return erro(new Error('Imagem grande demais.'));
+        ok(url);
+      };
+      img.src = leitor.result;
+    };
+    leitor.readAsDataURL(arquivo);
+  });
+}
+
+async function salvarMeuPerfil(d, msg) {
+  const r = await gravar('salvarPerfil', [d], msg);
+  if (!r) return null;
+  trocar('equipe', Object.assign({}, membro(r.email) || {}, r), 'email');
+  S.dados.eu.nome = r.nome;
+  registrarFotos();
+  montarShell();
+  irPara(S.tela);
+  return r;
+}
+
+function abrirEditarPerfil() {
+  const me = eu();
+  const m = modal({
+    titulo: 'Seu perfil', estreito: true,
+    corpo: '<div style="display:flex;align-items:center;gap:16px;margin-bottom:18px">' +
+        '<button type="button" class="pf-foto" data-foto title="Trocar a foto">' + avatar(me.email, 'xg') + '<span class="pf-cam">' + icone('camera') + '</span></button>' +
+        '<div style="display:grid;gap:6px"><button type="button" class="btn btn-peq" data-foto>' + icone('camera') + 'Enviar foto</button>' +
+        (me.foto ? '<button type="button" class="btn btn-peq btn-fantasma btn-perigo" data-tirar-foto>Remover foto</button>' : '') +
+        '<span class="mudo pequeno">JPG, PNG ou WEBP. Cortamos quadrada.</span></div></div>' +
+      '<form id="form-perfil" class="grade" autocomplete="off">' +
+        '<label class="campo inteira"><span>Nome</span><input name="nome" required maxlength="80" value="' + esc(me.nome) + '"></label>' +
+        '<label class="campo"><span>Cargo</span><input name="cargo" maxlength="80" value="' + esc(me.cargo) + '"></label>' +
+        '<label class="campo"><span>Telefone</span><input name="telefone" type="tel" maxlength="30" value="' + esc(me.telefone) + '" placeholder="(11) 90000-0000"></label>' +
+        '<label class="campo inteira"><span>E-mail</span><input value="' + esc(me.email) + '" disabled><small>Papel e áreas são definidos pelo administrador.</small></label>' +
+      '</form>',
+    pe: '<button class="btn btn-fantasma" data-fechar>Cancelar</button><button class="btn btn-primario" data-salvar>Salvar</button>',
+  });
+  m.el.querySelectorAll('[data-foto]').forEach(function (b) { b.onclick = function () { m.fechar(); escolherFoto(); }; });
+  const tirar = m.el.querySelector('[data-tirar-foto]');
+  if (tirar) tirar.onclick = async function () { m.fechar(); await salvarMeuPerfil({ foto: '' }, 'Foto removida.'); };
+  const form = m.el.querySelector('#form-perfil'), salvar = m.el.querySelector('[data-salvar]');
+  form.addEventListener('submit', function (e) { e.preventDefault(); salvar.click(); });
+  salvar.onclick = function () {
+    const d = lerForm(form);
+    if (!d.nome.trim()) return form.nome.focus();
+    ocupado(salvar, async function () { if (await salvarMeuPerfil({ nome: d.nome, cargo: d.cargo, telefone: d.telefone }, 'Perfil salvo.')) m.fechar(); });
+  };
+}
+
+// ---------- perfil de qualquer pessoa ----------
+function abrirPessoa(email) {
+  const p = membro(email);
+  if (!p) return;
+  const pres = (S.dados.online || []).filter(function (x) { return x.email === email; })[0];
+  const minhas = S.dados.tarefas.filter(function (t) { return t.responsavel === email && t.status !== 'feito'; });
+  const atrasadas = minhas.filter(function (t) { return t.prazo && t.prazo < S.dados.hoje; }).length;
+  const conta = function (lista, campo) { return (S.dados[lista] || []).filter(function (x) { return x[campo] === email; }).length; };
+  const nums = [['Tarefas abertas', minhas.length], ['Atrasadas', atrasadas]];
+  if ((S.dados.oportunidades || []).length) nums.push(['Oportunidades', (S.dados.oportunidades || []).filter(function (o) { return o.responsavel === email && !o.arquivado; }).length]);
+  if ((S.dados.posts || []).length) nums.push(['Conteúdos', conta('posts', 'responsavel')]);
+  if ((S.dados.campanhas || []).length) nums.push(['Campanhas', conta('campanhas', 'responsavel')]);
+  const sou = email === S.dados.eu.email;
+  const m = modal({
+    titulo: p.nome, estreito: true,
+    html: '<div style="padding:26px 24px 8px;display:grid;justify-items:center;gap:8px;text-align:center;position:relative">' +
+        '<button class="btn btn-fantasma btn-icone" data-fechar aria-label="Fechar" style="position:absolute;top:14px;right:14px">' + icone('fechar') + '</button>' +
+        avatar(email, 'xg', !!pres) +
+        '<h2 style="font-weight:300;font-size:24px;letter-spacing:-.02em;margin-top:6px">' + esc(p.nome) + '</h2>' +
+        '<span class="mudo">' + esc(p.cargo || NOME_PAPEL[p.papel]) + '</span>' +
+        '<span class="pilula' + (pres ? ' ok' : '') + '">' + (pres ? 'Online agora · em ' + esc(NOME_TELA[pres.tela] || produto()) : 'Offline') + '</span>' +
+        '<div class="chips" style="justify-content:center;display:flex;gap:6px;flex-wrap:wrap">' + (p.areas || []).map(function (a) { return '<span class="pilula destaque">' + esc(NOME_AREA_TELA[a]) + '</span>'; }).join('') + '</div>' +
+      '</div>' +
+      '<div class="modal-corpo"><div style="display:grid;grid-template-columns:repeat(' + nums.length + ',1fr);gap:8px;text-align:center;margin-bottom:18px">' + nums.map(function (n) {
+        return '<div class="cartao" style="padding:10px 6px;box-shadow:none"><b style="display:block;font-weight:300;font-size:22px">' + n[1] + '</b><span class="mudo" style="font-size:10.5px;letter-spacing:.06em;text-transform:uppercase">' + n[0] + '</span></div>';
+      }).join('') + '</div>' +
+      '<div class="pf-lista">' +
+        '<a href="mailto:' + esc(p.email) + '">' + icone('balao') + esc(p.email) + '</a>' +
+        (p.telefone ? '<a href="tel:' + esc(p.telefone.replace(/[^\d+]/g, '')) + '">' + icone('telefone') + esc(p.telefone) + '</a>' : '') +
+      '</div></div>' +
+      '<div class="modal-pe">' + (sou ? '<button class="btn" data-editar-eu>Editar meu perfil</button>' : pode('colaborador') ? '<button class="btn" data-tarefa-p>' + icone('mais') + 'Nova tarefa para ' + esc(String(p.nome).split(' ')[0]) + '</button>' : '') + '</div>',
+  });
+  const ed = m.el.querySelector('[data-editar-eu]');
+  if (ed) ed.onclick = function () { m.fechar(); abrirEditarPerfil(); };
+  const tf = m.el.querySelector('[data-tarefa-p]');
+  if (tf) tf.onclick = function () { m.fechar(); abrirFormTarefa({ responsavel: email }); };
+}
+</script>

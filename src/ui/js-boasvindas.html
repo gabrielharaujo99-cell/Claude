@@ -1,0 +1,183 @@
+<style>
+/* Assistente de primeira configuração: aparece para o admin numa instalação nova. */
+.bv-passos { display: flex; gap: 6px; margin-bottom: 18px; }
+.bv-passos i { flex: 1; height: 4px; border-radius: 100px; background: var(--afundado); }
+.bv-passos i.ok { background: var(--destaque); }
+.bv-logo { display: flex; align-items: center; gap: 16px; padding: 14px; border: 2px dashed var(--linha-forte); border-radius: var(--raio); cursor: pointer; transition: border-color .15s, background .15s; }
+.bv-logo:hover, .bv-logo.sobre { border-color: var(--destaque); background: var(--destaque-claro); }
+.bv-logo .prev { width: 120px; height: 56px; display: grid; place-items: center; border-radius: 12px; background: var(--afundado); overflow: hidden; flex: none; font-weight: 600; font-size: 20px; color: var(--suave); }
+.bv-logo .prev img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.bv-cores { display: flex; gap: 8px; flex-wrap: wrap; }
+.bv-cores button { width: 38px; height: 38px; border-radius: 12px; border: 2px solid transparent; cursor: pointer; }
+.bv-cores button[aria-pressed="true"] { border-color: var(--texto); box-shadow: 0 0 0 2px var(--superficie) inset; }
+.bv-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.bv-chips button { padding: 6px 12px; border-radius: 100px; border: 1px solid var(--linha); background: var(--superficie); color: var(--texto); font: inherit; font-size: 13px; cursor: pointer; }
+.bv-chips button[aria-pressed="true"] { background: var(--destaque); border-color: var(--destaque); color: #fff; }
+.bv-equipe { display: grid; gap: 8px; }
+.bv-equipe .l { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) 150px 34px; gap: 8px; }
+.bv-fim { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.bv-fim button { text-align: left; padding: 18px; border-radius: var(--raio); border: 1px solid var(--linha); background: var(--superficie); color: var(--texto); font: inherit; cursor: pointer; display: grid; gap: 6px; }
+.bv-fim button:hover { border-color: var(--destaque); }
+.bv-fim b { font-size: 15px; }
+.bv-fim span { color: var(--suave); font-size: 13px; }
+@media (max-width: 640px) { .bv-equipe .l { grid-template-columns: minmax(0, 1fr) 34px; } .bv-equipe .l input[data-n] { grid-column: 1 / -1; } .bv-fim { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<script>
+/**
+ * Boas-vindas: numa instalação nova (agência ainda sem nome e sem clientes), o admin passa por 4 passos:
+ * agência (nome e logo), cor e segmentos, equipe, e como começar (vazio ou com dados de exemplo).
+ * Grava pelo salvarConfig e pelo salvarMembro, os mesmos do Admin.
+ */
+const BV_CORES = ['#141A0F', '#1E3A5F', '#4338CA', '#7C3AED', '#BE185D', '#B91C1C', '#C2410C', '#A16207', '#15803D', '#0F766E', '#334155', '#111111'];
+const BV_SEGMENTOS = ['Saúde', 'Fitness', 'Estética', 'Alimentação', 'Varejo', 'Moda', 'Serviços', 'Educação', 'Imobiliário', 'Indústria', 'Tecnologia', 'Turismo', 'Automotivo', 'Advocacia', 'Pets'];
+const BV_AREAS = [['comercial', 'Comercial'], ['social', 'Social media'], ['trafego', 'Tráfego'], ['financeiro', 'Financeiro']];
+
+function instalacaoNova() {
+  const d = S.dados;
+  return pode('admin') && d.config.empresa === 'Sua agência' && !d.clientes.length && !(d.oportunidades || []).length;
+}
+
+// Chamado depois de montar a tela: abre o assistente uma vez por sessão.
+function talvezBoasVindas() {
+  try { if (sessionStorage.getItem('flowloop.bvAdiado')) return; } catch (e) { /* segue */ }
+  if (instalacaoNova()) setTimeout(abrirBoasVindas, 400);
+}
+
+// Lê a imagem e devolve um PNG pequeno (data:) com a largura pedida; SVG passa como está.
+function bvImagem(file, larg) {
+  return new Promise(function (ok, erro) {
+    const leitor = new FileReader();
+    leitor.onerror = function () { erro(new Error('Não deu para ler a imagem.')); };
+    leitor.onload = function () {
+      const url = String(leitor.result);
+      if (/^data:image\/svg\+xml/.test(url)) return ok(url);
+      const img = new Image();
+      img.onerror = function () { erro(new Error('Imagem inválida.')); };
+      img.onload = function () {
+        const w = Math.min(larg, img.width), h = Math.round(w * img.height / img.width);
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        ok(c.toDataURL('image/png'));
+      };
+      img.src = url;
+    };
+    leitor.readAsDataURL(file);
+  });
+}
+
+function abrirBoasVindas() {
+  const cfg = S.dados.config;
+  const st = { passo: 0, empresa: '', logo: '', logoP: '', cor: cfg.marca.primaria, segmentos: [], equipe: [{ nome: '', email: '', area: 'social' }] };
+  const m = modal({ titulo: 'Bem-vindo ao ' + produto(), corpo: '<div id="bv"></div>', pe: '<div id="bv-pe" style="display:contents"></div>' });
+  const box = m.el.querySelector('#bv'), pe = m.el.querySelector('#bv-pe');
+  const titulo = m.el.querySelector('.modal-cab h2');
+  const adiar = function () { try { sessionStorage.setItem('flowloop.bvAdiado', '1'); } catch (e) { /* segue */ } m.fechar(); };
+  m.el.querySelector('.modal-cab [data-fechar]').onclick = adiar;
+
+  const barra = function () { return '<div class="bv-passos">' + [0, 1, 2, 3].map(function (k) { return '<i class="' + (k <= st.passo ? 'ok' : '') + '"></i>'; }).join('') + '</div>'; };
+  const desenharPasso = function () {
+    if (st.passo === 0) {
+      titulo.textContent = 'Bem-vindo ao ' + produto();
+      box.innerHTML = barra() + '<p class="mudo" style="margin:0 0 16px">Em 4 passos rápidos o sistema fica com a cara da sua agência. Dá para mudar tudo depois em Admin.</p>' +
+        '<form class="grade" onsubmit="return false"><label class="campo inteira"><span>Nome da agência</span><input id="bv-nome" maxlength="60" required placeholder="Ex.: Agência Aurora" value="' + esc(st.empresa) + '"></label>' +
+        '<div class="campo inteira"><span>Logo (opcional)</span><div class="bv-logo" id="bv-logo" tabindex="0"><span class="prev">' + (st.logo ? '<img src="' + esc(st.logo) + '" alt="">' : esc(iniciais(st.empresa || 'Sua agência'))) + '</span>' +
+          '<span><b>Clique ou solte a imagem do logo</b><br><span class="mudo pequeno">PNG, JPG ou SVG. De preferência com fundo transparente.</span></span><input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" hidden id="bv-arq"></div></div></form>';
+      pe.innerHTML = '<button class="btn btn-fantasma" data-adiar>Agora não</button><button class="btn btn-primario" data-ok>Continuar</button>';
+      const nome = box.querySelector('#bv-nome'), zona = box.querySelector('#bv-logo'), arq = box.querySelector('#bv-arq');
+      nome.focus();
+      nome.addEventListener('input', function () { st.empresa = nome.value; if (!st.logo) zona.querySelector('.prev').textContent = iniciais(nome.value || 'Sua agência'); });
+      const usar = async function (f) {
+        if (!f) return;
+        if (f.size > 4 * 1024 * 1024) return toast('Imagem grande demais (máximo 4 MB).', { erro: true });
+        try {
+          st.logo = await bvImagem(f, 480);
+          st.logoP = await bvImagem(f, 200);
+          if (st.logo.length > 290000) { st.logo = ''; return toast('O logo ficou pesado demais. Tente um PNG menor ou um SVG.', { erro: true }); }
+          if (st.logoP.length > 19000) st.logoP = '';
+          zona.querySelector('.prev').innerHTML = '<img src="' + esc(st.logo) + '" alt="">';
+        } catch (e) { toast(e.message, { erro: true }); }
+      };
+      zona.onclick = function () { arq.click(); };
+      zona.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); arq.click(); } };
+      arq.onchange = function () { usar(arq.files[0]); };
+      zona.addEventListener('dragover', function (e) { e.preventDefault(); zona.classList.add('sobre'); });
+      zona.addEventListener('dragleave', function () { zona.classList.remove('sobre'); });
+      zona.addEventListener('drop', function (e) { e.preventDefault(); zona.classList.remove('sobre'); usar(e.dataTransfer.files[0]); });
+      pe.querySelector('[data-ok]').onclick = function () { st.empresa = nome.value.trim(); if (!st.empresa) return nome.focus(); st.passo = 1; desenharPasso(); };
+    } else if (st.passo === 1) {
+      titulo.textContent = 'Cor e segmentos';
+      box.innerHTML = barra() + '<div class="grade"><div class="campo inteira"><span>Cor principal da agência</span><div class="bv-cores">' + BV_CORES.map(function (c) {
+          return '<button type="button" style="background:' + c + '" data-cor="' + c + '" aria-pressed="' + (st.cor === c) + '" aria-label="Cor ' + c + '"></button>';
+        }).join('') + '<label class="campo" style="margin:0"><input type="color" id="bv-cor" value="' + esc(st.cor) + '" style="width:48px;height:38px;padding:2px" aria-label="Outra cor"></label></div></div>' +
+        '<div class="campo inteira"><span>Segmentos dos clientes que vocês atendem</span><div class="bv-chips">' + BV_SEGMENTOS.map(function (s) {
+          return '<button type="button" data-seg="' + esc(s) + '" aria-pressed="' + (st.segmentos.indexOf(s) >= 0) + '">' + esc(s) + '</button>';
+        }).join('') + '</div><small>Aparecem no cadastro de clientes e nos filtros. Escolha quantos quiser.</small></div></div>';
+      pe.innerHTML = '<button class="btn btn-fantasma" data-volta>Voltar</button><button class="btn btn-primario" data-ok>Continuar</button>';
+      box.querySelectorAll('[data-cor]').forEach(function (b) { b.onclick = function () { st.cor = b.dataset.cor; box.querySelector('#bv-cor').value = st.cor; box.querySelectorAll('[data-cor]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); }; });
+      box.querySelector('#bv-cor').oninput = function () { st.cor = this.value; box.querySelectorAll('[data-cor]').forEach(function (x) { x.setAttribute('aria-pressed', 'false'); }); };
+      box.querySelectorAll('[data-seg]').forEach(function (b) { b.onclick = function () { const s = b.dataset.seg, i = st.segmentos.indexOf(s); if (i >= 0) st.segmentos.splice(i, 1); else st.segmentos.push(s); b.setAttribute('aria-pressed', String(i < 0)); }; });
+      pe.querySelector('[data-volta]').onclick = function () { st.passo = 0; desenharPasso(); };
+      pe.querySelector('[data-ok]').onclick = function () { st.passo = 2; desenharPasso(); };
+    } else if (st.passo === 2) {
+      titulo.textContent = 'Sua equipe';
+      const linha = function (p, k) {
+        return '<div class="l" data-k="' + k + '"><input class="entrada" data-n placeholder="Nome" value="' + esc(p.nome) + '"><input class="entrada" data-e type="email" placeholder="email@agencia.com.br" value="' + esc(p.email) + '">' +
+          '<select class="entrada" data-a>' + opcoes(BV_AREAS.map(function (a) { return { v: a[0], t: a[1] }; }), p.area) + '</select>' +
+          '<button type="button" class="btn btn-fantasma btn-icone btn-peq" data-tira aria-label="Tirar">' + icone('fechar') + '</button></div>';
+      };
+      box.innerHTML = barra() + '<p class="mudo" style="margin:0 0 14px">Quem vai usar o sistema. Cada pessoa entra com a própria conta Google e só vê a área dela. Você já está como admin.</p>' +
+        '<div class="bv-equipe" id="bv-eq">' + st.equipe.map(linha).join('') + '</div><button type="button" class="btn btn-fantasma btn-peq" data-mais style="margin-top:10px">' + icone('mais') + 'Pessoa</button>' +
+        '<p class="mudo pequeno" style="margin:12px 0 0">Pode pular e adicionar depois em Admin › Equipe.</p>';
+      pe.innerHTML = '<button class="btn btn-fantasma" data-volta>Voltar</button><button class="btn btn-primario" data-ok>Salvar e continuar</button>';
+      const eq = box.querySelector('#bv-eq');
+      const ler = function () { st.equipe = Array.prototype.map.call(eq.querySelectorAll('.l'), function (l) { return { nome: l.querySelector('[data-n]').value.trim(), email: l.querySelector('[data-e]').value.trim().toLowerCase(), area: l.querySelector('[data-a]').value }; }); };
+      box.querySelector('[data-mais]').onclick = function () { ler(); st.equipe.push({ nome: '', email: '', area: 'social' }); eq.insertAdjacentHTML('beforeend', linha(st.equipe[st.equipe.length - 1], st.equipe.length - 1)); };
+      eq.addEventListener('click', function (e) { const b = e.target.closest('[data-tira]'); if (b) b.parentNode.remove(); });
+      pe.querySelector('[data-volta]').onclick = function () { ler(); st.passo = 1; desenharPasso(); };
+      const ok = pe.querySelector('[data-ok]');
+      ok.onclick = function () {
+        ler();
+        const ruins = st.equipe.filter(function (p) { return p.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email); });
+        if (ruins.length) return toast('Confira o e-mail de ' + (ruins[0].nome || ruins[0].email) + '.', { erro: true });
+        ocupado(ok, salvarTudo);
+      };
+    } else {
+      titulo.textContent = 'Tudo pronto';
+      box.innerHTML = barra() + '<p style="margin:0 0 16px">O <b>' + esc(produto()) + '</b> já está com a cara da <b>' + esc(st.empresa) + '</b>. Como você quer começar?</p>' +
+        '<div class="bv-fim"><button type="button" data-vazio><b>Começar do zero</b><span>Cadastre o primeiro cliente ou oportunidade agora.</span></button>' +
+        '<button type="button" data-exemplo><b>Ver com dados de exemplo</b><span>Clientes, funil, conteúdos e números fictícios para conhecer tudo. Dá para apagar depois.</span></button></div>';
+      pe.innerHTML = '';
+      box.querySelector('[data-vazio]').onclick = function () { m.fechar(); irPara('clientes'); abrirFormCliente(); };
+      box.querySelector('[data-exemplo]').onclick = async function () {
+        const b = this; b.disabled = true; b.querySelector('b').textContent = 'Carregando exemplo…';
+        const r = await gravar('popularExemplo', [], 'Exemplo carregado.');
+        if (r != null) { if (S.dados.listas && S.dados.listas.fasesEstrategia) await gravar('popularSocialExemplo', []); m.fechar(); recarregar(); } else b.disabled = false;
+      };
+    }
+  };
+
+  const salvarTudo = async function () {
+    const nova = Object.assign({}, S.dados.config, {
+      empresa: st.empresa,
+      segmentos: st.segmentos.length ? st.segmentos : S.dados.config.segmentos,
+      marca: Object.assign({}, S.dados.config.marca, { primaria: st.cor, logoUrl: st.logo || S.dados.config.marca.logoUrl, logoParticulas: st.logoP || S.dados.config.marca.logoParticulas }),
+    });
+    const r = await gravar('salvarConfig', [nova]);
+    if (!r) return;
+    S.dados.config = r;
+    aplicarMarca(r.marca);
+    try { localStorage.setItem('flowloop.logoParticulas', r.marca.logoParticulas || ''); } catch (e) { /* segue */ }
+    for (const p of st.equipe.filter(function (x) { return x.email; })) {
+      const lista = await gravar('salvarMembro', [{ email: p.email, nome: p.nome, papel: 'colaborador', areas: [p.area] }]);
+      if (lista) S.dados.equipe = lista;
+    }
+    montarShell(); irPara(S.tela);
+    toast('Agência configurada.');
+    st.passo = 3; desenharPasso();
+  };
+
+  desenharPasso();
+  // Ao fechar sem terminar, não insiste nesta sessão.
+  pe.addEventListener('click', function (e) { if (e.target.closest('[data-adiar]')) adiar(); });
+}
+</script>

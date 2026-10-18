@@ -1,0 +1,600 @@
+<style>
+/* Social media: quadro por status, calendário do mês e visão por cliente. */
+.sm-cab { padding-bottom: 0; }
+.sm-pe { padding-top: 0; }
+.sm-st-pauta { --sm-cor: var(--apagado); }
+.sm-st-producao { --sm-cor: var(--cobre); }
+.sm-st-aprovacao { --sm-cor: color-mix(in srgb, var(--cobre) 50%, var(--destaque)); }
+.sm-st-agendado { --sm-cor: var(--destaque); }
+.sm-st-publicado { --sm-cor: var(--ok); }
+.sm-ponto { width: 8px; height: 8px; border-radius: 50%; background: var(--sm-cor); flex: none; display: inline-block; }
+.sm-kpi-alerta .valor { color: var(--alerta); }
+.sm-resumo { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: -6px 0 18px; font-size: 13px; color: var(--suave); }
+.sm-resumo .btn { margin-left: 2px; }
+
+/* quadro */
+.sm-quadro { min-height: 0; padding-top: 0; }
+.sm-quadro .coluna { flex: 1 0 250px; max-height: calc(100vh - 190px); }
+.sm-quadro .faixa { background: var(--sm-cor); }
+.sm-quadro .vazio { padding: 18px 8px; font-size: 12.5px; }
+.sm-card .pilula svg { width: 12px; height: 12px; flex: none; }
+.sm-card .rodape .pilula:first-child { color: var(--texto); }
+.sm-card.sm-atrasado { border-color: color-mix(in srgb, var(--alerta) 45%, var(--linha)); }
+.sm-card.sm-publicado .tit { color: var(--suave); font-weight: 400; }
+.sm-antigos { text-align: center; padding: 6px; font-size: 12px; color: var(--apagado); }
+
+/* calendário */
+.sm-cal { overflow: hidden; }
+.sm-cal-cab { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 16px 20px 14px; border-bottom: 1px solid var(--linha); }
+.sm-cal-cab h2 { font-weight: 300; font-size: 24px; letter-spacing: -.02em; line-height: 1.1; }
+.sm-cal-cab .mudo { font-size: 12.5px; }
+.sm-nav { display: inline-flex; align-items: center; gap: 2px; }
+.sm-nav .sm-volta svg { transform: scaleX(-1); }
+.sm-legenda { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-left: auto; }
+.sm-leg { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--suave); white-space: nowrap; }
+.sm-amostra { width: 16px; height: 10px; border-radius: 3px; display: inline-block; background: color-mix(in srgb, var(--sm-cor) 16%, var(--superficie)); box-shadow: inset 2px 0 0 var(--sm-cor); }
+.sm-amostra.sm-st-publicado { background: var(--sm-cor); }
+.sm-amostra.sm-late { --sm-cor: var(--alerta); background: var(--superficie); box-shadow: inset 0 0 0 1px var(--alerta); }
+.sm-semana, .sm-mes { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.sm-semana span { font: var(--rotulo); letter-spacing: .14em; text-transform: uppercase; color: var(--apagado); padding: 10px 10px 8px; border-bottom: 1px solid var(--linha); }
+.sm-dia {
+  min-height: 116px; min-width: 0; padding: 6px 6px 8px; position: relative; display: flex; flex-direction: column; gap: 3px;
+  border-right: 1px solid var(--linha); border-bottom: 1px solid var(--linha); transition: background .12s;
+}
+.sm-dia:nth-child(7n) { border-right: 0; }
+.sm-mes .sm-dia:nth-last-child(-n+7) { border-bottom: 0; }
+.sm-dia.fora { background: var(--afundado); }
+.sm-dia.fora .sm-n { color: var(--apagado); }
+.sm-dia.hoje { background: color-mix(in srgb, var(--destaque) 6%, var(--superficie)); }
+.sm-dia.sm-novo { cursor: pointer; }
+.sm-dia.sm-novo:hover { background: color-mix(in srgb, var(--destaque) 5%, transparent); }
+.sm-dia.sm-novo:hover::after { content: '+'; position: absolute; top: 7px; right: 10px; color: var(--apagado); font-size: 17px; line-height: 1; font-weight: 300; }
+.sm-dia.alvo { background: var(--destaque-claro); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--destaque) 45%, transparent); }
+.sm-n { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; font-size: 12px; color: var(--suave); font-variant-numeric: tabular-nums; margin-bottom: 1px; }
+.sm-dia.hoje .sm-n { background: var(--destaque); color: var(--sobre-destaque); font-weight: 500; }
+.sm-chip {
+  display: flex; align-items: center; gap: 5px; width: 100%; min-width: 0; padding: 3px 7px; border: 0; border-radius: 6px; cursor: pointer;
+  font-size: 11.5px; line-height: 1.35; text-align: left; color: var(--texto);
+  background: color-mix(in srgb, var(--sm-cor) 15%, var(--superficie)); box-shadow: inset 2px 0 0 var(--sm-cor); transition: background .12s;
+}
+.sm-chip:hover { background: color-mix(in srgb, var(--sm-cor) 26%, var(--superficie)); }
+.sm-chip b { font-weight: 500; color: var(--suave); font-variant-numeric: tabular-nums; flex: none; }
+.sm-chip span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-chip.sm-st-publicado { background: var(--sm-cor); color: var(--sobre-destaque); }
+.sm-chip.sm-st-publicado b { color: inherit; opacity: .75; }
+.sm-chip.sm-atrasado { box-shadow: inset 2px 0 0 var(--alerta), inset 0 0 0 1px color-mix(in srgb, var(--alerta) 55%, transparent); }
+.sm-chip.arrastando { opacity: .4; }
+.sm-chip:focus-visible, .sm-ag-item:focus-visible { outline: 2px solid var(--destaque); outline-offset: 1px; }
+.sm-mais { border: 0; background: none; padding: 2px 7px; border-radius: 6px; font-size: 11px; color: var(--suave); cursor: pointer; text-align: left; }
+.sm-mais:hover { background: var(--afundado); color: var(--texto); }
+
+/* agenda (celular) e lista do dia */
+.sm-agenda { display: none; }
+.sm-ag-dia { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 12px; padding: 14px 16px; border-top: 1px solid var(--linha); }
+.sm-ag-dia:first-child { border-top: 0; }
+.sm-ag-data { text-align: center; padding-top: 4px; }
+.sm-ag-data b { display: block; font-weight: 300; font-size: 24px; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+.sm-ag-data span { font: var(--rotulo); letter-spacing: .12em; text-transform: uppercase; color: var(--apagado); }
+.sm-ag-dia.hoje .sm-ag-data b { color: var(--destaque); font-weight: 400; }
+.sm-ag-lista { display: grid; gap: 6px; }
+.sm-ag-lista > * { min-width: 0; }
+.sm-ag-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 11px; cursor: pointer; text-align: left;
+  border: 1px solid var(--linha); background: var(--superficie); border-radius: calc(var(--raio) * .7); transition: border-color .12s;
+}
+.sm-ag-item:hover { border-color: var(--linha-forte); }
+.sm-ag-item .t { min-width: 0; flex: 1; }
+.sm-ag-item .t b { display: block; font-weight: 500; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sm-ag-item .t span { display: block; font-size: 12px; color: var(--suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* por cliente */
+.tabela tr.sm-sel td { background: var(--destaque-claro); }
+.sm-prox { display: block; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* vazio e formulário */
+.sm-boas { max-width: 680px; padding: 36px 32px; }
+.sm-boas h2 { font-weight: 200; font-size: 34px; letter-spacing: -.03em; line-height: 1.1; margin: 10px 0 12px; }
+.sm-boas p { margin: 0 0 20px; font-size: 15px; font-weight: 300; }
+.sm-fluxo { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 26px; }
+.sm-fluxo svg { width: 14px; height: 14px; color: var(--apagado); }
+.sm-fluxo .pilula { color: var(--texto); }
+.sm-contador.sm-passou { color: var(--alerta); }
+.sm-rastro { margin: 18px 0 0; }
+
+@media (max-width: 820px) {
+  .sm-quadro .coluna { flex: 0 0 82vw; max-height: none; }
+  .sm-semana, .sm-mes { display: none; }
+  .sm-agenda { display: block; }
+  .sm-cal-cab { padding: 14px 16px 12px; }
+  .sm-legenda { margin-left: 0; width: 100%; gap: 10px; }
+  .sm-boas { padding: 26px 20px; }
+  .sm-boas h2 { font-size: 28px; }
+  .sm-prox { max-width: 150px; }
+}
+</style>
+<script>
+/** Social media: pauta de conteúdo de cada cliente, em quadro, calendário e visão por cliente. */
+const SM_NOME = { pauta: 'Pauta', producao: 'Produção', aprovacao: 'Aprovação', agendado: 'Agendado', publicado: 'Publicado' };
+const SM_DICA = { pauta: 'Ideias e briefings', producao: 'Em criação', aprovacao: 'Com o cliente', agendado: 'Pronto para sair', publicado: 'No ar' };
+const SM_VAZIO = {
+  pauta: 'Anote aqui as ideias de conteúdo.', producao: 'Arraste da pauta quando começar a criar.', aprovacao: 'Nada esperando o cliente.',
+  agendado: 'Nada na fila de publicação.', publicado: 'Nada publicado ainda.',
+};
+const SM_SEMANA = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+S.filtrosSocial = { busca: '', cliente: '', responsavel: '', rede: '', vista: 'geral', mes: '', pagina: '', aba: 'estrategia', statusCli: 'ativo' };
+
+// ---------- consultas e datas ----------
+function smPosts() { return (S.dados && S.dados.posts) || []; }
+function smPost(id) { return smPosts().find(function (p) { return p.id === id; }) || null; }
+function smStatus() { return (S.dados.listas && S.dados.listas.statusPost) || Object.keys(SM_NOME); }
+function smLista(lista, atual) { const l = (lista || []).slice(); if (atual && l.indexOf(atual) < 0) l.push(atual); return l; }
+function smCap(s) { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1); }
+function smIso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function smData(iso) { return new Date(iso + 'T12:00:00'); }
+function smSomaDias(iso, n) { const d = smData(iso); d.setDate(d.getDate() + n); return smIso(d); }
+function smAtrasado(p) { return !!p.data && p.data < S.dados.hoje && p.status !== 'publicado'; }
+function smOrdem(a, b) {
+  const x = (a.data || '9999') + (a.hora || ''), y = (b.data || '9999') + (b.hora || '');
+  return x < y ? -1 : x > y ? 1 : 0;
+}
+
+// Quem faz social (área marcada na equipe); sem ninguém marcado, vale a equipe toda.
+function smEquipe(atual) {
+  const sociais = equipeAtiva().filter(function (m) { return (m.areas || []).indexOf('social') >= 0; });
+  let l = sociais.length ? sociais : equipeAtiva();
+  if (atual && !l.some(function (m) { return m.email === atual; })) l = l.concat([membro(atual) || { email: atual, nome: atual }]);
+  return l;
+}
+
+function smFiltrados(semCliente) {
+  const f = S.filtrosSocial, q = normal(f.busca);
+  return smPosts().filter(function (p) {
+    if (f.cliente && !semCliente && p.clienteId !== f.cliente) return false;
+    if (f.responsavel && p.responsavel !== f.responsavel) return false;
+    if (f.rede && p.rede !== f.rede) return false;
+    if (q && normal([p.titulo, nomeCliente(p.clienteId), p.formato, p.rede, p.legenda, p.obs].join(' ')).indexOf(q) < 0) return false;
+    return true;
+  });
+}
+
+// Base de um conteúdo novo: herda os filtros em uso (cliente, responsável, rede).
+function smBaseNova(extra) {
+  const f = S.filtrosSocial, b = {};
+  if (f.cliente) b.clienteId = f.cliente;
+  if (f.responsavel) b.responsavel = f.responsavel;
+  if (f.rede) b.rede = f.rede;
+  return Object.assign(b, extra || {});
+}
+
+// ---------- tela ----------
+TELAS.social = {
+  desenhar: function () {
+    const f = S.filtrosSocial, posts = smPosts();
+    const comPost = new Set(posts.map(function (p) { return p.clienteId; }));
+    const clientes = S.dados.clientes.filter(function (c) { return comPost.has(c.id) || c.id === f.cliente; })
+      .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+    const redes = smLista(Array.from(new Set(((S.dados.listas && S.dados.listas.redes) || []).concat(posts.map(function (p) { return p.rede; })).filter(Boolean))), f.rede);
+    const vistas = [['geral', 'Visão geral'], ['quadro', 'Quadro'], ['calendario', 'Calendário'], ['pedidos', 'Pedidos']];
+    if (f.pagina && cliente(f.pagina)) return smPaginaCliente(f.pagina);
+    const temAlgo = posts.length || smMarcas().length;
+    const hojeS = S.dados.hoje, em7S = smSomaDias(hojeS, 7);
+    const nPub = posts.filter(function (p) { return p.status === 'publicado' && String(p.data).slice(0, 7) === hojeS.slice(0, 7); }).length;
+    const nAg = posts.filter(function (p) { return p.status === 'agendado' && p.data >= hojeS && p.data <= em7S; }).length;
+    const nApr = posts.filter(function (p) { return p.status === 'aprovacao'; }).length, nAtr = posts.filter(smAtrasado).length;
+    return {
+      titulo: 'Social <em>media</em>',
+      banner: {
+        texto: '<b>' + nPub + '</b> publicado(s) no mês, <b>' + nAg + '</b> agendado(s) para os próximos 7 dias e <b>' + nApr + '</b> com o cliente para aprovar.' +
+          (nAtr ? ' <span class="al">' + nAtr + ' atrasado(s)</span>.' : ''),
+        visual: { tipo: 'pontos', formas: ['coracao', 'balao'] },
+      },
+      acoes: (temAlgo
+        ? '<label class="busca">' + icone('busca') + '<input class="entrada" type="search" id="sm-busca" placeholder="Buscar conteúdo ou cliente" value="' + esc(f.busca) + '" aria-label="Buscar"></label>' +
+          '<select class="entrada filtro" id="sm-cli" aria-label="Cliente">' + opcoes(clientes.map(function (c) { return { v: c.id, t: c.nome }; }), f.cliente, 'Todos os clientes') + '</select>' +
+          '<select class="entrada filtro" id="sm-resp" aria-label="Responsável">' + opcoes(smEquipe(f.responsavel).map(function (m) { return { v: m.email, t: m.nome }; }), f.responsavel, 'Toda a equipe') + '</select>' +
+          '<select class="entrada filtro" id="sm-rede" aria-label="Rede">' + opcoes(redes, f.rede, 'Todas as redes') + '</select>' +
+          '<div class="segmentado" role="group" aria-label="Visão" id="sm-vista">' + vistas.map(function (x) {
+            return '<button type="button" data-v="' + x[0] + '" aria-pressed="' + (f.vista === x[0]) + '">' + x[1] + '</button>';
+          }).join('') + '</div>'
+        : '') +
+        (pode('colaborador') ? '<button class="btn btn-primario" data-novo-sm>' + icone('mais') + '<span>Novo conteúdo</span></button>' : ''),
+      corpo: '<div id="sm-corpo">' + smCorpo() + '</div>',
+      montar: function (el, topo) {
+        const ligar = function (sel, campo, evento) {
+          const x = topo.querySelector(sel);
+          if (x) x.addEventListener(evento || 'change', function (e) { f[campo] = e.target.value; smAtualizar(); });
+        };
+        ligar('#sm-busca', 'busca', 'input');
+        ligar('#sm-cli', 'cliente');
+        ligar('#sm-resp', 'responsavel');
+        ligar('#sm-rede', 'rede');
+        const v = topo.querySelector('#sm-vista');
+        if (v) v.addEventListener('click', function (e) { const b = e.target.closest('[data-v]'); if (b) { f.vista = b.dataset.v; desenhar(); } });
+        const n = topo.querySelector('[data-novo-sm]');
+        if (n) n.onclick = function () { abrirFormPost(smBaseNova()); };
+        smLigar(el.querySelector('#sm-corpo'));
+      },
+    };
+  },
+};
+
+function smCorpo() {
+  const f = S.filtrosSocial;
+  if (!smPosts().length && !smMarcas().length) return smBoasVindas();
+  const lista = smFiltrados();
+  const cab = '<div class="conteudo sm-cab">' + smKpis(lista) + smResumo(lista) + '</div>';
+  if (f.vista === 'calendario') return cab + '<div class="conteudo sm-pe">' + smCalendario(lista) + '</div>';
+  if (f.vista === 'geral') return cab + '<div class="conteudo sm-pe">' + smGeral(lista) + '</div>';
+  if (f.vista === 'pedidos') return cab + '<div class="conteudo sm-pe">' + smPedidosVista() + '</div>';
+  return cab + smQuadro(lista);
+}
+
+// Atualiza só o corpo (sem perder o foco da busca no topo).
+function smAtualizar() { const box = document.getElementById('sm-corpo'); if (box) box.innerHTML = smCorpo(); }
+function smRedesenhar() { if (S.tela === 'social' && document.getElementById('sm-corpo')) smAtualizar(); else desenhar(); }
+
+function smKpis(lista) {
+  const hoje = S.dados.hoje, mes = hoje.slice(0, 7), em7 = smSomaDias(hoje, 7), em3 = smSomaDias(hoje, 3);
+  const pub = lista.filter(function (p) { return p.status === 'publicado' && String(p.data).slice(0, 7) === mes; });
+  const ag = lista.filter(function (p) { return p.status === 'agendado' && p.data >= hoje && p.data <= em7; }).sort(smOrdem);
+  const apr = lista.filter(function (p) { return p.status === 'aprovacao'; });
+  const aprPerto = apr.filter(function (p) { return p.data >= hoje && p.data <= em3; }).length;
+  const atr = lista.filter(smAtrasado);
+  const k = kpi('Atrasados', String(atr.length), atr.length ? 'a data passou sem publicar' : 'tudo em dia');
+  return '<div class="kpis">' +
+    kpi('Publicados no mês', String(pub.length), 'em ' + smData(hoje).toLocaleDateString('pt-BR', { month: 'long' }), true) +
+    kpi('Agendados · 7 dias', String(ag.length), ag.length ? 'próximo: ' + dataCurta(ag[0].data) + (ag[0].hora ? ' às ' + ag[0].hora : '') : 'nada na fila da semana') +
+    kpi('Aguardando aprovação', String(apr.length), apr.length ? (aprPerto ? aprPerto + ' para sair em até 3 dias' : 'com o cliente') : 'nada pendente com o cliente') +
+    (atr.length ? k.replace('class="cartao kpi"', 'class="cartao kpi sm-kpi-alerta"') : k) + '</div>';
+}
+
+function smResumo(lista) {
+  const f = S.filtrosSocial, partes = [];
+  if (f.busca) partes.push('“' + f.busca + '”');
+  if (f.cliente) partes.push(nomeCliente(f.cliente) || 'Cliente');
+  if (f.responsavel) partes.push(nomeMembro(f.responsavel));
+  if (f.rede) partes.push(f.rede);
+  if (!partes.length) return '';
+  return '<div class="sm-resumo"><span>' + (lista.length ? lista.length + (lista.length === 1 ? ' conteúdo' : ' conteúdos') : 'Nenhum conteúdo') + ' para</span>' +
+    partes.map(function (x) { return '<span class="pilula destaque">' + esc(x) + '</span>'; }).join('') +
+    '<button type="button" class="btn btn-fantasma btn-peq" data-limpar>' + icone('fechar') + 'Limpar filtros</button></div>';
+}
+
+function smBoasVindas() {
+  const semCli = !S.dados.clientes.some(function (c) { return !c.arquivado; });
+  return '<div class="conteudo"><div class="cartao sm-boas"><span class="rotulo">Social media</span>' +
+    '<h2>A pauta ainda está <em>vazia</em>.</h2>' +
+    '<p class="mudo">Cada conteúdo nasce na pauta e anda coluna a coluna até ser publicado. Arraste os cards no quadro, planeje o mês no calendário e acompanhe a entrega de cada cliente.</p>' +
+    '<div class="sm-fluxo">' + smStatus().map(function (s) {
+      return '<span class="pilula sm-st-' + esc(s) + '"><span class="sm-ponto"></span>' + esc(SM_NOME[s] || s) + '</span>';
+    }).join(icone('seta')) + '</div>' +
+    (!pode('colaborador') ? '<p class="mudo pequeno" style="margin:0">Quando a equipe criar conteúdos, eles aparecem aqui.</p>'
+      : semCli ? '<p class="mudo pequeno" style="margin:0 0 14px">Todo conteúdo pertence a um cliente: cadastre o primeiro.</p><button class="btn btn-primario" data-ir-cli>' + icone('clientes') + 'Ir para clientes</button>'
+      : '<button class="btn btn-primario" data-novo-sm>' + icone('mais') + 'Criar o primeiro conteúdo</button>') +
+    '</div></div>';
+}
+
+// ---------- quadro ----------
+function smPilulaData(p) {
+  const hoje = S.dados.hoje, cal = icone('calendario').replace('<svg', '<svg width="12" height="12"');
+  const hora = p.hora ? ' · ' + esc(p.hora) : '';
+  if (!p.data) return '<span class="pilula">' + cal + 'Sem data</span>';
+  if (p.status === 'publicado') return '<span class="pilula ok">' + icone('check').replace('<svg', '<svg width="12" height="12"') + dataCurta(p.data) + '</span>';
+  if (smAtrasado(p)) return '<span class="pilula alerta" title="A data passou e ainda não foi publicado">' + cal + 'Atrasado · ' + dataCurta(p.data) + '</span>';
+  if (p.data === hoje) return '<span class="pilula destaque">' + cal + 'Hoje' + hora + '</span>';
+  if (p.data === smSomaDias(hoje, 1)) return '<span class="pilula">' + cal + 'Amanhã' + hora + '</span>';
+  return '<span class="pilula">' + cal + dataCurta(p.data) + hora + '</span>';
+}
+
+function smCard(p) {
+  const arrasta = pode('colaborador');
+  return '<button type="button" class="op sm-card' + (smAtrasado(p) ? ' sm-atrasado' : '') + (p.status === 'publicado' ? ' sm-publicado' : '') + '" draggable="' + arrasta + '" data-post="' + esc(p.id) + '"' + (arrasta ? '' : ' style="cursor:pointer"') + '>' +
+    '<span class="cli">' + esc(nomeCliente(p.clienteId) || 'Sem cliente') + '</span>' +
+    '<span class="tit">' + esc(p.titulo) + '</span>' +
+    '<span class="rodape"><span class="pilula">' + esc(p.formato) + '</span><span>' + esc(p.rede) + '</span>' +
+      (p.legenda ? '<span class="meta" title="Legenda escrita">' + icone('balao') + '</span>' : '') +
+      (p.link ? '<span class="meta" title="Arte anexada">' + icone('link') + '</span>' : '') + '</span>' +
+    '<span class="rodape">' + smPilulaData(p) + (p.responsavel ? avatar(p.responsavel) : '') + '</span>' +
+  '</button>';
+}
+
+function smQuadro(lista) {
+  const novo = pode('colaborador');
+  return '<div class="quadro sm-quadro" id="sm-quadro">' + smStatus().map(function (s) {
+    let ps = lista.filter(function (p) { return p.status === s; }).sort(smOrdem);
+    const total = ps.length;
+    let antigos = 0;
+    // Publicados: os mais recentes primeiro, e só os 30 últimos para a coluna não crescer sem fim.
+    if (s === 'publicado') { ps.reverse(); if (ps.length > 30) { antigos = ps.length - 30; ps = ps.slice(0, 30); } }
+    const atrasados = ps.filter(smAtrasado).length;
+    return '<section class="coluna sm-st-' + esc(s) + '" data-status="' + esc(s) + '" aria-label="' + esc(SM_NOME[s] || s) + '">' +
+      '<header class="coluna-cab"><span class="faixa"></span>' +
+        '<div class="t"><b>' + esc(SM_NOME[s] || s) + '</b><span class="n">' + total + '</span>' +
+        (novo && s !== 'publicado' ? '<button type="button" class="btn btn-fantasma btn-icone btn-peq" data-nova-st="' + esc(s) + '" aria-label="Novo conteúdo em ' + esc(SM_NOME[s] || s) + '">' + icone('mais') + '</button>' : '') + '</div>' +
+        '<span class="soma">' + esc(SM_DICA[s] || '') + (atrasados ? ' · <span style="color:var(--alerta)">' + atrasados + (atrasados === 1 ? ' atrasado' : ' atrasados') + '</span>' : '') + '</span>' +
+      '</header>' +
+      '<div class="coluna-cards">' + (ps.length ? ps.map(smCard).join('') : '<div class="vazio">' + esc(SM_VAZIO[s] || 'Nada aqui.') + '</div>') +
+        (antigos ? '<div class="sm-antigos">+ ' + antigos + ' publicado(s) mais antigo(s)</div>' : '') + '</div>' +
+    '</section>';
+  }).join('') + '</div>';
+}
+
+// Mover com atualização otimista; agendar ou publicar sem data abre o formulário para completar.
+async function smMover(id, status) {
+  const p = smPost(id);
+  if (!p) return;
+  if ((status === 'agendado' || status === 'publicado') && !p.data) {
+    smRedesenhar();
+    toast('Defina a data de publicação para ' + (status === 'agendado' ? 'agendar.' : 'marcar como publicado.'));
+    return abrirFormPost(Object.assign({}, p, { status: status }));
+  }
+  const antes = Object.assign({}, p);
+  p.status = status;
+  smRedesenhar();
+  try {
+    trocar('posts', await chamar('moverPost', id, status));
+    toast('Movido para ' + (SM_NOME[status] || status) + '.', { acao: { texto: 'Desfazer', fn: function () { smMover(id, antes.status); } } });
+  } catch (err) {
+    trocar('posts', antes);
+    toast(err.message, { erro: true });
+  }
+  smRedesenhar();
+}
+
+// Arrastar um conteúdo para outro dia do calendário.
+async function smRemarcar(id, dia) {
+  const p = smPost(id);
+  if (!p || !dia || p.data === dia) return;
+  const antes = Object.assign({}, p);
+  p.data = dia;
+  smRedesenhar();
+  try {
+    trocar('posts', await chamar('salvarPost', Object.assign({}, antes, { data: dia })));
+    toast('Remarcado para ' + dataCurta(dia) + '.', { acao: { texto: 'Desfazer', fn: function () { smRemarcar(id, antes.data); } } });
+  } catch (err) {
+    trocar('posts', antes);
+    toast(err.message, { erro: true });
+  }
+  smRedesenhar();
+}
+
+// Cliques e arrastar-e-soltar do corpo (quadro e calendário). O #sm-corpo fica; só o conteúdo muda.
+function smLigar(box) {
+  const f = S.filtrosSocial;
+  let arrastando = null;
+  box.addEventListener('click', function (e) {
+    const t = e.target;
+    if (smCliqueExtra(e)) return;
+    if (t.closest('[data-limpar]')) { Object.assign(f, { busca: '', cliente: '', responsavel: '', rede: '' }); return desenhar(); }
+    if (t.closest('[data-novo-sm]')) return abrirFormPost(smBaseNova());
+    if (t.closest('[data-ir-cli]')) return irPara('clientes');
+    const nav = t.closest('[data-cal]');
+    if (nav) { f.mes = nav.dataset.cal; return smAtualizar(); }
+    const ns = t.closest('[data-nova-st]');
+    if (ns) return abrirFormPost(smBaseNova({ status: ns.dataset.novaSt }));
+    const mais = t.closest('[data-mais-dia]');
+    if (mais) return smAbrirDia(mais.dataset.maisDia);
+    const card = t.closest('[data-post]');
+    if (card) return abrirFormPost(smPost(card.dataset.post));
+    const cli = t.closest('[data-cli-sm]');
+    if (cli) return smAbrirCliente(cli.dataset.cliSm);
+    const dia = t.closest('.sm-dia.sm-novo');
+    if (dia) abrirFormPost(smBaseNova({ data: dia.dataset.dia }));
+  });
+  box.addEventListener('dragstart', function (e) {
+    const el = e.target.closest('[data-post], [data-pedido-arr]');
+    if (!el || el.getAttribute('draggable') !== 'true') return;
+    arrastando = el;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', el.dataset.post || el.dataset.pedidoArr);
+    requestAnimationFrame(function () { el.classList.add('arrastando'); });
+  });
+  box.addEventListener('dragend', function () {
+    box.querySelectorAll('.arrastando, .alvo').forEach(function (x) { x.classList.remove('arrastando', 'alvo'); });
+    // Soltou fora de um alvo: devolve tudo para o lugar.
+    if (arrastando) { arrastando = null; smAtualizar(); }
+  });
+  box.addEventListener('dragover', function (e) {
+    if (!arrastando) return;
+    const alvo = e.target.closest((arrastando.classList.contains('sm-chip') || arrastando.dataset.pedidoArr) ? '.sm-dia' : '.sm-quadro .coluna');
+    if (!alvo) return;
+    e.preventDefault();
+    box.querySelectorAll('.alvo').forEach(function (x) { if (x !== alvo) x.classList.remove('alvo'); });
+    alvo.classList.add('alvo');
+    const cards = alvo.querySelector('.coluna-cards');
+    if (cards && arrastando.parentNode !== cards) cards.insertBefore(arrastando, cards.firstChild);
+  });
+  box.addEventListener('drop', function (e) {
+    if (!arrastando) return;
+    const alvo = e.target.closest((arrastando.classList.contains('sm-chip') || arrastando.dataset.pedidoArr) ? '.sm-dia' : '.sm-quadro .coluna');
+    if (!alvo) return;
+    e.preventDefault();
+    if (arrastando.dataset.pedidoArr) { const pid = arrastando.dataset.pedidoArr; arrastando = null; return smAlocar(pid, alvo.dataset.dia); }
+    const p = smPost(arrastando.dataset.post);
+    arrastando = null;
+    if (p && alvo.dataset.status && alvo.dataset.status !== p.status) return smMover(p.id, alvo.dataset.status);
+    if (p && alvo.dataset.dia && alvo.dataset.dia !== p.data) return smRemarcar(p.id, alvo.dataset.dia);
+    smAtualizar();
+  });
+}
+
+// ---------- calendário ----------
+function smChip(p, comCliente) {
+  const cli = nomeCliente(p.clienteId);
+  return '<button type="button" class="sm-chip sm-st-' + esc(p.status) + (smAtrasado(p) ? ' sm-atrasado' : '') + '" data-post="' + esc(p.id) + '" draggable="' + pode('colaborador') + '"' +
+    ' title="' + esc((SM_NOME[p.status] || p.status) + (smAtrasado(p) ? ' (atrasado)' : '') + ' · ' + (cli ? cli + ' · ' : '') + p.titulo + ' · ' + p.formato) + '">' +
+    (p.hora ? '<b>' + esc(p.hora) + '</b>' : '') + '<span>' + esc((comCliente && cli ? cli + ' · ' : '') + p.titulo) + '</span></button>';
+}
+
+function smItem(p) {
+  return '<button type="button" class="sm-ag-item sm-st-' + esc(p.status) + '" data-post="' + esc(p.id) + '"><span class="sm-ponto"></span>' +
+    '<span class="t"><b>' + esc(p.titulo) + '</b><span>' + esc([nomeCliente(p.clienteId), p.formato + ' · ' + p.rede].filter(Boolean).join(' · ')) + '</span></span>' +
+    (smAtrasado(p) ? '<span class="pilula alerta">Atrasado</span>' : '<span class="pilula">' + esc(SM_NOME[p.status] || p.status) + '</span>') +
+    (p.hora ? '<span class="num pequeno mudo">' + esc(p.hora) + '</span>' : '') + '</button>';
+}
+
+function smCalendario(lista) {
+  const f = S.filtrosSocial, hoje = S.dados.hoje, novo = pode('colaborador');
+  const mes = /^\d{4}-\d{2}$/.test(f.mes) ? f.mes : hoje.slice(0, 7);
+  const ano = Number(mes.slice(0, 4)), m = Number(mes.slice(5, 7));
+  const mesDe = function (a, mm) { const d = new Date(a, mm - 1, 1, 12); return smIso(d).slice(0, 7); };
+  const primeiro = new Date(ano, m - 1, 1, 12), ultimo = new Date(ano, m, 0, 12);
+  const ini = new Date(primeiro); ini.setDate(1 - (primeiro.getDay() + 6) % 7);
+  const fim = new Date(ultimo); fim.setDate(ultimo.getDate() + (7 - ultimo.getDay()) % 7);
+  const porDia = {};
+  lista.forEach(function (p) { if (p.data) (porDia[p.data] = porDia[p.data] || []).push(p); });
+  Object.keys(porDia).forEach(function (k) { porDia[k].sort(smOrdem); });
+  const nomeMes = primeiro.toLocaleDateString('pt-BR', { month: 'long' });
+  const doMes = Object.keys(porDia).filter(function (k) { return k.slice(0, 7) === mes; }).sort();
+  const nMes = doMes.reduce(function (s, k) { return s + porDia[k].length; }, 0);
+
+  let celulas = '';
+  for (let d = new Date(ini); d <= fim; d.setDate(d.getDate() + 1)) {
+    const iso = smIso(d), ps = porDia[iso] || [];
+    celulas += '<div class="sm-dia' + (iso.slice(0, 7) !== mes ? ' fora' : '') + (iso === hoje ? ' hoje' : '') + (novo ? ' sm-novo' : '') + '" data-dia="' + iso + '">' +
+      '<span class="sm-n">' + d.getDate() + '</span>' + ps.slice(0, 3).map(function (p) { return smChip(p, !f.cliente); }).join('') +
+      (ps.length > 3 ? '<button type="button" class="sm-mais" data-mais-dia="' + iso + '">+ ' + (ps.length - 3) + ' mais</button>' : '') + '</div>';
+  }
+
+  const agenda = doMes.length ? doMes.map(function (iso) {
+    const d = smData(iso);
+    return '<div class="sm-ag-dia' + (iso === hoje ? ' hoje' : '') + '"><div class="sm-ag-data"><b>' + d.getDate() + '</b><span>' + SM_SEMANA[(d.getDay() + 6) % 7] + '</span></div>' +
+      '<div class="sm-ag-lista">' + porDia[iso].map(smItem).join('') + '</div></div>';
+  }).join('') : '<div class="vazio"><b>Nada programado para ' + esc(nomeMes) + '.</b>' + (novo ? 'Use “Novo conteúdo” para planejar o mês.' : 'Os conteúdos com data aparecem aqui.') + '</div>';
+
+  return smFaixaPedidos() + '<div class="cartao sm-cal"><div class="sm-cal-cab">' +
+      '<div><h2>' + esc(smCap(nomeMes)) + ' <em>' + ano + '</em></h2><span class="mudo">' + (nMes ? nMes + (nMes === 1 ? ' conteúdo no mês' : ' conteúdos no mês') : 'nenhum conteúdo no mês') + '</span></div>' +
+      '<div class="sm-nav">' +
+        '<button type="button" class="btn btn-fantasma btn-icone btn-peq sm-volta" data-cal="' + mesDe(ano, m - 1) + '" aria-label="Mês anterior">' + icone('seta') + '</button>' +
+        '<button type="button" class="btn btn-peq" data-cal="' + hoje.slice(0, 7) + '"' + (mes === hoje.slice(0, 7) ? ' disabled' : '') + '>Hoje</button>' +
+        '<button type="button" class="btn btn-fantasma btn-icone btn-peq" data-cal="' + mesDe(ano, m + 1) + '" aria-label="Próximo mês">' + icone('seta') + '</button>' +
+      '</div>' +
+      '<div class="sm-legenda">' + smStatus().map(function (s) {
+        return '<span class="sm-leg"><i class="sm-amostra sm-st-' + esc(s) + '"></i>' + esc(SM_NOME[s] || s) + '</span>';
+      }).join('') + '<span class="sm-leg"><i class="sm-amostra sm-late"></i>Atrasado</span></div>' +
+    '</div>' +
+    '<div class="sm-semana">' + SM_SEMANA.map(function (x) { return '<span>' + x + '</span>'; }).join('') + '</div>' +
+    '<div class="sm-mes">' + celulas + '</div>' +
+    '<div class="sm-agenda">' + agenda + '</div></div>';
+}
+
+function smAbrirDia(iso) {
+  const ps = smFiltrados().filter(function (p) { return p.data === iso; }).sort(smOrdem);
+  const novo = pode('colaborador');
+  const m = modal({
+    titulo: smCap(smData(iso).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })), estreito: true,
+    corpo: ps.length ? '<div class="sm-ag-lista">' + ps.map(smItem).join('') + '</div>' : '<div class="vazio">Nada neste dia.</div>',
+    pe: '<button type="button" class="btn btn-fantasma" data-fechar>Fechar</button>' + (novo ? '<button type="button" class="btn btn-primario" data-novo-dia>' + icone('mais') + 'Novo neste dia</button>' : ''),
+  });
+  m.el.addEventListener('click', function (e) {
+    const it = e.target.closest('[data-post]');
+    if (it) { m.fechar(); abrirFormPost(smPost(it.dataset.post)); }
+  });
+  const nd = m.el.querySelector('[data-novo-dia]');
+  if (nd) nd.onclick = function () { m.fechar(); abrirFormPost(smBaseNova({ data: iso })); };
+}
+
+// ---------- por cliente ----------
+function smPorCliente(lista) {
+  const f = S.filtrosSocial, hoje = S.dados.hoje, mes = hoje.slice(0, 7);
+  const ids = Array.from(new Set(lista.map(function (p) { return p.clienteId; })));
+  if (!ids.length) return '<div class="cartao"><div class="vazio"><b>Nenhum conteúdo com esses filtros.</b>Ajuste a busca ou limpe os filtros.</div></div>';
+  const linhas = ids.map(function (id) {
+    const ps = lista.filter(function (p) { return p.clienteId === id; });
+    const conta = function (fn) { return ps.filter(fn).length; };
+    return {
+      id: id, nome: nomeCliente(id) || 'Sem cliente', total: ps.length,
+      pub: conta(function (p) { return p.status === 'publicado' && String(p.data).slice(0, 7) === mes; }),
+      ag: conta(function (p) { return p.status === 'agendado' && p.data >= hoje; }),
+      apr: conta(function (p) { return p.status === 'aprovacao'; }),
+      atr: conta(smAtrasado),
+      prox: ps.filter(function (p) { return p.status !== 'publicado' && p.data && p.data >= hoje; }).sort(smOrdem)[0],
+    };
+  }).sort(function (a, b) { return (b.atr - a.atr) || a.nome.localeCompare(b.nome, 'pt-BR'); });
+  const n = function (v) { return v ? String(v) : '<span class="mudo">—</span>'; };
+  return '<div class="cartao"><div class="cartao-cab"><h2>Entregas por cliente</h2><span class="mudo pequeno">Clique em um cliente para ver o quadro dele.</span></div>' +
+    '<div class="tabela-wrap"><table class="tabela"><thead><tr><th>Cliente</th><th class="d some-cel">Publicados no mês</th><th class="d">Agendados</th><th class="d some-cel">Em aprovação</th><th class="d">Atrasados</th><th>Próximo conteúdo</th></tr></thead><tbody>' +
+    linhas.map(function (l) {
+      return '<tr data-cli-sm="' + esc(l.id) + '"' + (f.cliente === l.id ? ' class="sm-sel"' : '') + '><td><b>' + esc(l.nome) + '</b><br><span class="mudo pequeno">' + l.total + (l.total === 1 ? ' conteúdo' : ' conteúdos') + '</span></td>' +
+        '<td class="d num some-cel">' + n(l.pub) + '</td><td class="d num">' + n(l.ag) + '</td><td class="d num some-cel">' + n(l.apr) + '</td>' +
+        '<td class="d">' + (l.atr ? '<span class="pilula alerta">' + l.atr + '</span>' : '<span class="mudo">—</span>') + '</td>' +
+        '<td>' + (l.prox ? '<span class="num">' + dataCurta(l.prox.data) + (l.prox.hora ? ' · ' + esc(l.prox.hora) : '') + '</span><span class="mudo pequeno sm-prox">' + esc(l.prox.titulo) + '</span>'
+          : '<span class="pilula alerta">Nada programado</span>') + '</td></tr>';
+    }).join('') + '</tbody></table></div></div>';
+}
+
+// ---------- formulário ----------
+function abrirFormPost(base) {
+  base = base || {};
+  const novo = !base.id, eu = S.dados.eu.email, listas = S.dados.listas || {};
+  const equipe = smEquipe(base.responsavel);
+  const p = Object.assign({
+    status: 'pauta', formato: (listas.formatos || [])[0] || 'Post', rede: (listas.redes || [])[0] || 'Instagram',
+    responsavel: equipe.some(function (m) { return m.email === eu; }) ? eu : '',
+  }, base);
+  const ler = !pode('colaborador');
+  const clientes = S.dados.clientes.filter(function (c) { return !c.arquivado || c.id === p.clienteId; }).sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+  if (novo && !clientes.length) return toast('Cadastre um cliente antes de criar conteúdos.', { erro: true });
+  const podeApagar = !novo && pode('colaborador') && (p.criadoPor === eu || pode('gestor'));
+  const linkOk = /^https?:\/\//i.test(p.link || '');
+  const m = modal({
+    titulo: novo ? 'Novo conteúdo' : 'Conteúdo',
+    corpo: '<form id="form-post" class="grade" autocomplete="off"><fieldset style="display:contents"' + (ler ? ' disabled' : '') + '>' +
+      '<label class="campo inteira"><span>Cliente</span><select name="clienteId" required>' + opcoes(clientes.map(function (c) { return { v: c.id, t: c.nome }; }), p.clienteId, 'Escolha') + '</select></label>' +
+      '<label class="campo inteira"><span>Título</span><input name="titulo" required maxlength="160" value="' + esc(p.titulo) + '" placeholder="Ex.: 5 benefícios do pilates para a postura"></label>' +
+      '<label class="campo"><span>Formato</span><select name="formato">' + opcoes(smLista(listas.formatos, p.formato), p.formato) + '</select></label>' +
+      '<label class="campo"><span>Rede</span><select name="rede">' + opcoes(smLista(listas.redes, p.rede), p.rede) + '</select></label>' +
+      '<label class="campo"><span>Pilar</span><select name="pilar" id="sm-pilar">' + smOpcoesPilar(p.clienteId, p.pilar) + '</select></label>' +
+      '<label class="campo"><span>Status</span><select name="status">' + opcoes(smStatus().map(function (s) { return { v: s, t: SM_NOME[s] || s }; }), p.status) + '</select></label>' +
+      '<label class="campo"><span>Responsável</span><select name="responsavel">' + opcoes(equipe.map(function (x) { return { v: x.email, t: x.nome }; }), p.responsavel, 'Sem responsável') + '</select></label>' +
+      '<label class="campo"><span>Data de publicação</span><input name="data" type="date" value="' + esc(p.data) + '"><small>Obrigatória para agendar ou publicar.</small></label>' +
+      '<label class="campo"><span>Horário</span><input name="hora" type="time" value="' + esc(p.hora) + '"></label>' +
+      '<label class="campo inteira"><span>Link da arte</span><input name="link" type="url" value="' + esc(p.link) + '" placeholder="https://drive.google.com/…">' +
+        '<small>Drive, Canva, Figma: onde a peça estiver.' + (linkOk ? ' <a href="' + esc(p.link) + '" target="_blank" rel="noopener">Abrir arte</a>' : '') + '</small></label>' +
+      '<label class="campo inteira"><span>Legenda</span><textarea name="legenda" maxlength="3000" rows="5" placeholder="Texto do post, hashtags, chamada para ação…">' + esc(p.legenda) + '</textarea><small class="sm-contador" id="sm-cont"></small></label>' +
+      '<label class="campo inteira"><span>Observações</span><textarea name="obs" maxlength="1000" placeholder="Referências, pedidos do cliente, ajustes…">' + esc(p.obs) + '</textarea></label>' +
+      '</fieldset></form>' +
+      (novo ? '' : '<p class="mudo pequeno sm-rastro">Criado por ' + esc(nomeMembro(p.criadoPor)) + (p.criadoEm ? ' em ' + dataBr(p.criadoEm) : '') +
+        (p.atualizadoEm ? ' · atualizado ' + esc(quando(p.atualizadoEm)) : '') + '</p>'),
+    pe: (podeApagar ? '<div class="esq"><button type="button" class="btn btn-fantasma btn-perigo btn-peq" data-apagar>' + icone('lixo') + 'Apagar</button></div>' : '') +
+      '<button type="button" class="btn btn-fantasma" data-fechar>' + (ler ? 'Fechar' : 'Cancelar') + '</button>' +
+      (ler ? '' : '<button type="button" class="btn btn-primario" data-salvar>' + (novo ? 'Criar' : 'Salvar') + '</button>'),
+  });
+  const form = m.el.querySelector('#form-post');
+  form.clienteId.addEventListener('change', function () { m.el.querySelector('#sm-pilar').innerHTML = smOpcoesPilar(form.clienteId.value, form.pilar.value); });
+  // Contador da legenda (o Instagram corta em 2.200 caracteres).
+  const cont = m.el.querySelector('#sm-cont'), leg = form.legenda;
+  const contar = function () {
+    const n = leg.value.length;
+    cont.textContent = n ? n.toLocaleString('pt-BR') + ' caracteres' + (n > 2200 ? ' · passa do limite do Instagram (2.200)' : '') : '';
+    cont.classList.toggle('sm-passou', n > 2200);
+  };
+  leg.addEventListener('input', contar);
+  contar();
+  const ap = m.el.querySelector('[data-apagar]');
+  if (ap) ap.onclick = async function () {
+    if (!(await confirmar('Apagar conteúdo?', p.titulo, 'Apagar', true))) return;
+    if (await gravar('removerPost', [p.id], 'Conteúdo apagado.') != null) {
+      S.dados.posts = smPosts().filter(function (x) { return x.id !== p.id; });
+      m.fechar(); desenhar();
+    }
+  };
+  const salvar = m.el.querySelector('[data-salvar]');
+  if (!salvar) return;
+  form.addEventListener('submit', function (e) { e.preventDefault(); salvar.click(); });
+  salvar.onclick = function () {
+    const d = lerForm(form);
+    if (!d.clienteId) return form.clienteId.focus();
+    if (!d.titulo.trim()) return form.titulo.focus();
+    if ((d.status === 'agendado' || d.status === 'publicado') && !d.data) {
+      toast('Informe a data de publicação.', { erro: true });
+      return form.elements.data.focus();
+    }
+    if (p.id) d.id = p.id;
+    ocupado(salvar, async function () {
+      const r = await gravar('salvarPost', [d], 'Conteúdo salvo.');
+      if (r) { trocar('posts', r); m.fechar(); desenhar(); }
+    });
+  };
+}
+</script>

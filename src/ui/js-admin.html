@@ -1,0 +1,303 @@
+<script>
+/** Admin: marca, funil, listas, equipe e avisos. Tudo fica na planilha; só admin vê esta tela. */
+const FONTES = ['Archivo', 'Inter', 'DM Sans', 'Manrope', 'Montserrat', 'Work Sans', 'Cormorant Garamond', 'Playfair Display', 'Fraunces', 'Lora'];
+const LISTAS = [['servicos', 'Serviços'], ['origens', 'Origens do lead'], ['segmentos', 'Segmentos de cliente'], ['motivosPerda', 'Motivos de perda']];
+S.admin = { aba: 'marca', r: null, avisos: null };
+
+TELAS.admin = {
+  desenhar: function () {
+    const a = S.admin;
+    if (!a.r) a.r = JSON.parse(JSON.stringify(S.dados.config));
+    const abas = [['marca', 'Marca'], ['funil', 'Funil'], ['listas', 'Listas'], ['equipe', 'Equipe'], ['avisos', 'Avisos']];
+    return {
+      rotulo: 'Configuração',
+      titulo: 'Ajustes do <em>CRM</em>',
+      acoes: '<div class="segmentado" role="tablist" id="adm-abas">' + abas.map(function (x) { return '<button role="tab" data-v="' + x[0] + '" aria-pressed="' + (a.aba === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>',
+      corpo: '<div class="conteudo"><div class="secoes" id="adm"></div></div>',
+      montar: function (el, topo) {
+        topo.querySelector('#adm-abas').addEventListener('click', function (e) { const b = e.target.closest('[data-v]'); if (b) { a.aba = b.dataset.v; desenhar(); } });
+        const box = el.querySelector('#adm');
+        ({ marca: admMarca, funil: admFunil, listas: admListas, equipe: admEquipe, avisos: admAvisos })[a.aba](box);
+      },
+    };
+  },
+};
+
+async function salvarRascunho(btn, msg) {
+  await ocupado(btn, async function () {
+    const r = await gravar('salvarConfig', [S.admin.r], msg || 'Configuração salva.');
+    if (!r) return;
+    S.admin.r = null;
+    await recarregar();
+  });
+}
+
+function rodapeSalvar() {
+  return '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-fantasma" data-descartar>Descartar alterações</button><button class="btn btn-primario" data-salvar-cfg>Salvar</button></div>';
+}
+
+function ligarRodape(box, msg) {
+  box.querySelector('[data-salvar-cfg]').onclick = function () { salvarRascunho(this, msg); };
+  box.querySelector('[data-descartar]').onclick = function () { S.admin.r = null; aplicarMarca(S.dados.config.marca); desenhar(); };
+}
+
+// ---------- Marca ----------
+function admMarca(box) {
+  const r = S.admin.r, m = r.marca;
+  const cor = function (k, rot, dica) {
+    return '<label class="campo"><span>' + rot + '</span><div style="display:flex;gap:8px"><input type="color" data-cor="' + k + '" value="' + esc(m[k]) + '" style="width:52px;flex:none">' +
+      '<input data-cor-txt="' + k + '" value="' + esc(m[k]) + '" maxlength="7" style="font-variant-numeric:tabular-nums"></div>' + (dica ? '<small>' + dica + '</small>' : '') + '</label>';
+  };
+  const fontes = function (k) { return opcoes(FONTES.indexOf(m[k]) < 0 ? FONTES.concat([m[k]]) : FONTES, m[k]); };
+  box.innerHTML =
+    '<div class="cartao"><div class="cartao-cab"><h2>Identidade</h2></div><div class="cartao-corpo grade">' +
+      '<label class="campo"><span>Nome da agência</span><input data-k="empresa" value="' + esc(r.empresa) + '" maxlength="60"></label>' +
+      '<label class="campo"><span>Nome do produto</span><input data-k="produto" value="' + esc(r.produto) + '" maxlength="40"></label>' +
+      '<label class="campo inteira"><span>Logo (link da imagem)</span><input data-m="logoUrl" value="' + esc(m.logoUrl) + '" placeholder="https://…/logo-clara.png"><small>Aparece sobre a cor principal, no menu. Prefira a versão clara, em PNG ou SVG.</small></label>' +
+      '<label class="campo"><span>Moeda</span><select data-k="moeda">' + opcoes([{ v: 'BRL', t: 'Real (R$)' }, { v: 'USD', t: 'Dólar (US$)' }, { v: 'EUR', t: 'Euro (€)' }], r.moeda) + '</select></label>' +
+    '</div></div>' +
+    '<div class="cartao"><div class="cartao-cab"><h2>Cores e tipografia</h2><span class="mudo pequeno">A prévia já aparece na tela; só vale para todos depois de salvar.</span></div><div class="cartao-corpo">' +
+      '<div class="grade" style="grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);align-items:start">' +
+        '<div class="grade">' +
+          cor('primaria', 'Principal', 'Menu e áreas escuras') + cor('destaque', 'Destaque', 'Botões, valores, links') +
+          cor('fundo', 'Fundo') + cor('superficie', 'Cartões') + cor('texto', 'Texto') +
+          '<label class="campo"><span>Arredondamento · <b id="raio-v">' + m.raio + 'px</b></span><input type="range" min="0" max="28" data-m="raio" value="' + m.raio + '" style="accent-color:var(--destaque);padding:0;min-height:40px;border:0;background:none"></label>' +
+          '<label class="campo"><span>Fonte dos títulos</span><select data-m="fonteTitulos">' + fontes('fonteTitulos') + '</select></label>' +
+          '<label class="campo"><span>Fonte do texto</span><select data-m="fonteTexto">' + fontes('fonteTexto') + '</select></label>' +
+        '</div>' +
+        '<div class="campo"><span>Prévia</span><div class="previa-marca" id="previa"></div></div>' +
+      '</div></div></div>' + rodapeSalvar();
+
+  function previa() {
+    aplicarMarca(m);
+    box.querySelector('#previa').innerHTML =
+      '<div class="pl" style="background:' + m.primaria + ';color:#F7F3EC"><i style="width:70%;opacity:.8"></i><i></i><i style="width:80%"></i><i style="width:60%"></i></div>' +
+      '<div class="pc" style="background:' + m.fundo + ';color:' + m.texto + '"><b style="font:300 20px/1.1 \'' + m.fonteTitulos + '\';letter-spacing:-.02em">Funil de vendas</b>' +
+        '<div class="c" style="background:' + m.superficie + ';border-radius:' + m.raio + 'px"><span style="font:500 9px \'' + m.fonteTexto + '\';letter-spacing:.14em;text-transform:uppercase;opacity:.5">Studio Lótus</span>' +
+        '<span style="font:500 13px \'' + m.fonteTexto + '\'">Gestão de redes</span><span style="font:300 15px \'' + m.fonteTexto + '\';color:' + m.destaque + '">R$ 4.500</span></div>' +
+        '<span style="justify-self:start;background:' + m.destaque + ';color:#fff;border-radius:100px;padding:6px 14px;font:500 9px \'' + m.fonteTexto + '\';letter-spacing:.12em;text-transform:uppercase">Nova</span></div>';
+  }
+  box.querySelectorAll('[data-k]').forEach(function (i) { i.addEventListener('input', function () { r[i.dataset.k] = i.value; }); });
+  box.querySelectorAll('[data-m]').forEach(function (i) {
+    i.addEventListener('input', function () {
+      m[i.dataset.m] = i.dataset.m === 'raio' ? Number(i.value) : i.value;
+      if (i.dataset.m === 'raio') box.querySelector('#raio-v').textContent = i.value + 'px';
+      previa();
+    });
+  });
+  box.querySelectorAll('[data-cor]').forEach(function (i) {
+    i.addEventListener('input', function () { m[i.dataset.cor] = i.value; box.querySelector('[data-cor-txt="' + i.dataset.cor + '"]').value = i.value; previa(); });
+  });
+  box.querySelectorAll('[data-cor-txt]').forEach(function (i) {
+    i.addEventListener('input', function () {
+      if (!/^#[0-9a-f]{6}$/i.test(i.value)) return;
+      m[i.dataset.corTxt] = i.value; box.querySelector('[data-cor="' + i.dataset.corTxt + '"]').value = i.value; previa();
+    });
+  });
+  ligarRodape(box, 'Marca salva.');
+  previa();
+}
+
+// ---------- Funil ----------
+function admFunil(box) {
+  const r = S.admin.r;
+  const emUso = {};
+  S.dados.oportunidades.forEach(function (o) { emUso[o.etapa] = (emUso[o.etapa] || 0) + 1; });
+  function linhas() {
+    return r.etapas.map(function (e, i) {
+      return '<div class="etapa-ed" data-i="' + i + '">' +
+        '<span class="alca" style="display:grid;gap:0">' +
+          '<button class="btn btn-fantasma btn-icone btn-peq" data-sobe aria-label="Subir"' + (i ? '' : ' disabled') + ' style="height:18px">▴</button>' +
+          '<button class="btn btn-fantasma btn-icone btn-peq" data-desce aria-label="Descer"' + (i < r.etapas.length - 1 ? '' : ' disabled') + ' style="height:18px">▾</button></span>' +
+        '<input type="color" data-e="cor" value="' + esc(e.cor) + '" aria-label="Cor">' +
+        '<input class="entrada" data-e="nome" value="' + esc(e.nome) + '" maxlength="40" aria-label="Nome da etapa">' +
+        '<select class="entrada tipo" data-e="tipo" aria-label="Tipo">' + opcoes([{ v: 'aberta', t: 'Em andamento' }, { v: 'ganho', t: 'Ganho' }, { v: 'perdido', t: 'Perdido' }], e.tipo) + '</select>' +
+        '<label class="prob" style="position:relative"><input class="entrada" data-e="prob" type="number" min="0" max="99" value="' + esc(e.prob) + '"' + (e.tipo !== 'aberta' ? ' disabled' : '') + ' aria-label="Probabilidade" style="padding-right:24px"><span class="mudo pequeno" style="position:absolute;right:10px;top:11px">%</span></label>' +
+        '<button class="btn btn-fantasma btn-icone btn-peq" data-remover aria-label="Remover etapa" title="' + (emUso[e.id] ? emUso[e.id] + ' oportunidade(s) nesta etapa' : 'Remover') + '"' + (emUso[e.id] ? ' disabled' : '') + '>' + icone('lixo') + '</button>' +
+        '</div>';
+    }).join('');
+  }
+  box.innerHTML = '<div class="cartao"><div class="cartao-cab"><h2>Etapas do funil</h2><span class="mudo pequeno">Etapas com oportunidades não podem ser removidas.</span></div><div class="cartao-corpo">' +
+    '<div class="etapa-ed rotulo" style="padding-bottom:0"><span></span><span>Cor</span><span>Nome</span><span class="tipo">Tipo</span><span class="prob">Chance</span><span></span></div>' +
+    '<div id="etapas"></div><button class="btn btn-peq" data-add style="margin-top:12px">' + icone('mais') + 'Etapa</button></div></div>' +
+    '<div class="cartao"><div class="cartao-cab"><h2>Alerta de parado</h2></div><div class="cartao-corpo grade">' +
+      '<label class="campo"><span>Dias sem mudar de etapa</span><input type="number" min="1" max="90" id="dias" value="' + esc(r.diasParado) + '"><small>Depois disso, o card ganha um alerta e entra no resumo diário.</small></label></div></div>' + rodapeSalvar();
+  const lista = box.querySelector('#etapas');
+  const redesenhar = function () { lista.innerHTML = linhas(); };
+  redesenhar();
+  lista.addEventListener('input', function (ev) {
+    const i = ev.target.closest('[data-i]'), k = ev.target.dataset.e;
+    if (!i || !k) return;
+    const e = r.etapas[Number(i.dataset.i)];
+    e[k] = k === 'prob' ? Number(ev.target.value) : ev.target.value;
+    if (k === 'tipo') { e.prob = e.tipo === 'ganho' ? 100 : e.tipo === 'perdido' ? 0 : Math.min(e.prob, 99) || 10; redesenhar(); }
+  });
+  lista.addEventListener('click', function (ev) {
+    const i = ev.target.closest('[data-i]');
+    if (!i) return;
+    const n = Number(i.dataset.i);
+    if (ev.target.closest('[data-remover]')) r.etapas.splice(n, 1);
+    else if (ev.target.closest('[data-sobe]') && n > 0) r.etapas.splice(n - 1, 0, r.etapas.splice(n, 1)[0]);
+    else if (ev.target.closest('[data-desce]') && n < r.etapas.length - 1) r.etapas.splice(n + 1, 0, r.etapas.splice(n, 1)[0]);
+    else return;
+    redesenhar();
+  });
+  box.querySelector('[data-add]').onclick = function () {
+    const ab = r.etapas.filter(function (e) { return e.tipo === 'aberta'; }).length;
+    r.etapas.splice(ab, 0, { nome: 'Nova etapa', tipo: 'aberta', prob: 50, cor: '#A39E8F' });
+    redesenhar();
+    const inputs = lista.querySelectorAll('[data-e="nome"]');
+    inputs[ab].focus(); inputs[ab].select();
+  };
+  box.querySelector('#dias').addEventListener('input', function () { r.diasParado = Number(this.value); });
+  ligarRodape(box, 'Funil salvo.');
+}
+
+// ---------- Listas ----------
+function admListas(box) {
+  const r = S.admin.r;
+  box.innerHTML = '<div class="cartao"><div class="cartao-cab"><h2>Listas de escolha</h2><span class="mudo pequeno">Enter para adicionar.</span></div><div class="cartao-corpo grade">' +
+    LISTAS.map(function (l) { return '<div class="campo"><span>' + l[1] + '</span><div class="etiquetas" data-lista="' + l[0] + '"></div></div>'; }).join('') + '</div></div>' + rodapeSalvar();
+  box.querySelectorAll('[data-lista]').forEach(function (div) {
+    const k = div.dataset.lista;
+    const desenharL = function () {
+      div.innerHTML = r[k].map(function (x, i) { return '<span class="pilula">' + esc(x) + '<button type="button" data-tira="' + i + '" aria-label="Remover ' + esc(x) + '">×</button></span>'; }).join('') +
+        '<input placeholder="Adicionar…" maxlength="60" aria-label="Adicionar item">';
+      const inp = div.querySelector('input');
+      inp.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ',') {
+          e.preventDefault();
+          const v = inp.value.trim();
+          if (v && !r[k].some(function (x) { return normal(x) === normal(v); })) { r[k].push(v); desenharL(); div.querySelector('input').focus(); }
+        } else if (e.key === 'Backspace' && !inp.value && r[k].length) { r[k].pop(); desenharL(); div.querySelector('input').focus(); }
+      });
+    };
+    div.addEventListener('click', function (e) {
+      const b = e.target.closest('[data-tira]');
+      if (b) { r[k].splice(Number(b.dataset.tira), 1); desenharL(); } else if (e.target === div) div.querySelector('input').focus();
+    });
+    desenharL();
+  });
+  ligarRodape(box, 'Listas salvas.');
+}
+
+// ---------- Equipe ----------
+function admEquipe(box) {
+  const r = S.admin.r, eq = S.dados.equipe.slice().sort(function (a, b) { return (b.ativo - a.ativo) || a.nome.localeCompare(b.nome, 'pt-BR'); });
+  box.innerHTML = '<div class="cartao"><div class="cartao-cab"><h2>Pessoas</h2><span class="mudo pequeno">' + eq.filter(function (m) { return m.ativo; }).length + ' ativa(s)</span></div><div class="cartao-corpo">' +
+    '<ul class="lista">' + eq.map(function (m) {
+      return '<li data-email="' + esc(m.email) + '"' + (m.ativo ? '' : ' style="opacity:.55"') + '>' + avatar(m.email, 'g') +
+        '<div class="principal-li"><b>' + esc(m.nome) + (m.email === S.dados.eu.email ? ' <span class="mudo pequeno">(você)</span>' : '') + '</b><span>' + esc(m.cargo ? m.cargo + ' · ' : '') + esc(m.email) + '</span></div>' +
+        '<div class="segmentado adm-areas" role="group" aria-label="Áreas de ' + esc(m.nome) + '">' + [['social', 'Social'], ['trafego', 'Tráfego'], ['comercial', 'Comercial'], ['financeiro', 'Financeiro']].map(function (a) {
+          return '<button type="button" data-area="' + a[0] + '" aria-pressed="' + ((m.areas || []).indexOf(a[0]) >= 0) + '" title="O que esta pessoa vê">' + a[1] + '</button>';
+        }).join('') + '<button type="button" data-cv aria-pressed="' + !!m.cvision + '" title="Visão do CEO">C-Vision</button></div>' +
+        '<select class="entrada filtro" data-papel aria-label="Papel" style="width:auto">' + opcoes(Object.keys(NOME_PAPEL).map(function (k) { return { v: k, t: NOME_PAPEL[k] }; }), m.papel) + '</select>' +
+        '<button class="btn btn-peq" data-ativo>' + (m.ativo ? 'Desativar' : 'Reativar') + '</button></li>';
+    }).join('') + '</ul></div></div>' +
+    '<div class="cartao"><div class="cartao-cab"><h2>Adicionar pessoa</h2></div><div class="cartao-corpo"><form id="form-m" class="grade grade-3" autocomplete="off" style="align-items:end">' +
+      '<label class="campo"><span>E-mail</span><input name="email" type="email" required placeholder="nome@agencia.com"></label>' +
+      '<label class="campo"><span>Nome</span><input name="nome" placeholder="Opcional"></label>' +
+      '<label class="campo"><span>Cargo</span><input name="cargo" placeholder="Ex.: Gestor de tráfego"></label>' +
+      '<div class="campo"><span>Áreas</span><div style="display:flex;gap:10px;flex-wrap:wrap;min-height:40px;align-items:center">' + [['social', 'Social'], ['trafego', 'Tráfego'], ['comercial', 'Comercial'], ['financeiro', 'Financeiro']].map(function (a) {
+        return '<label class="chk pequeno"><input type="checkbox" name="area_' + a[0] + '">' + a[1] + '</label>';
+      }).join('') + '</div></div>' +
+      '<div style="display:flex;gap:8px;align-items:end"><label class="campo" style="flex:1"><span>Papel</span><select name="papel">' + opcoes(Object.keys(NOME_PAPEL).map(function (k) { return { v: k, t: NOME_PAPEL[k] }; }), 'colaborador') + '</select></label>' +
+      '<button class="btn btn-primario" type="submit" style="height:40px">Adicionar</button></div></form>' +
+      '<p class="mudo pequeno" style="margin:14px 0 0">Leitor só visualiza · Colaborador cria e edita · Gestor também arquiva, apaga e vê as horas de todos · Admin também configura. Áreas definem o que cada um vê: Social media, Tráfego, Comercial e Financeiro; o C-Vision é a visão do CEO.</p></div></div>' +
+    '<div class="cartao"><div class="cartao-cab"><h2>Entrada pelo domínio</h2></div><div class="cartao-corpo grade">' +
+      '<label class="campo"><span>Domínio da empresa</span><input id="dom" value="' + esc(r.dominio) + '" placeholder="agencia.com.br"></label>' +
+      '<label class="chk" style="align-self:center"><input type="checkbox" id="auto"' + (r.entradaAutomatica ? ' checked' : '') + '><span>Quem tiver e-mail desse domínio entra sozinho, como colaborador.</span></label>' +
+      '<div class="inteira">' + rodapeSalvar() + '</div></div></div>';
+
+  const salvarM = async function (d, msg) {
+    const lista = await gravar('salvarMembro', [d], msg);
+    if (!lista) return;
+    S.dados.equipe = lista;
+    registrarFotos();
+    // Mudou o meu próprio acesso: recarrega para o menu e os dados acompanharem.
+    const eu = S.dados.equipe.find(function (m) { return m.email === S.dados.eu.email; });
+    if (eu && ((eu.areas || []).join() !== (S.dados.eu.areas || []).join() || !!eu.cvision !== !!S.dados.eu.cvision || eu.papel !== S.dados.eu.papel)) return recarregar();
+    desenhar();
+  };
+  box.querySelectorAll('[data-email]').forEach(function (li) {
+    const m = S.dados.equipe.find(function (x) { return x.email === li.dataset.email; });
+    const base = { email: m.email, nome: m.nome, papel: m.papel, ativo: m.ativo, cargo: m.cargo, areas: (m.areas || []).slice(), cvision: !!m.cvision };
+    li.querySelector('[data-papel]').onchange = function () { salvarM(Object.assign({}, base, { papel: this.value }), 'Papel atualizado.'); };
+    li.querySelector('[data-ativo]').onclick = function () { salvarM(Object.assign({}, base, { ativo: !m.ativo }), m.ativo ? 'Pessoa desativada.' : 'Pessoa reativada.'); };
+    li.querySelectorAll('[data-area]').forEach(function (b) {
+      b.onclick = function () {
+        const a = b.dataset.area, tem = base.areas.indexOf(a) >= 0;
+        const areas = tem ? base.areas.filter(function (x) { return x !== a; }) : base.areas.concat([a]);
+        salvarM(Object.assign({}, base, { areas: areas }), (tem ? 'Área removida de ' : 'Área liberada para ') + m.nome + '.');
+      };
+    });
+    li.querySelector('[data-cv]').onclick = function () {
+      salvarM(Object.assign({}, base, { cvision: !base.cvision }), base.cvision ? 'C-Vision bloqueado para ' + m.nome + '.' : 'C-Vision liberado para ' + m.nome + '.');
+    };
+  });
+  const form = box.querySelector('#form-m');
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const d = lerForm(form);
+    d.areas = ['social', 'trafego', 'comercial', 'financeiro'].filter(function (a) { return d['area_' + a]; });
+    if (S.dados.equipe.some(function (m) { return m.email === d.email.trim().toLowerCase(); })) return toast('Essa pessoa já está na equipe.', { erro: true });
+    salvarM(d, 'Pessoa adicionada.');
+  });
+  box.querySelector('#dom').addEventListener('input', function () { r.dominio = this.value; });
+  box.querySelector('#auto').addEventListener('change', function () { r.entradaAutomatica = this.checked; });
+  ligarRodape(box, 'Equipe salva.');
+}
+
+// ---------- Avisos ----------
+function admAvisos(box) {
+  const r = S.admin.r, st = S.admin.avisos;
+  box.innerHTML =
+    '<div class="cartao"><div class="cartao-cab"><h2>Resumo diário</h2>' + (st ? '<span class="pilula' + (st.resumoInstalado ? ' ok' : '') + '">' + (st.resumoInstalado ? 'Ativo' : 'Desligado') + '</span>' : '') + '</div><div class="cartao-corpo">' +
+      '<p class="mudo" style="margin:0 0 16px">Todo dia, cada pessoa recebe por e-mail as oportunidades dela paradas há ' + r.diasParado + '+ dias e as tarefas atrasadas. Roda sozinho, mesmo com o CRM fechado.</p>' +
+      '<div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap"><label class="campo"><span>Horário</span><select id="hora" style="width:110px">' +
+        opcoes(Array.from({ length: 24 }, function (_, h) { return { v: h, t: String(h).padStart(2, '0') + ':00' }; }), 8) + '</select></label>' +
+        '<button class="btn btn-escuro" data-instalar style="height:40px">' + (st && st.resumoInstalado ? 'Reinstalar' : 'Ativar') + '</button>' +
+        '<button class="btn" data-agora style="height:40px">Enviar agora</button></div>' +
+      (st && st.cotaEmail != null ? '<p class="mudo pequeno" style="margin:12px 0 0">Cota de e-mails restante hoje: ' + st.cotaEmail + '</p>' : '') +
+    '</div></div>' +
+    '<div class="cartao"><div class="cartao-cab"><h2>Chat da equipe</h2>' + (st ? '<span class="pilula' + (st.temChat ? ' ok' : '') + '">' + (st.temChat ? 'Conectado' : 'Sem webhook') + '</span>' : '') + '</div><div class="cartao-corpo">' +
+      '<p class="mudo" style="margin:0 0 16px">Avisa no Google Chat ou no Slack quando uma oportunidade é fechada, quando alguém é marcado e no resumo de parados.</p>' +
+      '<div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap"><label class="campo" style="flex:1;min-width:240px"><span>Webhook</span><input id="hook" type="url" placeholder="https://chat.googleapis.com/v1/spaces/…"></label>' +
+      '<button class="btn btn-escuro" data-hook style="height:40px">Salvar</button><button class="btn" data-testar style="height:40px">Testar</button>' +
+      (st && st.temChat ? '<button class="btn btn-fantasma btn-perigo" data-tirar style="height:40px">Remover</button>' : '') + '</div>' +
+      '<p class="mudo pequeno" style="margin:10px 0 0">Por segurança, o webhook salvo não aparece aqui de novo.</p></div></div>' +
+    '<div class="cartao"><div class="cartao-cab"><h2>E-mails</h2></div><div class="cartao-corpo">' +
+      '<label class="chk"><input type="checkbox" id="mails"' + (r.emailAvisos ? ' checked' : '') + '><span>Mandar e-mail para menções, tarefas atribuídas e resumo diário.</span></label>' +
+      '<div style="margin-top:16px">' + rodapeSalvar() + '</div></div></div>' +
+    (!S.dados.clientes.length && !S.dados.oportunidades.length ? '<div class="cartao"><div class="cartao-cab"><h2>Dados de exemplo</h2></div><div class="cartao-corpo"><p class="mudo" style="margin:0 0 14px">Carrega clientes e oportunidades fictícios para apresentar o CRM. Só funciona com o CRM vazio.</p><button class="btn" data-exemplo>Carregar exemplo</button></div></div>' : '');
+
+  if (!st) chamar('statusAvisos').then(function (s) { S.admin.avisos = s; if (S.tela === 'admin' && S.admin.aba === 'avisos') desenhar(); }).catch(function (e) { toast(e.message, { erro: true }); });
+  const atualizarStatus = function () { S.admin.avisos = null; desenhar(); };
+  box.querySelector('[data-instalar]').onclick = function () {
+    const b = this;
+    ocupado(b, async function () { const x = await gravar('instalarResumoDiario', [Number(box.querySelector('#hora').value)]); if (x) { toast('Resumo diário às ' + String(x.hora).padStart(2, '0') + ':00.'); atualizarStatus(); } });
+  };
+  box.querySelector('[data-agora]').onclick = function () {
+    const b = this;
+    ocupado(b, async function () { const x = await gravar('enviarResumoAgora', []); if (x) toast(x.emails + ' e-mail(s) enviado(s) · ' + x.paradas + ' parada(s) · ' + x.atrasadas + ' tarefa(s) atrasada(s).'); });
+  };
+  box.querySelector('[data-hook]').onclick = function () {
+    const v = box.querySelector('#hook').value.trim(), b = this;
+    if (!v) return box.querySelector('#hook').focus();
+    ocupado(b, async function () { if (await gravar('salvarWebhookChat', [v], 'Webhook salvo.') != null) atualizarStatus(); });
+  };
+  box.querySelector('[data-testar]').onclick = function () {
+    const b = this;
+    ocupado(b, async function () { await gravar('testarChat', [], 'Mensagem de teste enviada.'); });
+  };
+  const tirar = box.querySelector('[data-tirar]');
+  if (tirar) tirar.onclick = async function () {
+    if (!(await confirmar('Remover webhook?', 'O CRM para de avisar no chat.', 'Remover', true))) return;
+    if (await gravar('salvarWebhookChat', [''], 'Webhook removido.') != null) atualizarStatus();
+  };
+  box.querySelector('#mails').addEventListener('change', function () { r.emailAvisos = this.checked; });
+  const ex = box.querySelector('[data-exemplo]');
+  if (ex) ex.onclick = function () { ocupado(ex, async function () { if (await gravar('popularExemplo', [], 'Exemplo carregado.')) await recarregar(); }); };
+  ligarRodape(box, 'Avisos salvos.');
+}
+</script>

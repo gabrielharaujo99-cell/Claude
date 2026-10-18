@@ -10,13 +10,14 @@ const vm = require('vm');
 
 const SRC = path.join(__dirname, '..', 'src');
 
-function lerFontes() {
-  return fs.readdirSync(SRC).filter((f) => f.endsWith('.gs')).sort()
-    .map((f) => '// ---- ' + f + '\n' + fs.readFileSync(path.join(SRC, f), 'utf8')).join('\n');
+// ignorar: arquivos .gs a deixar de fora; extra: código a mais (os testes usam para simular EquipeSeok.gs).
+function lerFontes(ignorar, extra) {
+  return fs.readdirSync(SRC).filter((f) => f.endsWith('.gs') && !(ignorar || []).includes(f)).sort()
+    .map((f) => '// ---- ' + f + '\n' + fs.readFileSync(path.join(SRC, f), 'utf8')).join('\n') + (extra ? '\n' + extra : '');
 }
 
 function novoEstado() {
-  return { abas: {}, props: {}, gatilhos: [], emails: [], chats: [] };
+  return { abas: {}, props: {}, gatilhos: [], emails: [], chats: [], cache: {} };
 }
 
 function criarPlanilha(estado) {
@@ -62,7 +63,12 @@ function criarPlanilha(estado) {
         return Math.max(m, n);
       }, 0),
       getMaxRows: () => Math.max(1000, linhas.length),
-      getRange: intervalo,
+      getRange: (...a) => { estado.chamadas = (estado.chamadas || 0) + 1; return intervalo(...a); },
+      getDataRange() {
+        estado.chamadas = (estado.chamadas || 0) + 1;
+        const nc = linhas.reduce((m, l) => { let n = 0; l.forEach((v, i) => { if (v !== '' && v != null) n = i + 1; }); return Math.max(m, n); }, 0);
+        return intervalo(1, 1, Math.max(ultimaLinha(), 1), Math.max(nc, 1));
+      },
       appendRow(v) { linhas.splice(ultimaLinha(), 0, v.slice()); return this; },
       deleteRow(r) { linhas.splice(r - 1, 1); return this; },
       setFrozenRows() { return this; },
@@ -70,7 +76,7 @@ function criarPlanilha(estado) {
   }
   return {
     getId: () => 'planilha-dev',
-    getName: () => 'Flow CRM (dev)',
+    getName: () => 'Seok Flow (dev)',
     getUrl: () => 'http://localhost/planilha',
     getSheetByName: (n) => (estado.abas[n] ? aba(n) : null),
     insertSheet: (n) => { estado.abas[n] = []; return aba(n); },
@@ -101,6 +107,12 @@ function criarGlobais(estado, opcoes) {
       getEffectiveUser: () => ({ getEmail: () => dono }),
       getScriptTimeZone: () => 'America/Sao_Paulo',
     },
+    CacheService: {
+      getScriptCache: () => {
+        estado.cache = estado.cache || {};
+        return { get: (k) => (k in estado.cache ? estado.cache[k] : null), put: (k, v) => { estado.cache[k] = String(v); }, remove: (k) => { delete estado.cache[k]; } };
+      },
+    },
     LockService: { getScriptLock: () => ({ waitLock() {}, tryLock: () => true, releaseLock() {} }) },
     PropertiesService: { getScriptProperties: () => props },
     MailApp: {
@@ -109,6 +121,12 @@ function criarGlobais(estado, opcoes) {
     },
     UrlFetchApp: {
       fetch(url, o) {
+        // Instagram simulado: estado.instagram = { usuario: { codigo, corpo } }.
+        const ig = /instagram\.com\/api\/.*username=([^&]+)/.exec(url);
+        if (ig) {
+          const r = (estado.instagram || {})[decodeURIComponent(ig[1])] || { codigo: 404, corpo: '' };
+          return { getResponseCode: () => r.codigo, getContentText: () => (typeof r.corpo === 'string' ? r.corpo : JSON.stringify(r.corpo)) };
+        }
         estado.chats.push({ url, corpo: JSON.parse(o.payload) });
         return { getResponseCode: () => 200, getContentText: () => '{}' };
       },
@@ -116,6 +134,8 @@ function criarGlobais(estado, opcoes) {
     Utilities: {
       getUuid: () => require('crypto').randomUUID(),
       formatDate: fmtData,
+      base64Encode: (s) => Buffer.from(String(s), 'utf8').toString('base64'),
+      base64Decode: (s) => Array.from(Buffer.from(String(s), 'base64')),
     },
     ScriptApp: {
       getService: () => ({ getUrl: () => 'http://localhost:8080/' }),
@@ -141,7 +161,7 @@ function criarGlobais(estado, opcoes) {
 function executar(estado, opcoes, fn, args) {
   if (!/^[A-Za-z][A-Za-z0-9]*$/.test(fn)) throw new Error('Função inválida: ' + fn);
   const ctx = vm.createContext(criarGlobais(estado, opcoes));
-  vm.runInContext(lerFontes(), ctx, { filename: 'servidor.gs' });
+  vm.runInContext(lerFontes(opcoes.ignorar, opcoes.extra), ctx, { filename: 'servidor.gs' });
   if (typeof ctx[fn] !== 'function') throw new Error('Função inexistente: ' + fn);
   const r = ctx[fn].apply(null, JSON.parse(JSON.stringify(args || [])));
   return r === undefined ? null : JSON.parse(JSON.stringify(r));

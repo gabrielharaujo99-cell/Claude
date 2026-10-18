@@ -1,0 +1,535 @@
+<style>
+/* ---------- tráfego pago ---------- */
+.tf-graficos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-bottom: 18px; }
+.tf-soma { font-size: 12.5px; color: var(--suave); white-space: nowrap; }
+.tf-soma b { color: var(--texto); font-weight: 500; }
+.tf-baixo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 330px); gap: 18px; align-items: start; }
+.tf-baixo > div { display: grid; gap: 18px; min-width: 0; }
+.tf-plat { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.tf-plat::before { content: ''; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--tf-cor, var(--destaque)); }
+.tf-ritmo { position: relative; display: block; height: 4px; min-width: 84px; margin-top: 7px; border-radius: 100px; background: var(--afundado); }
+.tf-ritmo i { display: block; height: 100%; border-radius: 100px; background: var(--destaque); }
+.tf-ritmo.estouro i { background: var(--alerta); }
+.tf-ritmo .tf-esp { position: absolute; top: -3px; width: 2px; height: 10px; margin-left: -1px; border-radius: 2px; background: var(--linha-forte); }
+.tf-cli { gap: 16px; }
+.tf-cli-linha { all: unset; box-sizing: border-box; display: grid; gap: 6px; cursor: pointer; border-radius: 6px; }
+.tf-cli-linha:focus-visible { outline: 2px solid var(--destaque); outline-offset: 4px; }
+.tf-cli-linha:hover .trilho i { opacity: .78; }
+.tf-cli-topo { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.tf-cli-topo span:first-child { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tf-alertas > li { cursor: pointer; }
+.tf-ico { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--alerta) 12%, var(--superficie)); color: var(--alerta); }
+.tf-ico svg { width: 15px; height: 15px; }
+.tf-mini { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.tf-mini > div, .tf-previa { background: var(--afundado); border-radius: calc(var(--raio) - 4px); }
+.tf-mini > div { padding: 12px 14px; min-width: 0; }
+.tf-mini b, .tf-previa b { display: block; color: var(--destaque); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tf-mini b { margin: 4px 0 1px; font-weight: 300; font-size: 22px; letter-spacing: -.02em; line-height: 1.15; }
+.tf-mini small { display: block; font-size: 11.5px; color: var(--suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tf-previa { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 14px 16px; }
+.tf-previa b { margin-top: 3px; font-weight: 400; font-size: 18px; }
+.tf-previa .tf-aviso { grid-column: 1 / -1; color: var(--alerta); font-size: 12px; }
+.tf-acoes-r { white-space: nowrap; }
+.tf-boas { max-width: 660px; padding: 36px 32px; }
+.tf-boas h2 { font-weight: 200; font-size: 32px; letter-spacing: -.03em; line-height: 1.1; margin: 10px 0 12px; }
+.tf-boas p { margin: 0 0 22px; font-size: 15px; font-weight: 300; }
+@media (max-width: 1280px) { .tabela .tf-larga { display: none; } }
+@media (max-width: 1100px) { .tf-baixo { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 820px) {
+  .tf-graficos { grid-template-columns: minmax(0, 1fr); }
+  .tf-mini { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tf-previa { padding: 12px; }
+  .tf-ritmo { min-width: 56px; }
+  .tf-boas { padding: 26px 20px; }
+  .tf-boas h2 { font-size: 26px; }
+}
+</style>
+<script>
+/**
+ * Tráfego pago: campanhas por cliente e os resultados lançados por período (Trafego.gs só valida e grava).
+ * CPL, CTR, ROAS e o ritmo da verba são calculados aqui, a partir dos números brutos de cada lançamento.
+ */
+const TF_STATUS = { ativa: 'Ativa', pausada: 'Pausada', encerrada: 'Encerrada' };
+const TF_PERIODOS = [{ v: '30', t: 'Últimos 30 dias' }, { v: 'mes', t: 'Este mês' }, { v: 'anterior', t: 'Mês passado' }, { v: '90', t: 'Últimos 90 dias' }];
+const TF_COR_PLAT = { 'Meta Ads': 'var(--destaque)', 'Google Ads': 'var(--cobre)', 'TikTok Ads': 'var(--texto)', 'LinkedIn Ads': 'var(--apagado)' };
+S.filtrosTf = { periodo: '30', cliente: '', plataforma: '' };
+S.gavetaTf = null;
+
+// ---------- números e datas ----------
+// Aceita "1.234,56", "1234,56", "1234.56" e "R$ 1.234".
+function tfNum(v) {
+  let s = String(v == null ? '' : v).trim().replace(/[R$\s%]/g, '');
+  if (!s) return 0;
+  if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
+  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+  const n = Number(s);
+  return isFinite(n) && n > 0 ? n : 0;
+}
+function tfCampo(v) { return v ? String(v).replace('.', ',') : ''; }
+function tfInt(n) { return Math.round(n || 0).toLocaleString('pt-BR'); }
+function tfPct(x) { return x == null ? '—' : (x * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'; }
+function tfRoas(x) { return x == null ? '—' : x.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + 'x'; }
+function tfCpl(x) { return x == null ? '—' : dinheiro(x); }
+function tfCurta(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
+function tfJunta(s) { return s ? ' · ' + s : ''; }
+
+// Variação contra o período anterior, em texto (o kpi() escapa HTML).
+function tfVar(atual, antes) {
+  if (atual == null || !antes) return '';
+  const p = Math.round((atual - antes) / antes * 100);
+  return p === 0 ? 'estável' : (p > 0 ? '▲ ' : '▼ ') + Math.abs(p) + '%';
+}
+
+function tfIso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function tfDia(iso, n) { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return tfIso(d); }
+function tfDataDe(r) { return String(r.data || '').slice(0, 10); }
+
+// Período escolhido e o anterior de mesmo tamanho, para comparar.
+function tfPeriodo(p) {
+  const hoje = S.dados.hoje, a = Number(hoje.slice(0, 4)), m = Number(hoje.slice(5, 7)), dia = Number(hoje.slice(8, 10));
+  const iso = function (y, mm, d) { return y + '-' + String(mm).padStart(2, '0') + '-' + String(d).padStart(2, '0'); };
+  const ultimo = function (y, mm) { return new Date(y, mm, 0).getDate(); };
+  const antesDe = function (y, mm) { return mm === 1 ? [y - 1, 12] : [y, mm - 1]; };
+  if (p === 'mes') {
+    const x = antesDe(a, m);
+    return { de: iso(a, m, 1), ate: hoje, antes: { de: iso(x[0], x[1], 1), ate: iso(x[0], x[1], Math.min(dia, ultimo(x[0], x[1]))) } };
+  }
+  if (p === 'anterior') {
+    const x = antesDe(a, m), y = antesDe(x[0], x[1]);
+    return { de: iso(x[0], x[1], 1), ate: iso(x[0], x[1], ultimo(x[0], x[1])), antes: { de: iso(y[0], y[1], 1), ate: iso(y[0], y[1], ultimo(y[0], y[1])) } };
+  }
+  const n = p === '90' ? 90 : 30, de = tfDia(hoje, -(n - 1));
+  return { de: de, ate: hoje, antes: { de: tfDia(de, -n), ate: tfDia(de, -1) } };
+}
+function tfNomePeriodo(p) { const x = TF_PERIODOS.find(function (o) { return o.v === p; }); return x ? x.t : ''; }
+
+// Mês corrente e quanto dele já passou (para o ritmo da verba).
+function tfMes() {
+  const h = S.dados.hoje, dias = new Date(Number(h.slice(0, 4)), Number(h.slice(5, 7)), 0).getDate();
+  return { mes: h.slice(0, 7), esperado: Number(h.slice(8, 10)) / dias };
+}
+
+// ---------- consultas ----------
+function tfCampanha(id) { return S.dados.campanhas.find(function (c) { return c.id === id; }); }
+function tfResultado(id) { return S.dados.resultados.find(function (r) { return r.id === id; }); }
+function tfEntre(lista, de, ate) { return lista.filter(function (r) { const d = tfDataDe(r); return d >= de && d <= ate; }); }
+function tfDoMes(lista) { const m = tfMes().mes; return lista.filter(function (r) { return tfDataDe(r).slice(0, 7) === m; }); }
+
+function tfSoma(lista) {
+  const t = { inv: 0, imp: 0, cli: 0, leads: 0, vendas: 0, receita: 0, n: lista.length };
+  lista.forEach(function (r) {
+    t.inv += Number(r.investimento) || 0; t.imp += Number(r.impressoes) || 0; t.cli += Number(r.cliques) || 0;
+    t.leads += Number(r.leads) || 0; t.vendas += Number(r.vendas) || 0; t.receita += Number(r.receita) || 0;
+  });
+  t.cpl = t.leads ? t.inv / t.leads : null;
+  t.ctr = t.imp ? t.cli / t.imp : null;
+  t.roas = t.inv ? t.receita / t.inv : null;
+  return t;
+}
+
+function tfPilula(s) {
+  const cls = s === 'ativa' ? ' ok' : s === 'pausada' ? ' destaque' : '';
+  return '<span class="pilula' + cls + '">' + esc(TF_STATUS[s] || s) + '</span>';
+}
+function tfPlat(p) { return '<span class="tf-plat" style="--tf-cor:' + (TF_COR_PLAT[p] || 'var(--suave)') + '">' + esc(p) + '</span>'; }
+
+// Barra fina de ritmo: gasto no mês sobre a verba, com uma marca de onde "deveria" estar hoje.
+function tfRitmo(gasto, verba) {
+  const mi = tfMes(), p = verba ? gasto / verba : 0;
+  return { p: p, esperado: mi.esperado, estouro: !!verba && p > Math.min(1, mi.esperado * 1.15 + 0.05) };
+}
+function tfBarraRitmo(gasto, verba) {
+  if (!verba) return '';
+  const r = tfRitmo(gasto, verba);
+  return '<span class="tf-ritmo' + (r.estouro ? ' estouro' : '') + '" title="' + esc(dinheiro(gasto) + ' de ' + dinheiro(verba) + ' no mês (' + Math.round(r.p * 100) + '%) · ritmo esperado hoje: ' + Math.round(r.esperado * 100) + '%') + '">' +
+    '<i style="width:' + Math.min(100, Math.round(r.p * 100)) + '%"></i><span class="tf-esp" style="left:' + Math.round(r.esperado * 100) + '%"></span></span>';
+}
+
+// Gráfico de barras para contagens (leads): mesmo desenho do graficoBarras, eixo em números inteiros.
+function tfGraficoContagem(dados, altura) {
+  const L = 640, A = altura || 200, esq = 46, base = A - 22, topo = 10;
+  const max = Math.max.apply(null, dados.map(function (d) { return d.valor; }).concat([1]));
+  const ordem = Math.pow(10, Math.floor(Math.log10(max)));
+  const passo = Math.max(1, ordem * (max / ordem > 5 ? 2 : 1));
+  let teto = Math.ceil(max / passo) * passo;
+  if (teto % 2) teto += passo; // o meio do eixo sempre inteiro
+  const y = function (v) { return base - (v / teto) * (base - topo); };
+  const larg = (L - esq) / Math.max(dados.length, 1), barra = Math.max(3, Math.min(34, larg - 6));
+  let svg = '<svg viewBox="0 0 ' + L + ' ' + A + '" role="img" aria-label="Gráfico de barras">';
+  [0, teto / 2, teto].forEach(function (t) {
+    svg += '<line x1="' + esq + '" x2="' + L + '" y1="' + y(t) + '" y2="' + y(t) + '" stroke="var(--linha)" stroke-width="1"/>' +
+      '<text x="' + (esq - 8) + '" y="' + (y(t) + 4) + '" text-anchor="end" class="eixo">' + tfInt(t) + '</text>';
+  });
+  const cadaRotulo = Math.ceil(dados.length / 12);
+  dados.forEach(function (d, i) {
+    const cx = esq + larg * i + larg / 2, x = cx - barra / 2, yt = y(d.valor), h = base - yt, r = Math.min(4, barra / 2, h);
+    if (h > 0) {
+      svg += '<path d="M' + x + ',' + base + ' V' + (yt + r) + ' Q' + x + ',' + yt + ' ' + (x + r) + ',' + yt + ' H' + (x + barra - r) + ' Q' + (x + barra) + ',' + yt + ' ' + (x + barra) + ',' + (yt + r) + ' V' + base + ' Z" fill="' + (d.apagado ? 'color-mix(in srgb, var(--destaque) 30%, var(--superficie))' : 'var(--destaque)') + '"/>';
+    }
+    if (i % cadaRotulo === 0) svg += '<text x="' + cx + '" y="' + (A - 6) + '" text-anchor="middle" class="eixo">' + esc(d.rotulo) + '</text>';
+    svg += '<rect x="' + (esq + larg * i) + '" y="0" width="' + larg + '" height="' + base + '" fill="transparent" data-i="' + i + '"/>';
+  });
+  return '<div class="grafico" data-grafico>' + svg + '</svg><div class="dica" hidden></div></div>';
+}
+
+// ---------- tela ----------
+TELAS.trafego = {
+  desenhar: function () {
+    const f = S.filtrosTf, d = S.dados, edita = pode('colaborador'), per = tfPeriodo(f.periodo), mi = tfMes();
+    const todas = d.campanhas;
+    const botoes = (edita && todas.length ? '<button class="btn" data-lancar>' + icone('mais') + '<span>Lançar resultado</span></button>' : '') +
+      (edita ? '<button class="btn btn-primario" data-nova-camp>' + icone('mais') + '<span>Nova campanha</span></button>' : '');
+
+    if (!todas.length) {
+      return {
+        rotulo: 'Tráfego pago', titulo: 'Tráfego <em>pago</em>', acoes: botoes,
+        corpo: '<div class="conteudo"><div class="cartao tf-boas"><span class="rotulo">Comece por aqui</span><h2>Nenhuma campanha <em>ainda</em>.</h2>' +
+          '<p class="mudo">Cadastre as campanhas de cada cliente (plataforma, objetivo e verba mensal) e lance os resultados toda semana: investimento, impressões, cliques, leads, vendas e receita. CPL, CTR, ROAS e o ritmo da verba aparecem aqui sozinhos.</p>' +
+          (edita ? '<button class="btn btn-primario" data-nova-camp>' + icone('mais') + 'Criar a primeira campanha</button>' : '<p class="mudo pequeno" style="margin:0">Peça para alguém do tráfego cadastrar a primeira campanha.</p>') + '</div></div>',
+        montar: function (el, topo) {
+          [el, topo].forEach(function (x) { x.querySelectorAll('[data-nova-camp]').forEach(function (b) { b.onclick = function () { abrirFormCampanha(); }; }); });
+        },
+      };
+    }
+
+    const camps = todas.filter(function (c) { return (!f.cliente || c.clienteId === f.cliente) && (!f.plataforma || c.plataforma === f.plataforma); });
+    const porCamp = {};
+    camps.forEach(function (c) { porCamp[c.id] = []; });
+    d.resultados.forEach(function (r) { if (porCamp[r.campanhaId]) porCamp[r.campanhaId].push(r); });
+    const res = d.resultados.filter(function (r) { return !!porCamp[r.campanhaId]; });
+    const atual = tfSoma(tfEntre(res, per.de, per.ate)), antes = tfSoma(tfEntre(res, per.antes.de, per.antes.ate));
+    const gastoMes = tfSoma(tfDoMes(res)).inv;
+    const verbaMes = camps.filter(function (c) { return c.status === 'ativa'; }).reduce(function (s, c) { return s + (Number(c.verba) || 0); }, 0);
+
+    // Resumo de cada campanha: período, período anterior e gasto do mês.
+    const info = {};
+    camps.forEach(function (c) {
+      const rs = porCamp[c.id];
+      info[c.id] = { t: tfSoma(tfEntre(rs, per.de, per.ate)), ant: tfSoma(tfEntre(rs, per.antes.de, per.antes.ate)), mes: tfSoma(tfDoMes(rs)).inv,
+        ultima: rs.reduce(function (m, r) { return tfDataDe(r) > m ? tfDataDe(r) : m; }, '') };
+    });
+
+    // Últimas 12 semanas (segunda a domingo), sem depender do período escolhido.
+    const seg = new Date(d.hoje + 'T12:00:00');
+    seg.setDate(seg.getDate() - (seg.getDay() + 6) % 7);
+    const semanas = [];
+    for (let i = 11; i >= 0; i--) {
+      const ini = tfDia(tfIso(seg), -7 * i), fim = tfDia(ini, 6);
+      semanas.push({ ini: ini, fim: fim, t: tfSoma(tfEntre(res, ini, fim)), andamento: fim > d.hoje });
+    }
+    const temSemanas = semanas.some(function (s) { return s.t.n > 0; });
+    const cabSemana = function (s) { return '<b>Semana de ' + esc(dataCurta(s.ini)) + (s.andamento ? ' · em andamento' : '') + '</b>'; };
+    const gInv = semanas.map(function (s) {
+      return { rotulo: tfCurta(s.ini), valor: s.t.inv, apagado: s.andamento,
+        dica: cabSemana(s) + '<span>' + esc(dinheiro(s.t.inv)) + '</span><small>' + tfInt(s.t.leads) + ' leads · CPL ' + esc(tfCpl(s.t.cpl)) + '</small>' };
+    });
+    const gLeads = semanas.map(function (s) {
+      return { rotulo: tfCurta(s.ini), valor: s.t.leads, apagado: s.andamento,
+        dica: cabSemana(s) + '<span>' + tfInt(s.t.leads) + (s.t.leads === 1 ? ' lead' : ' leads') + '</span><small>' + tfInt(s.t.vendas) + ' venda(s) · CTR ' + tfPct(s.t.ctr) + '</small>' };
+    });
+    const total12 = tfSoma(tfEntre(res, semanas[0].ini, semanas[11].fim));
+    const semDados = '<div class="vazio"><b>Sem resultados nas últimas 12 semanas.</b>' + (edita ? 'Lance o primeiro resultado de uma campanha.' : '') + '</div>';
+    const graficos = '<div class="tf-graficos">' +
+      '<div class="cartao"><div class="cartao-cab"><h2>Investimento por semana</h2><span class="tf-soma">12 semanas · <b>' + dinheiro(total12.inv, true) + '</b></span></div><div class="cartao-corpo">' + (temSemanas ? graficoBarras(gInv, 200) : semDados) + '</div></div>' +
+      '<div class="cartao"><div class="cartao-cab"><h2>Leads por semana</h2><span class="tf-soma">12 semanas · <b>' + tfInt(total12.leads) + '</b></span></div><div class="cartao-corpo">' + (temSemanas ? tfGraficoContagem(gLeads, 200) : semDados) + '</div></div>' +
+      '</div>';
+
+    // Tabela: encerradas só aparecem se gastaram no período.
+    const linhas = camps.filter(function (c) { return c.status !== 'encerrada' || info[c.id].t.n > 0; })
+      .sort(function (a, b) { return info[b.id].t.inv - info[a.id].t.inv || a.nome.localeCompare(b.nome, 'pt-BR'); });
+    const tabela = linhas.length ? '<div class="tabela-wrap"><table class="tabela"><thead><tr><th>Campanha</th><th class="some-cel">Plataforma</th><th>Status</th><th class="some-cel">Verba mensal</th>' +
+      '<th class="d">Investido</th><th class="d">Leads</th><th class="d">CPL</th><th class="d some-cel tf-larga">CTR</th><th class="d some-cel">ROAS</th></tr></thead><tbody>' +
+      linhas.map(function (c) {
+        const x = info[c.id], t = x.t;
+        return '<tr data-camp="' + esc(c.id) + '"><td><b>' + esc(c.nome) + '</b><br><span class="mudo pequeno">' + esc(nomeCliente(c.clienteId) || 'Sem cliente') + ' · ' + esc(c.objetivo) + '</span></td>' +
+          '<td class="some-cel">' + tfPlat(c.plataforma) + '</td><td>' + tfPilula(c.status) + '</td>' +
+          '<td class="some-cel num">' + (c.verba ? dinheiro(c.verba) + tfBarraRitmo(x.mes, c.verba) : '<span class="mudo">—</span>') + '</td>' +
+          '<td class="d num"><b>' + dinheiro(t.inv) + '</b></td><td class="d num">' + tfInt(t.leads) + '</td><td class="d num">' + tfCpl(t.cpl) + '</td>' +
+          '<td class="d num some-cel tf-larga">' + tfPct(t.ctr) + '</td><td class="d num some-cel">' + tfRoas(t.roas) + '</td></tr>';
+      }).join('') + '</tbody></table></div>'
+      : '<div class="vazio"><b>Nenhuma campanha com esses filtros.</b><button class="btn btn-peq" data-limpar style="margin-top:10px">Limpar filtros</button></div>';
+
+    // Por cliente, no período.
+    const porCli = {};
+    linhas.forEach(function (c) {
+      const o = porCli[c.clienteId] = porCli[c.clienteId] || { inv: 0, leads: 0 };
+      o.inv += info[c.id].t.inv; o.leads += info[c.id].t.leads;
+    });
+    const ranking = Object.keys(porCli).filter(function (k) { return porCli[k].inv > 0 || porCli[k].leads > 0; })
+      .sort(function (a, b) { return porCli[b].inv - porCli[a].inv; });
+    const maior = ranking.length ? Math.max(porCli[ranking[0]].inv, 1) : 1;
+    const cartaoCli = '<div class="cartao"><div class="cartao-cab"><h2>Por cliente</h2>' + (f.cliente ? '<button class="btn btn-fantasma btn-peq" data-limpar-cli>Ver todos</button>' : '<span class="mudo pequeno">no período</span>') + '</div><div class="cartao-corpo">' +
+      (ranking.length ? '<div class="barra-funil tf-cli">' + ranking.slice(0, 10).map(function (k) {
+        const o = porCli[k];
+        return '<button type="button" class="tf-cli-linha" data-filtrar-cli="' + esc(k) + '" title="Filtrar por este cliente"><span class="tf-cli-topo"><span>' + esc(nomeCliente(k) || 'Sem cliente') + '</span><b class="num" style="font-weight:500">' + dinheiro(o.inv, true) + '</b></span>' +
+          '<span class="trilho"><i style="width:' + Math.max(2, Math.round(100 * o.inv / maior)) + '%;background:var(--destaque)"></i></span>' +
+          '<span class="mudo pequeno num">' + tfInt(o.leads) + (o.leads === 1 ? ' lead' : ' leads') + ' · CPL ' + tfCpl(o.leads ? o.inv / o.leads : null) + '</span></button>';
+      }).join('') + '</div>' : '<div class="vazio">Nenhum investimento lançado neste período.</div>') + '</div></div>';
+
+    // O que pede atenção: campanha ativa sem lançamento, verba correndo rápido demais, CPL subindo.
+    const alertas = [];
+    camps.filter(function (c) { return c.status === 'ativa'; }).forEach(function (c) {
+      const x = info[c.id];
+      if (!x.ultima) alertas.push({ c: c, peso: 2, txt: 'Nenhum resultado lançado ainda' });
+      else {
+        const dias = Math.round((Date.parse(d.hoje + 'T12:00:00') - Date.parse(x.ultima + 'T12:00:00')) / 864e5);
+        if (dias > 14) alertas.push({ c: c, peso: 2, txt: 'Sem lançamento há ' + dias + ' dias' });
+      }
+      const r = tfRitmo(x.mes, Number(c.verba) || 0);
+      if (r.estouro) alertas.push({ c: c, peso: r.p > 1 ? 3 : 1, txt: Math.round(r.p * 100) + '% da verba gasta com ' + Math.round(r.esperado * 100) + '% do mês' });
+      if (x.t.cpl != null && x.ant.cpl != null && x.t.cpl > x.ant.cpl * 1.25) alertas.push({ c: c, peso: 2, txt: 'CPL subiu ' + Math.round((x.t.cpl / x.ant.cpl - 1) * 100) + '%, agora ' + dinheiro(x.t.cpl) });
+    });
+    alertas.sort(function (a, b) { return b.peso - a.peso; });
+    const cartaoAlertas = '<div class="cartao"><div class="cartao-cab"><h2>Pedem atenção</h2><span class="pilula' + (alertas.length ? ' alerta' : ' ok') + '">' + alertas.length + '</span></div><div class="cartao-corpo">' +
+      (alertas.length ? '<ul class="lista tf-alertas">' + alertas.slice(0, 6).map(function (a) {
+        return '<li data-camp="' + esc(a.c.id) + '"><span class="tf-ico">' + icone('relogio') + '</span><div class="principal-li"><b>' + esc(a.c.nome) + '</b><span>' + esc(a.txt) + '</span></div></li>';
+      }).join('') + '</ul>' : '<div class="vazio"><b>Tudo dentro do esperado.</b>Verbas no ritmo e resultados em dia.</div>') + '</div></div>';
+
+    // Filtro de cliente: só quem tem campanha.
+    const idsCli = todas.map(function (c) { return c.clienteId; }).filter(function (k, i, a) { return k && a.indexOf(k) === i; });
+    const clientes = idsCli.map(function (k) { return { v: k, t: nomeCliente(k) || 'Sem cliente' }; }).sort(function (a, b) { return a.t.localeCompare(b.t, 'pt-BR'); });
+
+    return {
+      rotulo: tfNomePeriodo(f.periodo) + ' · ' + tfCurta(per.de) + ' a ' + tfCurta(per.ate) + ' · ▲▼ vs. anterior',
+      titulo: 'Tráfego <em>pago</em>',
+      banner: {
+        texto: '<b>' + dinheiro(atual.inv, true) + '</b> investidos geraram <b>' + tfInt(atual.leads) + '</b> lead(s), com CPL de <b>' + tfCpl(atual.cpl) + '</b> e ROAS de <b>' + tfRoas(atual.roas) + '</b>.' +
+          (alertas.length ? ' <span class="al">' + alertas.length + ' campanha(s)</span> pedem atenção.' : ''),
+        visual: { tipo: 'pontos', formas: ['alvo', 'barras'] },
+      },
+      acoes: '<select class="entrada filtro" id="tf-per" aria-label="Período">' + opcoes(TF_PERIODOS, f.periodo) + '</select>' +
+        '<select class="entrada filtro" id="tf-cli" aria-label="Cliente">' + opcoes(clientes, f.cliente, 'Todos os clientes') + '</select>' +
+        '<select class="entrada filtro" id="tf-plat" aria-label="Plataforma">' + opcoes(d.listas.plataformas, f.plataforma, 'Todas as plataformas') + '</select>' + botoes,
+      corpo: '<div class="conteudo"><div class="kpis">' +
+        kpi('Investimento', dinheiro(atual.inv, true), (verbaMes ? Math.round(100 * gastoMes / verbaMes) + '% da verba do mês' : 'sem verba mensal ativa') + tfJunta(tfVar(atual.inv, antes.inv)), true) +
+        kpi('Leads', tfInt(atual.leads), tfInt(atual.vendas) + (atual.vendas === 1 ? ' venda' : ' vendas') + tfJunta(tfVar(atual.leads, antes.leads))) +
+        kpi('CPL', tfCpl(atual.cpl), 'CTR ' + tfPct(atual.ctr) + tfJunta(tfVar(atual.cpl, antes.cpl))) +
+        kpi('ROAS', tfRoas(atual.roas), dinheiro(atual.receita, true) + ' de receita' + tfJunta(tfVar(atual.roas, antes.roas))) +
+        '</div>' + graficos +
+        '<div class="tf-baixo"><div><div class="cartao"><div class="cartao-cab"><h2>Campanhas</h2><span class="mudo pequeno">' + linhas.length + ' · por investimento no período</span></div>' + tabela + '</div></div>' +
+        '<div>' + cartaoCli + cartaoAlertas + '</div></div></div>',
+      montar: function (el, topo) {
+        [['#tf-per', 'periodo'], ['#tf-cli', 'cliente'], ['#tf-plat', 'plataforma']].forEach(function (x) {
+          topo.querySelector(x[0]).addEventListener('change', function (e) { f[x[1]] = e.target.value; desenhar(); });
+        });
+        const l = topo.querySelector('[data-lancar]');
+        if (l) l.onclick = function () { abrirFormResultado(); };
+        const n = topo.querySelector('[data-nova-camp]');
+        if (n) n.onclick = function () { abrirFormCampanha(); };
+        el.addEventListener('click', function (e) {
+          if (e.target.closest('[data-limpar]')) { f.cliente = ''; f.plataforma = ''; return desenhar(); }
+          if (e.target.closest('[data-limpar-cli]')) { f.cliente = ''; return desenhar(); }
+          const fc = e.target.closest('[data-filtrar-cli]');
+          if (fc) { f.cliente = fc.dataset.filtrarCli; return desenhar(); }
+          const cp = e.target.closest('[data-camp]');
+          if (cp) tfAbrirCampanha(cp.dataset.camp);
+        });
+        if (temSemanas) ligarGraficos(el, [gInv, gLeads]);
+      },
+    };
+  },
+};
+
+// ---------- gaveta da campanha ----------
+function tfAbrirCampanha(id) {
+  if (!tfCampanha(id)) return;
+  if (S.gavetaTf) S.gavetaTf.api.fechar();
+  const g = { id: id };
+  g.api = modal({ gaveta: true, titulo: 'Campanha', html: '', aoFechar: function () { if (S.gavetaTf === g) S.gavetaTf = null; } });
+  S.gavetaTf = g;
+  tfDesenharGaveta();
+}
+
+function tfAtualizarGaveta() { if (S.gavetaTf) tfDesenharGaveta(); }
+
+function tfDesenharGaveta() {
+  const g = S.gavetaTf, c = tfCampanha(g.id);
+  if (!c) return g.api.fechar();
+  const per = tfPeriodo(S.filtrosTf.periodo), edita = pode('colaborador');
+  const rs = S.dados.resultados.filter(function (r) { return r.campanhaId === c.id; }).sort(function (a, b) { return tfDataDe(a) < tfDataDe(b) ? 1 : -1; });
+  const t = tfSoma(tfEntre(rs, per.de, per.ate)), ant = tfSoma(tfEntre(rs, per.antes.de, per.antes.ate)), total = tfSoma(rs), gastoMes = tfSoma(tfDoMes(rs)).inv;
+  const mini = function (rot, val, det) { return '<div><span class="rotulo">' + esc(rot) + '</span><b>' + esc(val) + '</b><small>' + esc(det || ' ') + '</small></div>'; };
+
+  g.api.el.innerHTML =
+    '<div class="det-topo"><div class="linha1"><div style="flex:1;min-width:0"><span class="rotulo">' + esc(nomeCliente(c.clienteId) || 'Sem cliente') + '</span>' +
+      '<h2 style="margin-top:6px">' + esc(c.nome) + '</h2></div>' +
+      '<button class="btn btn-fantasma btn-icone" data-fechar aria-label="Fechar">' + icone('fechar') + '</button></div>' +
+    '<div class="chips"><span class="pilula">' + tfPlat(c.plataforma) + '</span><span class="pilula">' + esc(c.objetivo) + '</span>' + tfPilula(c.status) +
+      (tfRitmo(gastoMes, Number(c.verba) || 0).estouro && c.status === 'ativa' ? '<span class="pilula alerta">Verba acima do ritmo</span>' : '') + '</div>' +
+    (edita ? '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button class="btn btn-peq btn-escuro" data-lancar-camp>' + icone('mais') + 'Lançar resultado</button>' +
+      '<button class="btn btn-peq" data-editar-camp>' + icone('editar') + 'Editar campanha</button>' +
+      '<button class="btn btn-peq btn-fantasma" data-status-camp>' + (c.status === 'ativa' ? 'Pausar' : 'Reativar') + '</button></div>' : '') +
+    '</div>' +
+    '<div class="det-corpo" style="border-top:1px solid var(--linha);margin-top:18px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:10px"><span class="rotulo">' + esc(tfNomePeriodo(S.filtrosTf.periodo)) + '</span><span class="mudo pequeno">▲▼ vs. período anterior</span></div>' +
+      '<div class="tf-mini">' +
+        mini('Investido', dinheiro(t.inv, true), tfVar(t.inv, ant.inv)) +
+        mini('Leads', tfInt(t.leads), tfInt(t.vendas) + (t.vendas === 1 ? ' venda' : ' vendas') + tfJunta(tfVar(t.leads, ant.leads))) +
+        mini('CPL', tfCpl(t.cpl), 'CTR ' + tfPct(t.ctr) + tfJunta(tfVar(t.cpl, ant.cpl))) +
+        mini('ROAS', tfRoas(t.roas), dinheiro(t.receita, true) + ' de receita') +
+      '</div>' +
+      '<dl class="dl" style="margin-top:22px">' +
+        '<div><dt>Verba mensal</dt><dd class="num">' + (c.verba ? dinheiro(c.verba) : '—') + '</dd></div>' +
+        '<div><dt>Gasto neste mês</dt><dd class="num">' + dinheiro(gastoMes) + (c.verba ? ' <span class="mudo pequeno">(' + Math.round(100 * gastoMes / c.verba) + '%)</span>' + tfBarraRitmo(gastoMes, c.verba) : '') + '</dd></div>' +
+        '<div><dt>Vigência</dt><dd>' + (c.fim ? (c.inicio ? dataBr(c.inicio) + ' a ' : 'Até ') + dataBr(c.fim) : c.inicio ? 'Desde ' + dataBr(c.inicio) + ', sem fim definido' : 'Sem datas definidas') + '</dd></div>' +
+        '<div><dt>Responsável</dt><dd style="display:flex;align-items:center;gap:8px">' + (c.responsavel ? avatar(c.responsavel, 'p') + esc(nomeMembro(c.responsavel)) : '—') + '</dd></div>' +
+        '<div><dt>Desde o início</dt><dd class="num">' + dinheiro(total.inv) + ' · ' + tfInt(total.leads) + ' leads</dd></div>' +
+        '<div><dt>CPL e ROAS no total</dt><dd class="num">' + tfCpl(total.cpl) + ' · ' + tfRoas(total.roas) + '</dd></div>' +
+        (c.obs ? '<div style="grid-column:1/-1"><dt>Observações</dt><dd style="white-space:pre-wrap">' + esc(c.obs) + '</dd></div>' : '') +
+      '</dl>' +
+      '<div style="margin-top:26px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:4px"><span class="rotulo">Resultados lançados</span><span class="mudo pequeno">' + rs.length + '</span></div>' +
+        (rs.length ? '<div class="tabela-wrap"><table class="tabela"><thead><tr><th>Data</th><th class="d">Investimento</th><th class="d">Leads</th><th class="d">CPL</th><th class="d some-cel">ROAS</th>' + (edita ? '<th></th>' : '') + '</tr></thead><tbody>' +
+          rs.map(function (r) {
+            const x = tfSoma([r]);
+            return '<tr data-res="' + esc(r.id) + '"><td class="num">' + dataBr(tfDataDe(r)) + '</td><td class="d num">' + dinheiro(x.inv) + '</td><td class="d num">' + tfInt(x.leads) + '</td>' +
+              '<td class="d num">' + tfCpl(x.cpl) + '</td><td class="d num some-cel">' + tfRoas(x.roas) + '</td>' +
+              (edita ? '<td class="d tf-acoes-r"><button class="btn btn-fantasma btn-icone btn-peq" data-editar-res="' + esc(r.id) + '" aria-label="Editar lançamento">' + icone('editar') + '</button>' +
+                '<button class="btn btn-fantasma btn-icone btn-peq btn-perigo" data-tirar-res="' + esc(r.id) + '" aria-label="Apagar lançamento">' + icone('lixo') + '</button></td>' : '') + '</tr>';
+          }).join('') + '</tbody></table></div>'
+          : '<div class="vazio"><b>Nenhum resultado lançado.</b>' + (edita ? 'Use “Lançar resultado” toda semana (ou no período que preferir) com investimento, cliques, leads e vendas.' : 'Os números aparecem aqui quando alguém do tráfego lançar.') + '</div>') +
+      '</div>' +
+    '</div>';
+
+  const el = g.api.el;
+  const lc = el.querySelector('[data-lancar-camp]');
+  if (lc) lc.onclick = function () { abrirFormResultado({ campanhaId: c.id }); };
+  const ed = el.querySelector('[data-editar-camp]');
+  if (ed) ed.onclick = function () { abrirFormCampanha(c); };
+  const st = el.querySelector('[data-status-camp]');
+  if (st) st.onclick = function () {
+    const status = c.status === 'ativa' ? 'pausada' : 'ativa';
+    ocupado(st, async function () {
+      const r = await gravar('salvarCampanha', [Object.assign({}, c, { status: status })], status === 'pausada' ? 'Campanha pausada.' : 'Campanha reativada.');
+      if (r) { trocar('campanhas', r); desenhar(); tfAtualizarGaveta(); }
+    });
+  };
+  const tb = el.querySelector('tbody');
+  if (tb) tb.addEventListener('click', function (e) {
+    const ap = e.target.closest('[data-tirar-res]');
+    if (ap) return tfApagarResultado(ap.dataset.tirarRes);
+    const tr = e.target.closest('[data-res]');
+    if (tr) abrirFormResultado(tfResultado(tr.dataset.res));
+  });
+}
+
+async function tfApagarResultado(id) {
+  const r = tfResultado(id);
+  if (!r) return false;
+  const c = tfCampanha(r.campanhaId);
+  if (!(await confirmar('Apagar este lançamento?', (c ? c.nome + ' · ' : '') + dataBr(tfDataDe(r)) + ' · ' + dinheiro(r.investimento), 'Apagar', true))) return false;
+  if (await gravar('removerResultado', [id], 'Lançamento apagado.') == null) return false;
+  S.dados.resultados = S.dados.resultados.filter(function (x) { return x.id !== id; });
+  desenhar(); tfAtualizarGaveta();
+  return true;
+}
+
+// ---------- formulário da campanha ----------
+function abrirFormCampanha(base) {
+  base = base || {};
+  const d = S.dados, novo = !base.id, edita = pode('colaborador'), eu = d.eu.email;
+  const trafego = equipeAtiva().filter(function (m) { return (m.areas || []).indexOf('trafego') >= 0; });
+  const c = Object.assign({
+    status: 'ativa', plataforma: d.listas.plataformas[0], objetivo: d.listas.objetivos[0], inicio: d.hoje, clienteId: S.filtrosTf.cliente,
+    responsavel: trafego.some(function (m) { return m.email === eu; }) ? eu : '',
+  }, base);
+  const clientes = d.clientes.filter(function (x) { return !x.arquivado || x.id === c.clienteId; }).sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+  if (novo && !clientes.length) return toast('Cadastre um cliente antes de criar a campanha.', { erro: true });
+  const resp = (trafego.length ? trafego : equipeAtiva()).map(function (m) { return { v: m.email, t: m.nome }; });
+  if (c.responsavel && !resp.some(function (x) { return x.v === c.responsavel; })) resp.push({ v: c.responsavel, t: nomeMembro(c.responsavel) });
+  const comAtual = function (lista, v) { return v && lista.indexOf(v) < 0 ? lista.concat([v]) : lista; };
+  const m = modal({
+    titulo: novo ? 'Nova campanha' : edita ? 'Editar campanha' : c.nome,
+    corpo: '<form id="tf-form-c" class="grade" autocomplete="off"><fieldset style="display:contents"' + (edita ? '' : ' disabled') + '>' +
+      '<label class="campo"><span>Cliente</span><select name="clienteId" required>' + opcoes(clientes.map(function (x) { return { v: x.id, t: x.nome }; }), c.clienteId, 'Escolha') + '</select></label>' +
+      '<label class="campo"><span>Status</span><select name="status">' + opcoes(Object.keys(TF_STATUS).map(function (k) { return { v: k, t: TF_STATUS[k] }; }), c.status) + '</select></label>' +
+      '<label class="campo inteira"><span>Nome da campanha</span><input name="nome" required maxlength="140" value="' + esc(c.nome) + '" placeholder="Ex.: Captação de alunas · pilates"></label>' +
+      '<label class="campo"><span>Plataforma</span><select name="plataforma">' + opcoes(comAtual(d.listas.plataformas, c.plataforma), c.plataforma) + '</select></label>' +
+      '<label class="campo"><span>Objetivo</span><select name="objetivo">' + opcoes(comAtual(d.listas.objetivos, c.objetivo), c.objetivo) + '</select></label>' +
+      '<label class="campo"><span>Verba mensal</span><input name="verba" inputmode="decimal" value="' + esc(tfCampo(c.verba)) + '" placeholder="3.000,00"><small>O que o cliente aprovou por mês. Mede o ritmo de gasto.</small></label>' +
+      '<label class="campo"><span>Responsável</span><select name="responsavel">' + opcoes(resp, c.responsavel, novo ? 'Eu mesmo' : 'Ninguém') + '</select></label>' +
+      '<label class="campo"><span>Início</span><input name="inicio" type="date" value="' + esc(String(c.inicio || '').slice(0, 10)) + '"></label>' +
+      '<label class="campo"><span>Fim</span><input name="fim" type="date" value="' + esc(String(c.fim || '').slice(0, 10)) + '"><small>Em branco: sem data para acabar.</small></label>' +
+      '<label class="campo inteira"><span>Observações</span><textarea name="obs" placeholder="Público, criativos, link da landing page…">' + esc(c.obs) + '</textarea></label></fieldset></form>',
+    pe: '<button class="btn btn-fantasma" data-fechar>' + (edita ? 'Cancelar' : 'Fechar') + '</button>' + (edita ? '<button class="btn btn-primario" data-salvar>' + (novo ? 'Criar campanha' : 'Salvar') + '</button>' : ''),
+  });
+  const form = m.el.querySelector('#tf-form-c'), salvar = m.el.querySelector('[data-salvar]');
+  if (!salvar) return;
+  form.addEventListener('submit', function (e) { e.preventDefault(); salvar.click(); });
+  salvar.onclick = function () {
+    const v = lerForm(form);
+    if (!v.clienteId) return form.clienteId.focus();
+    if (!v.nome.trim()) return form.nome.focus();
+    v.verba = tfNum(v.verba);
+    if (c.id) v.id = c.id;
+    ocupado(salvar, async function () {
+      const r = await gravar('salvarCampanha', [v], novo ? 'Campanha criada.' : 'Campanha salva.');
+      if (!r) return;
+      trocar('campanhas', r);
+      m.fechar(); desenhar();
+      if (novo) tfAbrirCampanha(r.id); else tfAtualizarGaveta();
+    });
+  };
+}
+
+// ---------- formulário do resultado (com prévia de CPL, CTR e ROAS) ----------
+function abrirFormResultado(base) {
+  base = base || {};
+  const d = S.dados, novo = !base.id, edita = pode('colaborador');
+  const r = Object.assign({ data: d.hoje }, base);
+  const camps = d.campanhas.filter(function (c) { return c.status !== 'encerrada' || c.id === r.campanhaId; })
+    .sort(function (a, b) { return (nomeCliente(a.clienteId) + ' ' + a.nome).localeCompare(nomeCliente(b.clienteId) + ' ' + b.nome, 'pt-BR'); });
+  if (!camps.length) return toast(d.campanhas.length ? 'Nenhuma campanha ativa: reative uma ou crie outra.' : 'Crie uma campanha antes de lançar resultados.', { erro: true });
+  if (!r.campanhaId && camps.length === 1) r.campanhaId = camps[0].id;
+  const grupos = {};
+  camps.forEach(function (c) { (grupos[c.clienteId] = grupos[c.clienteId] || []).push(c); });
+  const opts = '<option value="">Escolha</option>' + Object.keys(grupos).map(function (k) {
+    return '<optgroup label="' + esc(nomeCliente(k) || 'Sem cliente') + '">' + opcoes(grupos[k].map(function (c) {
+      return { v: c.id, t: c.nome + ' · ' + c.plataforma + (c.status !== 'ativa' ? ' (' + (TF_STATUS[c.status] || c.status).toLowerCase() + ')' : '') };
+    }), r.campanhaId) + '</optgroup>';
+  }).join('');
+  const campo = function (nome, rotulo, inteiro, dica, larga) {
+    return '<label class="campo' + (larga ? ' inteira' : '') + '"><span>' + rotulo + '</span><input name="' + nome + '" inputmode="' + (inteiro ? 'numeric' : 'decimal') + '" value="' + esc(tfCampo(r[nome])) + '" placeholder="0' + (inteiro ? '' : ',00') + '">' + (dica ? '<small>' + dica + '</small>' : '') + '</label>';
+  };
+  const m = modal({
+    titulo: novo ? 'Lançar resultado' : 'Lançamento',
+    corpo: '<form id="tf-form-r" class="grade" autocomplete="off"><fieldset style="display:contents"' + (edita ? '' : ' disabled') + '>' +
+      '<label class="campo inteira"><span>Campanha</span><select name="campanhaId" required>' + opts + '</select></label>' +
+      '<label class="campo"><span>Data do período</span><input name="data" type="date" value="' + esc(String(r.data).slice(0, 10)) + '"><small>Ex.: a segunda-feira da semana lançada.</small></label>' +
+      campo('investimento', 'Investimento', false, 'Quanto foi gasto no período.') +
+      campo('impressoes', 'Impressões', true) + campo('cliques', 'Cliques', true) +
+      campo('leads', 'Leads', true) + campo('vendas', 'Vendas', true) +
+      campo('receita', 'Receita', false, 'Valor das vendas atribuídas à campanha.', true) +
+      '<div class="campo inteira"><span>Prévia</span><div class="tf-previa" id="tf-previa"></div></div></fieldset></form>',
+    pe: (!novo && edita ? '<div class="esq"><button class="btn btn-fantasma btn-perigo btn-peq" data-apagar>' + icone('lixo') + 'Apagar</button></div>' : '') +
+      '<button class="btn btn-fantasma" data-fechar>' + (edita ? 'Cancelar' : 'Fechar') + '</button>' + (edita ? '<button class="btn btn-primario" data-salvar>' + (novo ? 'Lançar' : 'Salvar') + '</button>' : ''),
+  });
+  const form = m.el.querySelector('#tf-form-r');
+  const NUMS = ['investimento', 'impressoes', 'cliques', 'leads', 'vendas', 'receita'];
+  const ler = function () { const v = lerForm(form); NUMS.forEach(function (k) { v[k] = tfNum(v[k]); }); return v; };
+  const previa = function () {
+    const v = ler(), x = tfSoma([v]);
+    m.el.querySelector('#tf-previa').innerHTML = '<div><span class="rotulo">CPL</span><b>' + esc(tfCpl(x.cpl)) + '</b></div><div><span class="rotulo">CTR</span><b>' + tfPct(x.ctr) + '</b></div>' +
+      '<div><span class="rotulo">ROAS</span><b>' + tfRoas(x.roas) + '</b></div>' + (x.imp > 0 && x.cli > x.imp ? '<span class="tf-aviso">Os cliques passam das impressões.</span>' : '');
+  };
+  form.addEventListener('input', previa);
+  previa();
+  const ap = m.el.querySelector('[data-apagar]');
+  if (ap) ap.onclick = async function () { if (await tfApagarResultado(r.id)) m.fechar(); };
+  const salvar = m.el.querySelector('[data-salvar]');
+  if (!salvar) return;
+  form.addEventListener('submit', function (e) { e.preventDefault(); salvar.click(); });
+  salvar.onclick = function () {
+    const v = ler();
+    if (!v.campanhaId) return form.campanhaId.focus();
+    if (!(v.investimento > 0) && !v.leads && !v.cliques) { toast('Informe ao menos o investimento, os cliques ou os leads.', { erro: true }); return form.investimento.focus(); }
+    if (r.id) v.id = r.id;
+    ocupado(salvar, async function () {
+      const x = await gravar('lancarResultado', [v], novo ? 'Resultado lançado.' : 'Lançamento salvo.');
+      if (!x) return;
+      trocar('resultados', x);
+      m.fechar(); desenhar(); tfAtualizarGaveta();
+    });
+  };
+}
+</script>

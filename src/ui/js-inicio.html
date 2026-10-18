@@ -1,0 +1,365 @@
+<script>
+/** Abertura, estrutura (menu lateral + topo) e a tela Início. */
+const MENU = [
+  { id: 'inicio', nome: 'Início', icone: 'inicio' },
+  { id: 'cvision', nome: 'C-Vision', icone: 'cvision', cvision: true },
+  { id: 'social', nome: 'Social media', icone: 'social', area: 'social' },
+  { id: 'trafego', nome: 'Tráfego', icone: 'trafego', area: 'trafego' },
+  { id: 'funil', nome: 'Funil', icone: 'funil', area: 'comercial' },
+  { id: 'propostas', nome: 'Propostas', icone: 'propostas', area: 'comercial' },
+  { id: 'financeiro', nome: 'Financeiro', icone: 'financeiro', area: 'financeiro' },
+  { id: 'clientes', nome: 'Clientes', icone: 'clientes' },
+  { id: 'tarefas', nome: 'Tarefas', icone: 'tarefas' },
+  { id: 'horas', nome: 'Horas', icone: 'horas' },
+  { id: 'admin', nome: 'Admin', icone: 'admin', papel: 'admin' },
+];
+
+// Áreas e C-Vision são por pessoa (marcação na equipe); Admin é por papel.
+function temArea(a) { return !!S.dados && (S.dados.eu.areas || []).indexOf(a) >= 0; }
+function podeVer(m) { return (!m.papel || pode(m.papel)) && (!m.area || temArea(m.area)) && (!m.cvision || !!S.dados.eu.cvision); }
+
+async function iniciar() {
+  try {
+    const d = await chamar('carregar');
+    aplicarMarca(d.marca || d.config.marca);
+    if (d.semAcesso) return telaSemAcesso(d);
+    S.dados = d;
+    try { localStorage.setItem('flowloop.logoParticulas', (d.config.marca && d.config.marca.logoParticulas) || ''); } catch (e) { /* sem armazenamento */ }
+    // O tema salvo no perfil vale em qualquer computador; sem ele, fica o do navegador.
+    aplicarTema(d.eu.tema || document.documentElement.getAttribute('data-tema'));
+    montarShell();
+    irPara(S.tela);
+    iniciarPresenca();
+    talvezBoasVindas();
+  } catch (e) {
+    document.getElementById('app').innerHTML = '<div class="tela-cheia"><span class="traco"></span><h1>Não deu para abrir o CRM.</h1><p>' + esc(e.message) +
+      '</p><button class="btn btn-primario" onclick="location.reload()">Tentar de novo</button></div>';
+  }
+}
+
+// Busca tudo de novo no servidor (depois de mudanças grandes, como trocar a configuração).
+async function recarregar() {
+  try {
+    S.dados = await chamar('carregar');
+    aplicarMarca(S.dados.config.marca);
+    montarShell();
+    irPara(S.tela);
+  } catch (e) { toast(e.message, { erro: true }); }
+}
+
+function telaSemAcesso(d) {
+  document.getElementById('app').innerHTML = '<div class="tela-cheia"><canvas class="particulas-fundo" aria-hidden="true"></canvas>' +
+    (d.marca && d.marca.logoUrl ? '<img src="' + esc(d.marca.logoUrl) + '" alt="" style="max-height:44px">' : '<span class="traco"></span>') +
+    '<span class="rotulo" style="color:rgba(247,243,236,.5)">' + esc(d.produto + ' · ' + d.empresa) + '</span>' +
+    '<h1>Você ainda não tem <em>acesso</em>.</h1>' +
+    '<p>Peça para um administrador adicionar ' + (d.email ? '<b style="color:#F7F3EC;font-weight:400">' + esc(d.email) + '</b>' : 'o seu e-mail') + ' na equipe do CRM.</p></div>';
+  const tela = document.querySelector('.tela-cheia');
+  particulas(tela.querySelector('.particulas-fundo'), { alvo: tela, escala: 1.1 });
+}
+
+const CHAVE_MENU = 'flowloop.menuRecolhido';
+
+function menuRecolhido() { try { return localStorage.getItem(CHAVE_MENU) === '1'; } catch (e) { return false; } }
+
+function montarShell() {
+  const d = S.dados, cfg = d.config, eu = d.eu;
+  const logo = cfg.marca.logoUrl
+    ? '<img src="' + esc(cfg.marca.logoUrl) + '" alt="' + esc(cfg.empresa) + '">'
+    : '<span class="monograma">' + esc(iniciais(cfg.empresa)) + '</span>';
+  document.title = cfg.produto + ' · ' + cfg.empresa;
+  registrarFotos();
+  document.getElementById('app').innerHTML =
+    // Barra da marca, como no Google Workspace: quem está online e o seu perfil no canto direito.
+    '<header class="barra-app">' +
+      '<button type="button" class="barra-btn so-desktop" id="recolher" aria-label="Recolher menu" title="Recolher ou abrir o menu">' + icone('menu') + '</button>' +
+      '<div class="barra-marca">' + logo + '<span class="barra-sep"></span><span class="barra-nome"><b>' + esc(cfg.produto) + '</b><small>' + esc(cfg.empresa) + '</small></span></div>' +
+      '<div class="barra-dir">' +
+        '<button type="button" class="barra-busca" id="abrir-busca" aria-label="Buscar em tudo (Ctrl+K)">' + icone('busca') + '<span>Buscar…</span><kbd>' + (/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl') + ' K</kbd></button>' +
+        '<div class="presenca" id="presenca" aria-label="Quem está online"></div>' +
+        '<button type="button" class="barra-btn" id="tema-rapido" aria-label="Alternar tema claro e escuro"></button>' +
+        '<button type="button" class="barra-eu" id="abrir-perfil" aria-haspopup="dialog" aria-label="Seu perfil">' +
+          '<span class="barra-eu-txt"><b>' + esc(eu.nome) + '</b><small>' + esc((membro(eu.email) || {}).cargo || NOME_PAPEL[eu.papel]) + '</small></span>' + avatar(eu.email, 'g', true) +
+        '</button>' +
+      '</div>' +
+    '</header>' +
+    '<div class="linha-marca" aria-hidden="true"></div>' +
+    '<div class="shell' + (menuRecolhido() ? ' recolhido' : '') + '">' +
+      '<nav class="lateral" aria-label="Menu">' +
+        '<div class="menu">' + MENU.filter(podeVer).map(function (m) {
+          return '<button type="button" data-ir="' + m.id + '" data-dica="' + esc(m.nome) + '">' + icone(m.icone) + '<span class="menu-nome">' + m.nome + '</span><span class="contador" data-contador="' + m.id + '" hidden></span></button>';
+        }).join('') + '</div>' +
+        '<div class="lateral-pe"><span class="rotulo">' + esc(cfg.produto) + ' · v' + esc(d.versao) + '</span></div>' +
+      '</nav>' +
+      '<main class="principal">' +
+        '<header class="topo"><span class="hero-aurora" aria-hidden="true"></span>' +
+          '<div class="topo-titulo"><span class="rotulo" id="topo-rotulo"></span><h1 id="topo-titulo"></h1><p class="topo-texto" id="topo-texto"></p></div>' +
+          '<div class="topo-acoes" id="topo-acoes"></div><div class="topo-visual" id="topo-visual"></div></header>' +
+        '<div id="tela"></div>' +
+      '</main>' +
+    '</div>';
+  document.getElementById('abrir-busca').onclick = function () { abrirBusca(); };
+  document.querySelector('.menu').addEventListener('click', function (e) {
+    const b = e.target.closest('[data-ir]');
+    if (b) irPara(b.dataset.ir);
+  });
+  document.getElementById('recolher').onclick = function () {
+    const shell = document.querySelector('.shell');
+    const rec = !shell.classList.contains('recolhido');
+    shell.classList.toggle('recolhido', rec);
+    try { localStorage.setItem(CHAVE_MENU, rec ? '1' : '0'); } catch (e) { /* só não lembra */ }
+  };
+  ligarBarra();
+  atualizarContadores();
+}
+
+function atualizarContadores() {
+  const hoje = S.dados.hoje, eu = S.dados.eu.email;
+  const minhas = S.dados.tarefas.filter(function (t) { return t.status !== 'feito' && t.responsavel === eu && t.prazo && t.prazo <= hoje; }).length;
+  const el = document.querySelector('[data-contador="tarefas"]');
+  if (el) { el.textContent = minhas; el.hidden = !minhas; el.title = minhas + ' tarefa(s) sua(s) vencendo ou atrasada(s)'; }
+}
+
+function irPara(id) {
+  const m = MENU.find(function (x) { return x.id === id; });
+  if (!m || !podeVer(m) || !TELAS[id]) id = 'inicio';
+  // A prévia de marca do Admin só vale lá dentro; fora dele volta a marca salva.
+  if (S.tela === 'admin' && id !== 'admin') aplicarMarca(S.dados.config.marca);
+  const mudou = S.tela !== id;
+  S.tela = id;
+  if (mudou) avisarPresenca();
+  document.querySelectorAll('.menu [data-ir]').forEach(function (b) {
+    if (b.dataset.ir === id) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+  desenhar(mudou);
+  window.scrollTo(0, 0);
+  // Ao chegar numa tela: cartões sobem, barras preenchem e os números contam (só na troca, não a cada atualização).
+  if (mudou) {
+    const tela = document.getElementById('tela');
+    tela.classList.remove('entrando'); void tela.offsetWidth; tela.classList.add('entrando');
+    clearTimeout(irPara.t); irPara.t = setTimeout(function () { tela.classList.remove('entrando'); }, 1400);
+    contarNumeros(document.querySelector('.principal'));
+  }
+}
+
+// Redesenha a tela atual a partir do estado local.
+function desenhar(mudouTela) {
+  if (!S.dados || !document.getElementById('tela')) return;
+  const t = TELAS[S.tela];
+  const r = t.desenhar();
+  document.getElementById('topo-rotulo').textContent = r.rotulo || S.dados.config.empresa;
+  // titulo é HTML montado pela própria tela (para o itálico e o negrito da marca); partes dinâmicas vêm com esc().
+  document.getElementById('topo-titulo').innerHTML = r.titulo;
+  document.getElementById('topo-acoes').innerHTML = r.acoes || '';
+  pintarBanner(r, mudouTela === true);
+  const tela = document.getElementById('tela');
+  tela.innerHTML = r.corpo;
+  if (r.montar) r.montar(tela, document.getElementById('topo-acoes'));
+  atualizarContadores();
+}
+
+// ---------- Início ----------
+// Início de quem não é do comercial: os números das suas áreas e as suas tarefas.
+function inicioPorArea(saudacao, primeiroNome, dataHoje) {
+  const d = S.dados, hoje = d.hoje, mes = hoje.slice(0, 7);
+  const em7 = new Date(Date.parse(hoje + 'T12:00:00') + 7 * 864e5).toISOString().slice(0, 10);
+  const d30 = new Date(Date.parse(hoje + 'T12:00:00') - 30 * 864e5).toISOString().slice(0, 10);
+  let blocos = '';
+  if (temArea('social')) {
+    const p = d.posts;
+    const atras = p.filter(function (x) { return x.status !== 'publicado' && x.data && x.data < hoje; }).length;
+    blocos += '<div class="kpis">' + kpi('Publicados no mês', String(p.filter(function (x) { return x.status === 'publicado' && x.data.slice(0, 7) === mes; }).length), 'social media', true) +
+      kpi('Agendados na semana', String(p.filter(function (x) { return x.status === 'agendado' && x.data >= hoje && x.data <= em7; }).length), 'próximos 7 dias') +
+      kpi('Em aprovação', String(p.filter(function (x) { return x.status === 'aprovacao'; }).length), 'aguardando o cliente') +
+      kpi('Atrasados', String(atras), atras ? 'data passou e não publicou' : 'tudo em dia') + '</div>';
+  }
+  if (temArea('trafego')) {
+    const r = d.resultados.filter(function (x) { return x.data >= d30 && x.data <= hoje; });
+    const inv = r.reduce(function (s, x) { return s + x.investimento; }, 0), leads = r.reduce(function (s, x) { return s + x.leads; }, 0), rec = r.reduce(function (s, x) { return s + x.receita; }, 0);
+    blocos += '<div class="kpis">' + kpi('Investido em 30 dias', dinheiro(inv, true), 'tráfego pago', !temArea('social')) + kpi('Leads', String(leads), 'últimos 30 dias') +
+      kpi('CPL', leads ? dinheiro(inv / leads) : '—', 'custo por lead') + kpi('ROAS', inv ? (rec / inv).toFixed(1).replace('.', ',') + 'x' : '—', 'receita sobre investimento') + '</div>';
+  }
+  if (d.eu.financeiro) {
+    const fee = d.contratos.filter(function (c) { return c.status === 'ativo' && c.tipo === 'fee'; });
+    const mrr = fee.reduce(function (s, c) { return s + c.valorAtual; }, 0);
+    const atraso = d.contratos.filter(function (c) { return c.fase === 'atraso'; }).length;
+    blocos += '<div class="kpis">' + kpi('Receita mensal ativa', dinheiro(mrr, true), fee.length + ' contrato(s)', !blocos) +
+      kpi('Em atraso', String(atraso), 'contratos com pagamento vencido') +
+      kpi('Cobrança pendente', String(d.contratos.filter(function (c) { return c.fase === 'cobranca'; }).length), 'faturas emitidas') +
+      kpi('Renovações em 60 dias', String(d.contratos.filter(function (c) { return c.status === 'ativo' && c.diasParaFim != null && c.diasParaFim >= 0 && c.diasParaFim <= 60; }).length), 'para negociar') + '</div>';
+  }
+  const minhas = d.tarefas.filter(function (t) { return t.status !== 'feito' && t.responsavel === d.eu.email; })
+    .sort(function (a, b) { return (a.prazo || '9999') < (b.prazo || '9999') ? -1 : 1; });
+  const tarefas = '<div class="cartao"><div class="cartao-cab"><h2>Minhas tarefas</h2><button class="btn btn-fantasma btn-peq" data-ir-tela="tarefas">Ver todas' + icone('seta') + '</button></div>' +
+    '<div class="cartao-corpo">' + (minhas.length ? '<ul class="lista">' + minhas.slice(0, 8).map(function (t) { return '<li>' + linhaTarefa(t) + '</li>'; }).join('') + '</ul>'
+      : '<div class="vazio"><b>Nada pendente.</b>Suas tarefas aparecem aqui.</div>') + '</div></div>';
+  let lado = '';
+  if (temArea('social')) {
+    const prox = d.posts.filter(function (x) { return x.status !== 'publicado' && x.data >= hoje; }).sort(function (a, b) { return (a.data + a.hora) < (b.data + b.hora) ? -1 : 1; }).slice(0, 6);
+    lado += '<div class="cartao"><div class="cartao-cab"><h2>Próximos conteúdos</h2><button class="btn btn-fantasma btn-peq" data-ir-tela="social">Abrir' + icone('seta') + '</button></div><div class="cartao-corpo">' +
+      (prox.length ? '<ul class="lista">' + prox.map(function (x) {
+        return '<li><div class="principal-li"><b>' + esc(x.titulo) + '</b><span>' + esc(nomeCliente(x.clienteId)) + ' · ' + esc(x.formato) + '</span></div><span class="pilula">' + dataCurta(x.data) + (x.hora ? ' · ' + esc(x.hora) : '') + '</span></li>';
+      }).join('') + '</ul>' : '<div class="vazio">Nada programado.</div>') + '</div></div>';
+  }
+  if (temArea('trafego')) {
+    const ativas = d.campanhas.filter(function (c) { return c.status === 'ativa'; });
+    lado += '<div class="cartao"><div class="cartao-cab"><h2>Campanhas ativas</h2><button class="btn btn-fantasma btn-peq" data-ir-tela="trafego">Abrir' + icone('seta') + '</button></div><div class="cartao-corpo">' +
+      (ativas.length ? '<ul class="lista">' + ativas.slice(0, 6).map(function (c) {
+        return '<li><div class="principal-li"><b>' + esc(c.nome) + '</b><span>' + esc(nomeCliente(c.clienteId)) + ' · ' + esc(c.plataforma) + '</span></div><span class="num pequeno">' + dinheiro(c.verba) + '/mês</span></li>';
+      }).join('') + '</ul>' : '<div class="vazio">Nenhuma campanha ativa.</div>') + '</div></div>';
+  }
+  if (d.eu.financeiro) lado += '<div class="cartao"><div class="cartao-cab"><h2>Financeiro</h2><button class="btn btn-fantasma btn-peq" data-ir-tela="financeiro">Abrir pipeline' + icone('seta') + '</button></div><div class="cartao-corpo"><p class="mudo" style="margin:0">Contratos, reajustes e cobranças no pipeline de clientes.</p></div></div>';
+  const vencendo = minhas.filter(function (t) { return t.prazo && t.prazo <= hoje; }).length;
+  const formas = temArea('social') ? ['coracao', 'balao'] : temArea('trafego') ? ['alvo', 'barras'] : d.eu.financeiro ? ['moeda', 'barras'] : ['folha', 'pulso'];
+  return {
+    rotulo: dataHoje, titulo: saudacao + ', <b>' + esc(primeiroNome) + '</b>.',
+    banner: {
+      texto: minhas.length
+        ? 'Você tem <b>' + minhas.length + ' tarefa(s)</b> em aberto' + (vencendo ? ', <span class="al">' + vencendo + ' vencendo hoje ou atrasada(s)</span>' : ', nenhuma atrasada') + '. Os números das suas áreas estão logo abaixo.'
+        : 'Nada pendente com você agora. Os números das suas áreas estão logo abaixo.',
+      visual: { tipo: 'pontos', formas: formas },
+    },
+    corpo: '<div class="conteudo">' + blocos + '<div class="painel"><div>' + tarefas + '</div><div>' + (lado || '') + '</div></div></div>',
+    montar: function (el) {
+      el.addEventListener('click', function (e) {
+        const ir = e.target.closest('[data-ir-tela]');
+        if (ir) return irPara(ir.dataset.irTela);
+        tratarCliqueTarefa(e);
+      });
+    },
+  };
+}
+
+TELAS.inicio = {
+  desenhar: function () {
+    const d = S.dados, cfg = d.config, hoje = d.hoje;
+    if (!temArea('comercial')) {
+      const h = new Date().getHours();
+      return inicioPorArea(h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite', String(d.eu.nome).split(' ')[0],
+        new Date(hoje + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }));
+    }
+    const ops = opsAtivas();
+    const abertas = ops.filter(function (o) { const e = etapa(o.etapa); return e && e.tipo === 'aberta'; });
+    const mes = hoje.slice(0, 7);
+    const ganhasMes = ops.filter(function (o) { const e = etapa(o.etapa); return e && e.tipo === 'ganho' && String(o.fechadoEm).slice(0, 7) === mes; });
+    const perdidasMes = ops.filter(function (o) { const e = etapa(o.etapa); return e && e.tipo === 'perdido' && String(o.fechadoEm).slice(0, 7) === mes; });
+    const pipeline = abertas.reduce(function (s, o) { return s + totalOp(o); }, 0);
+    const ponderado = abertas.reduce(function (s, o) { return s + totalOp(o) * (etapa(o.etapa).prob / 100); }, 0);
+    const ganhoMes = ganhasMes.reduce(function (s, o) { return s + totalOp(o); }, 0);
+    // Fee mensal em vigor: contratos fee ganhos cujo prazo (fechamento + meses) ainda não acabou.
+    const recorrente = ops.filter(function (o) {
+      const e = etapa(o.etapa);
+      if (!e || e.tipo !== 'ganho' || o.contrato !== 'fee' || !o.fechadoEm) return false;
+      const fim = new Date(o.fechadoEm); fim.setMonth(fim.getMonth() + (o.meses || 0));
+      return fim > new Date();
+    }).reduce(function (s, o) { return s + (o.valor || 0); }, 0);
+    const taxa = ganhasMes.length + perdidasMes.length ? Math.round(100 * ganhasMes.length / (ganhasMes.length + perdidasMes.length)) : null;
+    const primeiroNome = String(d.eu.nome).split(' ')[0];
+    const saudacao = new Date().getHours() < 12 ? 'Bom dia' : new Date().getHours() < 18 ? 'Boa tarde' : 'Boa noite';
+    const dataHoje = new Date(hoje + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+    const vazio = !d.clientes.length && !d.oportunidades.length;
+    if (vazio) {
+      return {
+        rotulo: dataHoje, titulo: saudacao + ', <b>' + esc(primeiroNome) + '</b>.',
+        corpo: '<div class="conteudo"><div class="cartao" style="max-width:640px;padding:36px 32px">' +
+          '<span class="rotulo">' + esc(cfg.produto) + '</span>' +
+          '<h2 style="font-weight:200;font-size:34px;letter-spacing:-.03em;line-height:1.1;margin:10px 0 12px">O seu funil ainda está <em>vazio</em>.</h2>' +
+          '<p class="mudo" style="margin:0 0 24px;font-size:15px;font-weight:300">Crie a primeira oportunidade' +
+          (pode('admin') ? ' ou carregue dados de exemplo para ver o CRM funcionando.' : '.') + '</p>' +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+          (pode('colaborador') ? '<button class="btn btn-primario" data-nova-op>' + icone('mais') + 'Nova oportunidade</button>' : '') +
+          (pode('admin') ? '<button class="btn" data-exemplo>Carregar exemplo</button>' : '') +
+          '</div></div></div>',
+        montar: function (el) {
+          const n = el.querySelector('[data-nova-op]');
+          if (n) n.onclick = function () { abrirFormOportunidade(); };
+          const x = el.querySelector('[data-exemplo]');
+          if (x) x.onclick = function () {
+            ocupado(x, async function () {
+              const r = await gravar('popularExemplo', [], 'Exemplo carregado.');
+              if (r) await recarregar();
+            });
+          };
+        },
+      };
+    }
+
+    const kpis = '<div class="kpis">' +
+      kpi('Funil aberto', dinheiro(pipeline, true), abertas.length + (abertas.length === 1 ? ' oportunidade' : ' oportunidades'), true) +
+      kpi('Previsão ponderada', dinheiro(ponderado, true), 'pela probabilidade de cada etapa') +
+      kpi('Fechado no mês', dinheiro(ganhoMes, true), ganhasMes.length + ' ganho(s)' + (taxa != null ? ' · ' + taxa + '% de conversão' : '')) +
+      kpi('Fee mensal ativo', dinheiro(recorrente, true), 'receita recorrente contratada') +
+      '</div>';
+
+    // Funil por etapa (só abertas)
+    const porEtapa = cfg.etapas.filter(function (e) { return e.tipo === 'aberta'; }).map(function (e) {
+      const lista = abertas.filter(function (o) { return o.etapa === e.id; });
+      return { e: e, n: lista.length, v: lista.reduce(function (s, o) { return s + totalOp(o); }, 0) };
+    });
+    const maior = Math.max.apply(null, porEtapa.map(function (x) { return x.v; }).concat([1]));
+    const funil = '<div class="cartao"><div class="cartao-cab"><h2>Funil por etapa</h2><button class="btn btn-fantasma btn-peq" data-ir-tela="funil">Abrir funil' + icone('seta') + '</button></div>' +
+      '<div class="cartao-corpo"><div class="barra-funil">' + porEtapa.map(function (x) {
+        return '<div class="linha"><span>' + esc(x.e.nome) + ' <span class="mudo pequeno">' + x.n + '</span></span>' +
+          '<span class="trilho"><i style="width:' + Math.max(2, Math.round(100 * x.v / maior)) + '%;background:' + esc(x.e.cor) + '"></i></span>' +
+          '<span class="num pequeno">' + dinheiro(x.v, true) + '</span></div>';
+      }).join('') + '</div></div></div>';
+
+    const paradas = abertas.filter(parada).sort(function (a, b) { return a.etapaDesde < b.etapaDesde ? -1 : 1; });
+    const atencao = '<div class="cartao"><div class="cartao-cab"><h2>Precisam de atenção</h2><span class="pilula' + (paradas.length ? ' alerta' : '') + '">' + paradas.length + ' parada(s) há ' + cfg.diasParado + '+ dias</span></div>' +
+      '<div class="cartao-corpo">' + (paradas.length ? '<ul class="lista">' + paradas.slice(0, 8).map(function (o) {
+        return '<li data-op="' + esc(o.id) + '" style="cursor:pointer">' + avatar(o.responsavel) +
+          '<div class="principal-li"><b>' + esc(o.titulo) + '</b><span>' + esc(nomeCliente(o.clienteId) || 'Sem cliente') + ' · ' + esc(etapa(o.etapa).nome) + '</span></div>' +
+          '<span class="pilula alerta">' + diasDesde(o.etapaDesde) + ' dias</span></li>';
+      }).join('') + '</ul>' : '<div class="vazio"><b>Tudo andando.</b>Nenhuma oportunidade parada.</div>') + '</div></div>';
+
+    const minhas = d.tarefas.filter(function (t) { return t.status !== 'feito' && t.responsavel === d.eu.email; })
+      .sort(function (a, b) { return (a.prazo || '9999') < (b.prazo || '9999') ? -1 : 1; });
+    const tarefas = '<div class="cartao"><div class="cartao-cab"><h2>Minhas tarefas</h2><button class="btn btn-fantasma btn-peq" data-ir-tela="tarefas">Ver todas' + icone('seta') + '</button></div>' +
+      '<div class="cartao-corpo">' + (minhas.length ? '<ul class="lista">' + minhas.slice(0, 7).map(function (t) { return '<li>' + linhaTarefa(t) + '</li>'; }).join('') + '</ul>'
+        : '<div class="vazio"><b>Nada pendente.</b>Suas tarefas aparecem aqui.</div>') + '</div></div>';
+
+    const proximas = abertas.filter(function (o) { return o.previsao; }).sort(function (a, b) { return a.previsao < b.previsao ? -1 : 1; }).slice(0, 5);
+    const fechamentos = '<div class="cartao"><div class="cartao-cab"><h2>Próximos fechamentos</h2></div><div class="cartao-corpo">' +
+      (proximas.length ? '<ul class="lista">' + proximas.map(function (o) {
+        const atrasado = o.previsao < hoje;
+        return '<li data-op="' + esc(o.id) + '" style="cursor:pointer"><div class="principal-li"><b>' + esc(o.titulo) + '</b><span>' + esc(nomeCliente(o.clienteId) || 'Sem cliente') + ' · <span class="num">' + dinheiro(totalOp(o)) + '</span></span></div>' +
+          '<span class="pilula' + (atrasado ? ' alerta' : '') + '">' + icone('calendario').replace('<svg', '<svg width="12" height="12"') + dataCurta(o.previsao) + '</span></li>';
+      }).join('') + '</ul>' : '<div class="vazio">Defina a previsão de fechamento nas oportunidades.</div>') + '</div></div>';
+
+    // Saúde do funil: parcela das oportunidades abertas que está andando (não parada).
+    const saude = abertas.length ? Math.round(100 * (abertas.length - paradas.length) / abertas.length) : 100;
+    const vencendo = minhas.filter(function (t) { return t.prazo && t.prazo <= hoje; }).length;
+    return {
+      rotulo: dataHoje,
+      titulo: saudacao + ', <b>' + esc(primeiroNome) + '</b>.',
+      banner: {
+        texto: 'O funil soma <b>' + dinheiro(pipeline, true) + '</b> em ' + abertas.length + (abertas.length === 1 ? ' oportunidade' : ' oportunidades') +
+          ', com previsão ponderada de <b>' + dinheiro(ponderado, true) + '</b>.' +
+          (paradas.length || vencendo
+            ? ' Atenção: ' + [paradas.length ? '<span class="al">' + paradas.length + ' parada(s)</span> há ' + cfg.diasParado + '+ dias' : '',
+                vencendo ? '<span class="al">' + vencendo + ' tarefa(s) sua(s)</span> vencendo' : ''].filter(Boolean).join(' e ') + '.'
+            : ' Tudo andando no ritmo.'),
+        visual: { tipo: 'orbita', valor: String(saude), unidade: '%', rot: 'saúde do funil', prog: saude / 100,
+          sats: [{ ic: 'funil', rot: 'Funil', ir: 'funil' }, { ic: 'propostas', rot: 'Propostas', ir: 'propostas' }, { ic: 'clientes', rot: 'Clientes', ir: 'clientes' }, { ic: 'tarefas', rot: 'Tarefas', ir: 'tarefas' }] },
+      },
+      acoes: pode('colaborador') ? '<button class="btn btn-primario" data-nova-op>' + icone('mais') + 'Nova oportunidade</button>' : '',
+      corpo: '<div class="conteudo">' + kpis + '<div class="painel"><div>' + funil + atencao + '</div><div>' + tarefas + fechamentos + '</div></div></div>',
+      montar: function (el, topo) {
+        const n = topo.querySelector('[data-nova-op]');
+        if (n) n.onclick = function () { abrirFormOportunidade(); };
+        el.addEventListener('click', function (e) {
+          const ir = e.target.closest('[data-ir-tela]');
+          if (ir) return irPara(ir.dataset.irTela);
+          if (tratarCliqueTarefa(e)) return;
+          const op = e.target.closest('[data-op]');
+          if (op) abrirOportunidade(op.dataset.op);
+        });
+      },
+    };
+  },
+};
+
+function kpi(rotulo, valor, det, escuro) {
+  return '<div class="cartao kpi' + (escuro ? ' escuro' : '') + '"><span class="k-ic">' + icone(iconeKpi(rotulo)) + '</span><span class="rotulo">' + esc(rotulo) + '</span><div class="valor">' + esc(valor) + '</div><div class="det">' + esc(det) + '</div></div>';
+}
+</script>

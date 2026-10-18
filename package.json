@@ -5,6 +5,8 @@
   "description": "CRM em Kanban para agências, no Google Apps Script com Planilha Google como banco de dados.",
   "scripts": {
     "dev": "node dev/servidor.js",
+    "demo": "node dev/servidor.js --demo",
+    "limpo": "node dev/servidor.js --limpo",
     "test": "node --test test/*.test.js",
     "smoke": "node dev/smoke.js"
   }

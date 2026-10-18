@@ -2,7 +2,7 @@
 const STATUS_PROPOSTA = ['rascunho', 'enviada', 'aprovada', 'recusada'];
 
 function salvarProposta(d) {
-  const eu = exigir_('colaborador');
+  const eu = exigirArea_('comercial', 'colaborador');
   return comTrava_(function () {
     d = d || {};
     const op = achar_('oportunidades', texto_(d.oportunidadeId, 40));
@@ -36,7 +36,7 @@ function salvarProposta(d) {
 }
 
 function removerProposta(id) {
-  const eu = exigir_('colaborador');
+  const eu = exigirArea_('comercial', 'colaborador');
   return comTrava_(function () {
     const p = achar_('propostas', id);
     if (!p) return true;

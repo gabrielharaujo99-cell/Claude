@@ -1,0 +1,223 @@
+<style>
+/* Busca global (Ctrl+K), atalhos de teclado e exportação para planilha. */
+.barra-busca { display: inline-flex; align-items: center; gap: 10px; height: 36px; padding: 0 8px 0 12px; border-radius: 100px; border: 1px solid var(--c-bd, var(--linha));
+  background: transparent; color: var(--c-tx2, var(--suave)); font: inherit; font-size: 13px; cursor: pointer; min-width: 220px; transition: border-color .15s, background .15s; }
+.barra-busca:hover { border-color: var(--c-acc, var(--destaque)); background: var(--c-hv, transparent); }
+.barra-busca svg { width: 16px; height: 16px; }
+.barra-busca span { margin-right: auto; }
+.barra-busca kbd, .cmd-pe kbd, .atalhos kbd { font: 500 11px/1 var(--fonte); padding: 4px 6px; border-radius: 6px; border: 1px solid var(--c-bd, var(--linha)); background: var(--afundado); color: var(--suave); }
+@media (max-width: 820px) { .barra-busca { min-width: 0; width: 36px; padding: 0; justify-content: center; } .barra-busca span, .barra-busca kbd { display: none; } }
+
+.cmd-fundo { position: fixed; inset: 0; z-index: 90; background: rgba(15, 22, 17, .42); backdrop-filter: blur(3px); display: flex; justify-content: center; align-items: flex-start; padding: 12vh 16px 16px; animation: cmd-in .15s ease; }
+@keyframes cmd-in { from { opacity: 0; } }
+.cmd { width: min(640px, 100%); max-height: 70vh; display: flex; flex-direction: column; background: var(--superficie); border: 1px solid var(--linha); border-radius: 20px; box-shadow: 0 30px 80px rgba(0, 0, 0, .3); overflow: hidden; }
+.cmd-campo { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--linha); }
+.cmd-campo svg { width: 18px; height: 18px; color: var(--suave); flex: none; }
+.cmd-campo input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 16px; color: var(--texto); }
+.cmd-lista { overflow-y: auto; padding: 6px; }
+.cmd-grupo { font: var(--rotulo); letter-spacing: .14em; text-transform: uppercase; color: var(--apagado); padding: 10px 12px 4px; }
+.cmd-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 12px; border: 0; border-radius: 12px; background: transparent; color: var(--texto); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+.cmd-item svg { width: 16px; height: 16px; color: var(--suave); flex: none; }
+.cmd-item .t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cmd-item .t small { color: var(--suave); margin-left: 8px; font-size: 12.5px; }
+.cmd-item .k { font-size: 11.5px; color: var(--apagado); }
+.cmd-item[aria-selected="true"] { background: var(--destaque-claro); }
+.cmd-item[aria-selected="true"] svg { color: var(--destaque); }
+.cmd-vazio { padding: 28px; text-align: center; color: var(--suave); font-size: 13.5px; }
+.cmd-pe { display: flex; gap: 16px; padding: 10px 18px; border-top: 1px solid var(--linha); font-size: 12px; color: var(--suave); flex-wrap: wrap; }
+.cmd-pe span { display: inline-flex; gap: 6px; align-items: center; }
+@media (max-width: 600px) { .cmd-fundo { padding-top: 8px; } .cmd { max-height: calc(100vh - 16px); } .cmd-pe { display: none; } }
+
+.atalhos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 24px; }
+.atalhos div { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--linha); font-size: 13.5px; }
+.atalhos span:last-child { display: inline-flex; gap: 4px; }
+@media (max-width: 600px) { .atalhos { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<script>
+/**
+ * Recursos gerais: busca global (Ctrl+K ou /), atalhos de teclado (? mostra a lista) e exportação para planilha (CSV que abre no Excel).
+ * A busca acha telas, ações e registros (clientes, oportunidades, conteúdos, tarefas, propostas, contratos, campanhas).
+ */
+const ATALHOS_IR = { i: 'inicio', f: 'funil', s: 'social', r: 'trafego', c: 'clientes', t: 'tarefas', p: 'propostas', e: 'financeiro', h: 'horas', v: 'cvision', a: 'admin' };
+
+function digitando(el) { return !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)); }
+function temModalAberto() { return !!document.querySelector('#camada-modal .fundo-modal, .cmd-fundo'); }
+
+// ---------- itens da busca ----------
+function itensBusca() {
+  const d = S.dados, l = [], edita = pode('colaborador');
+  const add = function (grupo, icone_, titulo, sub, fazer, extra) { l.push({ grupo: grupo, icone: icone_, titulo: titulo || '(sem título)', sub: sub || '', fazer: fazer, busca: normal(titulo + ' ' + (sub || '') + ' ' + (extra || '')) }); };
+  MENU.filter(podeVer).forEach(function (m) {
+    const k = Object.keys(ATALHOS_IR).find(function (x) { return ATALHOS_IR[x] === m.id; });
+    add('Ir para', m.icone, m.nome, k ? 'G ' + k.toUpperCase() : '', function () { irPara(m.id); }, 'tela abrir');
+  });
+  if (edita) {
+    if (temArea('comercial')) add('Criar', 'mais', 'Nova oportunidade', '', function () { irPara('funil'); abrirFormOportunidade(); }, 'novo negocio lead');
+    add('Criar', 'mais', 'Nova tarefa', '', function () { abrirFormTarefa(); }, 'novo afazer');
+    add('Criar', 'mais', 'Novo cliente', '', function () { abrirFormCliente(); }, 'novo');
+    if (temArea('social')) {
+      add('Criar', 'mais', 'Novo conteúdo', '', function () { irPara('social'); abrirFormPost(); }, 'post reels carrossel');
+      add('Criar', 'mais', 'Novo pedido de post', '', function () { irPara('social'); abrirFormPedido(); }, 'ideia pedido cliente');
+    }
+    add('Criar', 'mais', 'Lançar horas', '', function () { irPara('horas'); abrirFormHoras(); }, 'apontamento');
+  }
+  const cli = function (id) { return id ? nomeCliente(id) : ''; };
+  (d.clientes || []).filter(function (c) { return !c.arquivado; }).forEach(function (c) {
+    add('Clientes', 'clientes', c.nome, [c.segmento, c.instagram].filter(Boolean).join(' · '), function () {
+      if (typeof smMarca === 'function' && smMarca(c.id) && temArea('social')) { irPara('social'); smAbrirCliente(c.id); } else abrirFormCliente(c);
+    }, c.contato + ' ' + c.email);
+  });
+  (d.oportunidades || []).filter(function (o) { return !o.arquivado; }).forEach(function (o) {
+    const et = (d.config.etapas || []).find(function (e) { return e.id === o.etapa; });
+    add('Oportunidades', 'funil', o.titulo, [cli(o.clienteId), et && et.nome].filter(Boolean).join(' · '), function () { irPara('funil'); abrirOportunidade(o.id); }, o.servico);
+  });
+  (d.posts || []).forEach(function (p) {
+    add('Conteúdos', 'social', p.titulo, [cli(p.clienteId), p.formato, p.data && dataCurta(p.data)].filter(Boolean).join(' · '), function () { irPara('social'); abrirFormPost(p); }, p.pilar);
+  });
+  (d.tarefas || []).filter(function (t) { return t.status !== 'feito'; }).forEach(function (t) {
+    add('Tarefas', 'tarefas', t.titulo, [nomeMembro(t.responsavel), t.prazo && 'até ' + dataCurta(t.prazo)].filter(Boolean).join(' · '), function () { irPara('tarefas'); abrirFormTarefa(t); });
+  });
+  (d.propostas || []).forEach(function (p) {
+    add('Propostas', 'arquivo', p.titulo, p.status, function () { irPara('propostas'); abrirFormProposta(p); });
+  });
+  (d.contratos || []).forEach(function (c) {
+    add('Contratos', 'arquivo', c.titulo || c.servico, [cli(c.clienteId), c.status].filter(Boolean).join(' · '), function () { irPara('financeiro'); abrirContrato(c.id); });
+  });
+  (d.campanhas || []).forEach(function (c) {
+    add('Campanhas', 'trafego', c.nome, [cli(c.clienteId), c.plataforma].filter(Boolean).join(' · '), function () { irPara('trafego'); abrirFormCampanha(c); });
+  });
+  EXPORTACOES().forEach(function (x) { add('Exportar para planilha', 'arquivo', 'Exportar ' + x.nome, x.lista().length + ' linhas', function () { exportarCsv(x); }, 'excel csv baixar download'); });
+  add('Ajuda', 'balao', 'Atalhos de teclado', '?', mostrarAtalhos, 'teclas ajuda');
+  return l;
+}
+
+function rankBusca(itens, q) {
+  if (!q) return itens.filter(function (i) { return i.grupo === 'Ir para' || i.grupo === 'Criar'; });
+  const termos = normal(q).split(/\s+/).filter(Boolean);
+  return itens.map(function (i) {
+    if (!termos.every(function (t) { return i.busca.indexOf(t) >= 0; })) return null;
+    const tit = normal(i.titulo);
+    const pts = (tit.indexOf(termos[0]) === 0 ? 0 : tit.indexOf(termos[0]) >= 0 ? 1 : 2) + (i.grupo === 'Ir para' ? -0.5 : 0);
+    return { i: i, pts: pts };
+  }).filter(Boolean).sort(function (a, b) { return a.pts - b.pts; }).slice(0, 40).map(function (x) { return x.i; });
+}
+
+// ---------- a janela da busca ----------
+function abrirBusca(inicial) {
+  if (!S.dados || document.querySelector('.cmd-fundo')) return;
+  const itens = itensBusca(), anterior = document.activeElement;
+  const fundo = document.createElement('div');
+  fundo.className = 'cmd-fundo';
+  fundo.innerHTML = '<div class="cmd" role="dialog" aria-modal="true" aria-label="Buscar no ' + esc(produto()) + '">' +
+    '<label class="cmd-campo">' + icone('busca') + '<input type="text" role="combobox" aria-expanded="true" aria-controls="cmd-lista" aria-autocomplete="list" placeholder="Buscar cliente, oportunidade, conteúdo, tarefa ou ação…" autocomplete="off" spellcheck="false"></label>' +
+    '<div class="cmd-lista" id="cmd-lista" role="listbox"></div>' +
+    '<div class="cmd-pe"><span><kbd>↑</kbd><kbd>↓</kbd> navegar</span><span><kbd>Enter</kbd> abrir</span><span><kbd>Esc</kbd> fechar</span><span style="margin-left:auto"><kbd>?</kbd> atalhos</span></div></div>';
+  document.body.appendChild(fundo);
+  const inp = fundo.querySelector('input'), box = fundo.querySelector('.cmd-lista');
+  let atuais = [], sel = 0;
+  const fechar = function () { fundo.remove(); document.removeEventListener('keydown', tecla, true); if (anterior && anterior.focus) anterior.focus(); };
+  const marcar = function () {
+    box.querySelectorAll('.cmd-item').forEach(function (b, k) { b.setAttribute('aria-selected', String(k === sel)); if (k === sel) { b.scrollIntoView({ block: 'nearest' }); inp.setAttribute('aria-activedescendant', b.id); } });
+  };
+  const desenharLista = function () {
+    atuais = rankBusca(itens, inp.value.trim()); sel = 0;
+    if (!atuais.length) { box.innerHTML = '<div class="cmd-vazio">Nada encontrado para “' + esc(inp.value) + '”.</div>'; return; }
+    let g = '', html = '';
+    atuais.forEach(function (i, k) {
+      if (i.grupo !== g) { g = i.grupo; html += '<div class="cmd-grupo" role="presentation">' + esc(g) + '</div>'; }
+      html += '<button type="button" class="cmd-item" role="option" id="cmd-' + k + '" data-k="' + k + '">' + icone(i.icone) +
+        '<span class="t">' + esc(i.titulo) + (i.sub && i.grupo !== 'Ir para' ? '<small>' + esc(i.sub) + '</small>' : '') + '</span>' +
+        (i.grupo === 'Ir para' && i.sub ? '<span class="k">' + esc(i.sub) + '</span>' : '') + '</button>';
+    });
+    box.innerHTML = html; marcar();
+  };
+  const escolher = function (k) { const i = atuais[k]; if (!i) return; fechar(); try { i.fazer(); } catch (e) { toast(e.message, { erro: true }); } };
+  const tecla = function (e) {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); fechar(); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); sel = Math.min(atuais.length - 1, sel + 1); marcar(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); sel = Math.max(0, sel - 1); marcar(); }
+    else if (e.key === 'Enter') { e.preventDefault(); escolher(sel); }
+  };
+  document.addEventListener('keydown', tecla, true);
+  inp.addEventListener('input', desenharLista);
+  box.addEventListener('click', function (e) { const b = e.target.closest('.cmd-item'); if (b) escolher(Number(b.dataset.k)); });
+  box.addEventListener('mousemove', function (e) { const b = e.target.closest('.cmd-item'); if (b && Number(b.dataset.k) !== sel) { sel = Number(b.dataset.k); marcar(); } });
+  fundo.addEventListener('mousedown', function (e) { if (e.target === fundo) fechar(); });
+  inp.value = inicial || '';
+  desenharLista();
+  inp.focus();
+}
+
+// ---------- atalhos ----------
+function mostrarAtalhos() {
+  const linha = function (t, teclas) { return '<div><span>' + t + '</span><span>' + teclas.map(function (k) { return '<kbd>' + k + '</kbd>'; }).join('') + '</span></div>'; };
+  const ir = MENU.filter(podeVer).map(function (m) {
+    const k = Object.keys(ATALHOS_IR).find(function (x) { return ATALHOS_IR[x] === m.id; });
+    return k ? linha('Ir para ' + m.nome, ['G', k.toUpperCase()]) : '';
+  }).join('');
+  modal({
+    titulo: 'Atalhos de teclado',
+    corpo: '<div class="atalhos">' + linha('Buscar em tudo', ['Ctrl', 'K']) + linha('Buscar (atalho curto)', ['/']) + linha('Mostrar atalhos', ['?']) +
+      linha('Fechar janela', ['Esc']) + ir + '</div><p class="mudo pequeno" style="margin:14px 0 0">No Mac, use ⌘ no lugar de Ctrl. Os atalhos não funcionam enquanto você digita num campo.</p>',
+    pe: '<button class="btn btn-primario" data-fechar>Entendi</button>',
+  });
+}
+
+let ATALHO_G = 0;
+document.addEventListener('keydown', function (e) {
+  if (!S.dados || S.dados.semAcesso) return;
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k') { e.preventDefault(); abrirBusca(); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey || digitando(e.target) || temModalAberto()) return;
+  if (e.key === '/') { e.preventDefault(); abrirBusca(); return; }
+  if (e.key === '?') { e.preventDefault(); mostrarAtalhos(); return; }
+  const k = e.key.toLowerCase();
+  if (k === 'g') { ATALHO_G = Date.now(); return; }
+  if (ATALHO_G && Date.now() - ATALHO_G < 1200 && ATALHOS_IR[k]) {
+    ATALHO_G = 0;
+    const m = MENU.find(function (x) { return x.id === ATALHOS_IR[k]; });
+    if (m && podeVer(m)) { e.preventDefault(); irPara(m.id); }
+  }
+});
+
+// ---------- exportar para planilha ----------
+function EXPORTACOES() {
+  const d = S.dados, x = [];
+  const cli = function (r) { return r.clienteId ? nomeCliente(r.clienteId) : ''; };
+  const pessoa = function (e) { return e ? nomeMembro(e) : ''; };
+  x.push({ nome: 'clientes', lista: function () { return d.clientes || []; }, colunas: [['Nome', 'nome'], ['Segmento', 'segmento'], ['Contato', 'contato'], ['E-mail', 'email'], ['Telefone', 'telefone'], ['Instagram', 'instagram'], ['Site', 'site'], ['Arquivado', function (r) { return r.arquivado ? 'sim' : ''; }], ['Criado em', 'criadoEm']] });
+  if ((d.oportunidades || []).length) x.push({ nome: 'oportunidades', lista: function () { return d.oportunidades; }, colunas: [['Título', 'titulo'], ['Cliente', cli], ['Serviço', 'servico'], ['Etapa', function (r) { const e = (d.config.etapas || []).find(function (y) { return y.id === r.etapa; }); return e ? e.nome : r.etapa; }], ['Contrato', 'contrato'], ['Valor', 'valor'], ['Meses', 'meses'], ['Responsável', function (r) { return pessoa(r.responsavel); }], ['Previsão', 'previsao'], ['Origem', 'origem'], ['Criado em', 'criadoEm']] });
+  x.push({ nome: 'tarefas', lista: function () { return d.tarefas || []; }, colunas: [['Título', 'titulo'], ['Cliente', cli], ['Responsável', function (r) { return pessoa(r.responsavel); }], ['Prazo', 'prazo'], ['Status', 'status'], ['Concluída em', 'concluidoEm']] });
+  if (temArea('social')) {
+    x.push({ nome: 'conteúdos', lista: function () { return d.posts || []; }, colunas: [['Título', 'titulo'], ['Cliente', cli], ['Formato', 'formato'], ['Rede', 'rede'], ['Pilar', 'pilar'], ['Status', 'status'], ['Data', 'data'], ['Hora', 'hora'], ['Responsável', function (r) { return pessoa(r.responsavel); }], ['Link', 'link']] });
+    if ((d.reports || []).length) x.push({ nome: 'reports do Instagram', lista: function () { return d.reports; }, colunas: [['Cliente', cli], ['Mês', 'mes'], ['Seguidores', 'seguidores'], ['Novos seguidores', 'novosSeguidores'], ['Alcance', 'alcance'], ['Impressões', 'impressoes'], ['Interações', 'interacoes'], ['Engajamento (%)', 'engajamento'], ['Visitas ao perfil', 'visitasPerfil'], ['Cliques no link', 'cliquesLink'], ['Posts', 'postsPublicados']] });
+  }
+  if ((d.contratos || []).length) x.push({ nome: 'contratos', lista: function () { return d.contratos; }, colunas: [['Título', 'titulo'], ['Cliente', cli], ['Serviço', 'servico'], ['Tipo', 'tipo'], ['Valor', 'valor'], ['Início', 'inicio'], ['Meses', 'meses'], ['Status', 'status'], ['Encerrado em', 'encerradoEm']] });
+  if ((d.campanhas || []).length) x.push({ nome: 'campanhas', lista: function () { return d.campanhas; }, colunas: [['Nome', 'nome'], ['Cliente', cli], ['Plataforma', 'plataforma'], ['Objetivo', 'objetivo'], ['Status', 'status'], ['Verba', 'verba'], ['Início', 'inicio'], ['Fim', 'fim']] });
+  return x;
+}
+
+// CSV com ponto e vírgula e BOM: abre direto no Excel em português, com acentos e números certos.
+function exportarCsv(x) {
+  const cel = function (v) {
+    if (v == null) return '';
+    if (typeof v === 'number') return String(v).replace('.', ',');
+    let s = String(v);
+    // Datas no formato brasileiro, que o Excel reconhece como data.
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if (m) return m[3] + '/' + m[2] + '/' + m[1];
+    if (/^\d{4}-\d{2}-\d{2}T/.test(s) && !isNaN(Date.parse(s))) { const d = new Date(s); return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); }
+    if (/^[=+\-@]/.test(s)) s = "'" + s; // não vira fórmula no Excel
+    return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const linhas = [x.colunas.map(function (c) { return cel(c[0]); }).join(';')].concat(x.lista().map(function (r) {
+    return x.colunas.map(function (c) { return cel(typeof c[1] === 'function' ? c[1](r) : r[c[1]]); }).join(';');
+  }));
+  const blob = new Blob(['﻿' + linhas.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = normal(produto()).replace(/\s+/g, '-') + '-' + normal(x.nome).replace(/\s+/g, '-') + '-' + S.dados.hoje + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+  toast(x.lista().length + ' linha(s) exportadas.');
+}
+</script>

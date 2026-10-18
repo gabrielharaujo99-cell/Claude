@@ -1,4 +1,9 @@
 node_modules/
 dev/.dados.json
+dev/.demo.json
+dev/.limpo.json
 dev/screens/
 .clasp.json
+# Equipe real (nomes e e-mails): o repositório é público
+src/EquipeSeok.gs
+dist/

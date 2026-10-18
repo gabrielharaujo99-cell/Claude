@@ -1,0 +1,202 @@
+<script>
+/** Funil em Kanban: uma coluna por etapa, arrastar para mudar de etapa ou de posição. */
+TELAS.funil = {
+  desenhar: function () {
+    const cfg = S.dados.config, f = S.filtros;
+    const servicos = Array.from(new Set(cfg.servicos.concat(S.dados.oportunidades.map(function (o) { return o.servico; }).filter(Boolean))));
+    const abertas = opsAtivas().filter(function (o) { const e = etapa(o.etapa); return e && e.tipo === 'aberta'; });
+    const total = abertas.reduce(function (s, o) { return s + totalOp(o); }, 0);
+    const pond = abertas.reduce(function (s, o) { return s + totalOp(o) * (etapa(o.etapa).prob / 100); }, 0);
+    const chance = total ? Math.round(100 * pond / total) : 0, nParadas = abertas.filter(parada).length;
+    return {
+      rotulo: cfg.empresa,
+      titulo: 'Funil de <em>vendas</em>',
+      banner: {
+        compacto: true,
+        texto: '<b>' + abertas.length + '</b> oportunidade(s) abertas valem <b>' + dinheiro(total, true) + '</b>; ponderado pela chance de cada etapa, <b>' + dinheiro(pond, true) + '</b>.' +
+          (nParadas ? ' <span class="al">' + nParadas + ' parada(s)</span> pedindo um empurrão.' : ''),
+        visual: { tipo: 'orbita', valor: String(chance), unidade: '%', rot: 'chance média', prog: chance / 100,
+          sats: [{ ic: 'propostas', rot: 'Propostas', ir: 'propostas' }, { ic: 'clientes', rot: 'Clientes', ir: 'clientes' }, { ic: 'tarefas', rot: 'Tarefas', ir: 'tarefas' }] },
+      },
+      acoes:
+        '<label class="busca">' + icone('busca') + '<input class="entrada" type="search" id="f-busca" placeholder="Buscar cliente ou oportunidade" value="' + esc(f.busca) + '" aria-label="Buscar"></label>' +
+        '<select class="entrada filtro" id="f-resp" aria-label="Responsável">' + opcoes(equipeAtiva().map(function (m) { return { v: m.email, t: m.nome }; }), f.responsavel, 'Toda a equipe') + '</select>' +
+        '<select class="entrada filtro" id="f-serv" aria-label="Serviço">' + opcoes(servicos, f.servico, 'Todos os serviços') + '</select>' +
+        (pode('colaborador') ? '<button class="btn btn-primario" data-nova-op>' + icone('mais') + '<span>Nova</span></button>' : ''),
+      corpo: '<div class="funil-wrap"><div class="funil-resumo" id="funil-resumo"></div><div class="quadro" id="quadro"></div></div>',
+      montar: function (el, topo) {
+        const atualizar = function () { desenharQuadro(); };
+        topo.querySelector('#f-busca').addEventListener('input', function (e) { f.busca = e.target.value; atualizar(); });
+        topo.querySelector('#f-resp').addEventListener('change', function (e) { f.responsavel = e.target.value; atualizar(); });
+        topo.querySelector('#f-serv').addEventListener('change', function (e) { f.servico = e.target.value; atualizar(); });
+        const n = topo.querySelector('[data-nova-op]');
+        if (n) n.onclick = function () { abrirFormOportunidade(); };
+        ligarQuadro(el.querySelector('#quadro'));
+        desenharQuadro();
+      },
+    };
+  },
+};
+
+function opsFiltradas() {
+  const f = S.filtros, q = normal(f.busca);
+  return opsAtivas().filter(function (o) {
+    if (f.responsavel && o.responsavel !== f.responsavel) return false;
+    if (f.servico && o.servico !== f.servico) return false;
+    if (q && normal(o.titulo + ' ' + nomeCliente(o.clienteId) + ' ' + o.servico + ' ' + (o.tags || []).join(' ')).indexOf(q) < 0) return false;
+    return true;
+  });
+}
+
+function desenharQuadro() {
+  const quadro = document.getElementById('quadro');
+  if (!quadro) return;
+  const cfg = S.dados.config, ops = opsFiltradas();
+  const abertas = ops.filter(function (o) { const e = etapa(o.etapa); return e && e.tipo === 'aberta'; });
+  const total = abertas.reduce(function (s, o) { return s + totalOp(o); }, 0);
+  const ponderado = abertas.reduce(function (s, o) { return s + totalOp(o) * etapa(o.etapa).prob / 100; }, 0);
+  document.getElementById('funil-resumo').innerHTML =
+    '<div><span class="rotulo">Em aberto</span><b>' + dinheiro(total) + '</b></div>' +
+    '<div><span class="rotulo">Ponderado</span><b>' + dinheiro(ponderado) + '</b></div>' +
+    '<div><span class="rotulo">Oportunidades</span><b>' + abertas.length + '</b></div>';
+
+  quadro.innerHTML = cfg.etapas.map(function (e) {
+    const lista = ops.filter(function (o) { return o.etapa === e.id; }).sort(function (a, b) { return a.ordem - b.ordem; });
+    const soma = lista.reduce(function (s, o) { return s + totalOp(o); }, 0);
+    return '<section class="coluna' + (e.tipo !== 'aberta' ? ' fechada' : '') + '" data-etapa="' + esc(e.id) + '" aria-label="' + esc(e.nome) + '">' +
+      '<header class="coluna-cab"><span class="faixa" style="background:' + esc(e.cor) + '"></span>' +
+        '<div class="t"><b>' + esc(e.nome) + '</b><span class="n">' + lista.length + '</span>' +
+        (pode('colaborador') && e.tipo === 'aberta' ? '<button class="btn btn-fantasma btn-icone btn-peq" data-nova-em="' + esc(e.id) + '" aria-label="Nova oportunidade em ' + esc(e.nome) + '">' + icone('mais') + '</button>' : '') + '</div>' +
+        '<span class="soma">' + dinheiro(soma) + (e.tipo === 'aberta' ? ' · ' + e.prob + '%' : '') + '</span>' +
+      '</header>' +
+      '<div class="coluna-cards">' + lista.map(cardOp).join('') + '</div>' +
+    '</section>';
+  }).join('');
+}
+
+function cardOp(o) {
+  const n = S.dados.comentarios[o.id] || 0;
+  const tarefas = S.dados.tarefas.filter(function (t) { return t.oportunidadeId === o.id && t.status !== 'feito'; }).length;
+  const e = etapa(o.etapa);
+  const fee = o.contrato === 'fee';
+  return '<button type="button" class="op" draggable="' + (pode('colaborador') ? 'true' : 'false') + '" data-op="' + esc(o.id) + '">' +
+    '<span class="cli">' + esc(nomeCliente(o.clienteId) || 'Sem cliente') + '</span>' +
+    '<span class="tit">' + esc(o.titulo) + '</span>' +
+    '<span class="val">' + dinheiro(fee ? o.valor : totalOp(o)) + (fee ? ' <small>/mês · ' + o.meses + 'm</small>' : '') + '</span>' +
+    '<span class="rodape">' +
+      '<span class="prio ' + esc(o.prioridade) + '" title="Prioridade ' + esc(o.prioridade) + '"></span>' +
+      (o.servico ? '<span>' + esc(o.servico) + '</span>' : '') +
+      (parada(o) ? '<span class="pilula alerta" title="Sem mudar de etapa">' + diasDesde(o.etapaDesde) + 'd</span>' : '') +
+      (e && e.tipo === 'perdido' && o.motivoPerda ? '<span class="pilula">' + esc(o.motivoPerda) + '</span>' : '') +
+      (n ? '<span class="meta" title="Comentários">' + icone('balao') + n + '</span>' : '') +
+      (tarefas ? '<span class="meta" title="Tarefas abertas">' + icone('tarefas') + tarefas + '</span>' : '') +
+      (o.responsavel ? avatar(o.responsavel) : '') +
+    '</span></button>';
+}
+
+// Arrastar e soltar (mouse). No celular, a etapa muda pelos botões no detalhe da oportunidade.
+function ligarQuadro(quadro) {
+  let arrastando = null;
+  quadro.addEventListener('click', function (e) {
+    const nova = e.target.closest('[data-nova-em]');
+    if (nova) return abrirFormOportunidade({ etapa: nova.dataset.novaEm });
+    const card = e.target.closest('[data-op]');
+    if (card) abrirOportunidade(card.dataset.op);
+  });
+  quadro.addEventListener('dragstart', function (e) {
+    const card = e.target.closest('.op');
+    if (!card) return;
+    arrastando = card.dataset.op;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', arrastando);
+    requestAnimationFrame(function () { card.classList.add('arrastando'); });
+  });
+  let soltou = false;
+  quadro.addEventListener('dragend', function () {
+    arrastando = null;
+    quadro.querySelectorAll('.arrastando, .alvo').forEach(function (x) { x.classList.remove('arrastando', 'alvo'); });
+    // Soltou fora de uma coluna: devolve o card para onde estava.
+    if (!soltou) desenharQuadro();
+    soltou = false;
+  });
+  quadro.addEventListener('dragover', function (e) {
+    const col = e.target.closest('.coluna');
+    if (!col || !arrastando) return;
+    e.preventDefault();
+    quadro.querySelectorAll('.alvo').forEach(function (x) { if (x !== col) x.classList.remove('alvo'); });
+    col.classList.add('alvo');
+    // Mostra a posição final movendo o card na própria tela.
+    const cards = col.querySelector('.coluna-cards');
+    const el = quadro.querySelector('.op[data-op="' + arrastando + '"]');
+    const depois = cardDepois(cards, e.clientY, el);
+    if (depois == null) { if (cards.lastElementChild !== el) cards.appendChild(el); }
+    else if (depois !== el && depois.previousElementSibling !== el) cards.insertBefore(el, depois);
+  });
+  quadro.addEventListener('drop', function (e) {
+    const col = e.target.closest('.coluna');
+    if (!col || !arrastando) return;
+    e.preventDefault();
+    soltou = true;
+    const id = arrastando;
+    const el = quadro.querySelector('.op[data-op="' + id + '"]');
+    const ant = el.previousElementSibling, prox = el.nextElementSibling;
+    const oa = ant ? oportunidade(ant.dataset.op).ordem : null, op = prox ? oportunidade(prox.dataset.op).ordem : null;
+    const ordem = oa == null && op == null ? 0 : oa == null ? op - 1 : op == null ? oa + 1 : (oa + op) / 2;
+    moverOp(id, col.dataset.etapa, ordem);
+  });
+}
+
+function cardDepois(container, y, ignorar) {
+  const cards = Array.prototype.filter.call(container.children, function (c) { return c !== ignorar; });
+  for (let i = 0; i < cards.length; i++) {
+    const r = cards[i].getBoundingClientRect();
+    if (y < r.top + r.height / 2) return cards[i];
+  }
+  return null;
+}
+
+// Move com atualização otimista; se a etapa for de perda, pergunta o motivo antes.
+async function moverOp(id, etapaId, ordem) {
+  const o = oportunidade(id), e = etapa(etapaId);
+  if (!o || !e) return;
+  let motivo = '';
+  if (e.tipo === 'perdido' && o.etapa !== etapaId) {
+    motivo = await perguntarMotivo(o);
+    if (motivo == null) return desenhar();
+  }
+  const antes = Object.assign({}, o);
+  const mudouEtapa = o.etapa !== etapaId;
+  Object.assign(o, { etapa: etapaId, ordem: ordem == null ? o.ordem : ordem });
+  if (mudouEtapa) Object.assign(o, { etapaDesde: new Date().toISOString(), motivoPerda: motivo });
+  desenhar();
+  try {
+    const r = await chamar('moverOportunidade', id, etapaId, ordem == null ? '' : ordem, motivo);
+    trocar('oportunidades', r);
+    if (mudouEtapa) {
+      if (e.tipo === 'ganho') toast('Fechado! ' + o.titulo + ' · ' + dinheiro(totalOp(r)));
+      else toast('Movida para ' + e.nome + '.', { acao: { texto: 'Desfazer', fn: function () { moverOp(id, antes.etapa, antes.ordem); } } });
+    }
+    desenhar();
+    return r;
+  } catch (err) {
+    trocar('oportunidades', antes);
+    desenhar();
+    toast(err.message, { erro: true });
+  }
+}
+
+function perguntarMotivo(o) {
+  return new Promise(function (ok) {
+    let resposta = null;
+    const motivos = S.dados.config.motivosPerda;
+    const m = modal({
+      titulo: 'Por que perdemos?', estreito: true,
+      corpo: '<p class="mudo" style="margin:0 0 16px">' + esc(o.titulo) + (nomeCliente(o.clienteId) ? ' · ' + esc(nomeCliente(o.clienteId)) : '') + '</p>' +
+        '<label class="campo"><span>Motivo</span><select id="motivo">' + opcoes(motivos, motivos[0] || '', motivos.length ? null : 'Sem motivo') + '</select></label>',
+      pe: '<button class="btn btn-fantasma" data-fechar>Cancelar</button><button class="btn btn-escuro" data-ok>Marcar como perdida</button>',
+      aoFechar: function () { ok(resposta); },
+    });
+    m.el.querySelector('[data-ok]').onclick = function () { resposta = m.el.querySelector('#motivo').value || ''; m.fechar(); };
+  });
+}
+</script>

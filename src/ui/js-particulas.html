@@ -1,0 +1,140 @@
+<script>
+/**
+ * Partículas da marca: uma esfera de pontos que gira e se reorganiza no logo da agência, e volta.
+ * O mouse empurra as partículas (afunda a esfera por onde passa).
+ * Uso: const parar = particulas(canvas, { cor, corLogo, modo: 'ciclo' | 'logo' | 'esfera', logo, texto }).
+ * logo: imagem embutida (data:image/...), para o canvas poder ler os pixels sem bloqueio de origem.
+ * Sem logo, desenha o texto (as iniciais da agência). Sem os dois, fica só a esfera.
+ */
+// Logo que as partículas desenham: o da configuração; antes de carregar, o último visto neste navegador.
+function logoParticulas() {
+  const m = S.dados && S.dados.config && S.dados.config.marca;
+  if (m) return m.logoParticulas || '';
+  try { return localStorage.getItem('flowloop.logoParticulas') || ''; } catch (e) { return ''; }
+}
+
+function textoParticulas() {
+  const c = S.dados && S.dados.config;
+  return c ? iniciais(c.empresa) : '';
+}
+
+function particulas(canvas, opcoes) {
+  const o = Object.assign({ cor: '#C5DBAE', corLogo: '#F2F6EE', modo: 'ciclo', escala: 1, logo: logoParticulas(), texto: textoParticulas() }, opcoes || {});
+  const ctx = canvas.getContext('2d');
+  const quieto = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let W = 0, H = 0, parado = false, quadro = 0, logo = [], ps = [], esfera = [];
+  const mouse = { x: -1e4, y: -1e4 };
+
+  function medir() {
+    const r = canvas.getBoundingClientRect();
+    W = Math.max(1, Math.round(r.width * dpr)); H = Math.max(1, Math.round(r.height * dpr));
+    canvas.width = W; canvas.height = H;
+  }
+
+  // Pontos do logo: lê os pixels do monograma numa grade e guarda os que estão "acesos".
+  function amostrarLogo(img) {
+    const larg = 240, alt = Math.round(larg * img.height / img.width);
+    const c = document.createElement('canvas'); c.width = larg; c.height = alt;
+    const g = c.getContext('2d'); g.drawImage(img, 0, 0, larg, alt);
+    const px = g.getImageData(0, 0, larg, alt).data, pts = [], passo = 3;
+    for (let y = 0; y < alt; y += passo) for (let x = 0; x < larg; x += passo) {
+      if (px[(y * larg + x) * 4 + 3] > 120) pts.push({ x: (x - larg / 2) / larg, y: (y - alt / 2) / larg });
+    }
+    return pts;
+  }
+
+  function montar() {
+    const n = Math.max(900, Math.min(1800, logo.length * 2));
+    esfera = []; ps = [];
+    const ouro = Math.PI * (3 - Math.sqrt(5));
+    for (let i = 0; i < n; i++) {
+      const y = 1 - (i / (n - 1)) * 2, raio = Math.sqrt(1 - y * y), t = ouro * i;
+      esfera.push({ x: Math.cos(t) * raio, y: y, z: Math.sin(t) * raio });
+      ps.push({ x: W / 2 + (Math.random() - 0.5) * W * 0.1, y: H / 2 + (Math.random() - 0.5) * H * 0.1, vx: 0, vy: 0, z: 0, l: logo.length ? logo[i % logo.length] : null, j: (Math.random() - 0.5) * 0.08, sorte: Math.random() });
+    }
+  }
+
+  // Quanto do logo está formado agora (0 = esfera, 1 = logo), num ciclo de ~11 s.
+  function mistura(t) {
+    if (o.modo === 'logo') return 1;
+    if (o.modo === 'esfera' || !logo.length) return 0;
+    const c = (t / 1000) % 11, suave = function (x) { return x * x * (3 - 2 * x); };
+    if (c < 4) return 0;
+    if (c < 5.4) return suave((c - 4) / 1.4);
+    if (c < 9.6) return 1;
+    return 1 - suave((c - 9.6) / 1.4);
+  }
+
+  function desenhar(t, unico) {
+    if (parado || !canvas.isConnected) return;
+    if (!unico) quadro = requestAnimationFrame(desenhar);
+    if (document.hidden) return;
+    const m = mistura(t), cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.36 * o.escala;
+    const rotY = t * 0.00025, rotX = 0.35 + Math.sin(t * 0.0002) * 0.12, foco = 2.6;
+    const cyy = Math.cos(rotY), syy = Math.sin(rotY), cxx = Math.cos(rotX), sxx = Math.sin(rotX);
+    const logoLarg = Math.min(W * 0.78, H * 1.25) * o.escala, balanco = Math.sin(t * 0.0006) * 0.18;
+    const raioMouse = 80 * dpr;
+    ctx.clearRect(0, 0, W, H);
+    for (let i = 0; i < ps.length; i++) {
+      const p = ps[i], e = esfera[i];
+      // esfera girando em perspectiva
+      let x = e.x * cyy - e.z * syy, z = e.x * syy + e.z * cyy, y = e.y * cxx - z * sxx;
+      z = e.y * sxx + z * cxx;
+      const s = foco / (foco + z), ex = cx + x * R * s, ey = cy + y * R * s;
+      // ponto do logo, com um leve balanço em 3D
+      let lx = ex, ly = ey, lz = z;
+      if (p.l) { lx = cx + p.l.x * logoLarg * Math.cos(balanco); ly = cy + p.l.y * logoLarg; lz = p.l.x * Math.sin(balanco) + p.j; }
+      const tx = ex + (lx - ex) * m, ty = ey + (ly - ey) * m;
+      p.z = z + (lz - z) * m;
+      // mola até o alvo + empurrão do mouse
+      p.vx += (tx - p.x) * 0.075; p.vy += (ty - p.y) * 0.075;
+      const dx = p.x - mouse.x, dy = p.y - mouse.y, d2 = dx * dx + dy * dy;
+      if (d2 < raioMouse * raioMouse && d2 > 0.01) {
+        const d = Math.sqrt(d2), f = (1 - d / raioMouse); p.vx += dx / d * f * f * 9 * dpr; p.vy += dy / d * f * f * 9 * dpr;
+      }
+      p.vx *= 0.8; p.vy *= 0.8; p.x += p.vx; p.y += p.vy;
+      const frente = 1 - (p.z + 1) / 2, a = 0.18 + frente * 0.82 * (1 - m * 0.2) + m * 0.25;
+      ctx.globalAlpha = Math.min(1, a);
+      ctx.fillStyle = m > 0.5 && p.l ? o.corLogo : o.cor;
+      const tam = (0.9 + frente * 1.3 + m * 0.4) * dpr;
+      ctx.fillRect(p.x - tam / 2, p.y - tam / 2, tam, tam);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function mover(e) {
+    const r = canvas.getBoundingClientRect(), pt = e.touches ? e.touches[0] : e;
+    mouse.x = (pt.clientX - r.left) * dpr; mouse.y = (pt.clientY - r.top) * dpr;
+  }
+  function sair() { mouse.x = mouse.y = -1e4; }
+  const alvo = o.alvo || canvas;
+  alvo.addEventListener('mousemove', mover); alvo.addEventListener('touchmove', mover, { passive: true });
+  alvo.addEventListener('mouseleave', sair); alvo.addEventListener('touchend', sair);
+  const obs = window.ResizeObserver ? new ResizeObserver(function () { medir(); montar(); }) : null;
+
+  medir();
+  const img = new Image();
+  img.onload = function () {
+    try { logo = amostrarLogo(img); } catch (e) { logo = []; }
+    montar();
+    if (obs) obs.observe(canvas);
+    if (quieto) { o.modo = 'logo'; ps.forEach(function (p) { p.x = W / 2; p.y = H / 2; }); for (let k = 0; k < 90; k++) desenhar(0, true); return; }
+    quadro = requestAnimationFrame(desenhar);
+  };
+  if (o.logo) img.src = o.logo;
+  else if (o.texto) {
+    // Sem logo embutido: escreve as iniciais num canvas e usa como logo.
+    const c = document.createElement('canvas'); c.width = 480; c.height = 220;
+    const g = c.getContext('2d'); g.fillStyle = '#000'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = '600 180px ' + (getComputedStyle(document.body).fontFamily || 'sans-serif');
+    g.fillText(String(o.texto).slice(0, 3), 240, 115);
+    img.src = c.toDataURL('image/png');
+  } else { o.modo = 'esfera'; img.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACw='; }
+
+  return function parar() {
+    parado = true; cancelAnimationFrame(quadro); if (obs) obs.disconnect();
+    alvo.removeEventListener('mousemove', mover); alvo.removeEventListener('mouseleave', sair);
+  };
+}
+</script>

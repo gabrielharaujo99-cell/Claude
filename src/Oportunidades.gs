@@ -30,7 +30,7 @@ function limparOp_(d, eu) {
 }
 
 function salvarOportunidade(d) {
-  const eu = exigir_('colaborador');
+  const eu = exigirArea_('comercial', 'colaborador');
   return comTrava_(function () {
     d = d || {};
     const cfg = config_(), agora = agora_();
@@ -58,7 +58,7 @@ function salvarOportunidade(d) {
 }
 
 function moverOportunidade(id, etapaId, ordem, motivoPerda) {
-  const eu = exigir_('colaborador');
+  const eu = exigirArea_('comercial', 'colaborador');
   return comTrava_(function () {
     const cfg = config_(), e = etapaPorId_(cfg, etapaId);
     if (!e) throw new Error('Etapa inexistente. Recarregue a página.');
@@ -86,7 +86,7 @@ function moverOportunidade(id, etapaId, ordem, motivoPerda) {
 }
 
 function arquivarOportunidade(id, arquivar) {
-  const eu = exigir_('gestor');
+  const eu = exigirArea_('comercial', 'gestor');
   return comTrava_(function () {
     const r = atualizar_('oportunidades', id, { arquivado: arquivar !== false, atualizadoEm: agora_(), atualizadoPor: eu.email });
     registrar_(eu, 'oportunidade', id, arquivar !== false ? 'arquivou' : 'desarquivou', '', '', '');
@@ -95,7 +95,7 @@ function arquivarOportunidade(id, arquivar) {
 }
 
 function detalheOportunidade(id) {
-  exigir_('leitor');
+  exigirArea_(['comercial', 'financeiro'], 'leitor');
   const comentarios = ler_('comentarios').filter(function (c) { return c.oportunidadeId === id; })
     .sort(function (a, b) { return a.criadoEm < b.criadoEm ? -1 : 1; });
   const historico = ler_('historico').filter(function (h) { return h.entidade === 'oportunidade' && h.entidadeId === id; })
@@ -104,7 +104,7 @@ function detalheOportunidade(id) {
 }
 
 function comentar(oportunidadeId, texto, mencoes) {
-  const eu = exigir_('colaborador');
+  const eu = exigirArea_('comercial', 'colaborador');
   const c = comTrava_(function () {
     const op = achar_('oportunidades', oportunidadeId);
     if (!op) throw new Error('Oportunidade não encontrada.');
@@ -120,7 +120,7 @@ function comentar(oportunidadeId, texto, mencoes) {
 }
 
 function removerComentario(id) {
-  const eu = exigir_('colaborador');
+  const eu = exigirArea_('comercial', 'colaborador');
   return comTrava_(function () {
     const c = achar_('comentarios', id);
     if (!c) return true;

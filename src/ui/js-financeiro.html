@@ -1,0 +1,505 @@
+<script>
+/**
+ * Financeiro: contratos dos clientes, quanto tempo estão ativos, reajustes e serviços adicionais.
+ * Só aparece para quem tem "Financeiro" marcado na equipe; o servidor nem manda os dados para os outros.
+ * Os valores de cada mês (contrato.serie) vêm calculados do servidor (Financeiro.gs).
+ */
+const NOME_STATUS_C = { ativo: 'Ativo', pausado: 'Pausado', encerrado: 'Encerrado', cancelado: 'Cancelado' };
+S.filtrosFin = { status: 'ativo', busca: '', simulacao: 6, visao: 'pipeline' };
+
+// Pipeline de clientes do financeiro, no jeito do Be Flow: em que pé está cada contrato.
+const FASES_FIN = [
+  { id: 'onboarding', nome: 'Onboarding', cor: '#8C9A7E', dica: 'assinado, vai começar' },
+  { id: 'em_dia', nome: 'Em dia', cor: '#5E8A4A', dica: 'faturando normalmente' },
+  { id: 'cobranca', nome: 'Cobrança pendente', cor: '#D9A066', dica: 'fatura emitida' },
+  { id: 'atraso', nome: 'Em atraso', cor: '#B5654A', dica: 'pagamento vencido' },
+  { id: 'renovacao', nome: 'Renovação', cor: '#4D7C6A', dica: 'negociando renovação' },
+  { id: 'encerrado', nome: 'Encerrados', cor: '#A39E8F', dica: 'finalizados' },
+];
+
+function cardContratoFin(c) {
+  const fee = c.tipo === 'fee';
+  return '<button type="button" class="op fin-card" draggable="' + pode('colaborador') + '" data-cf="' + esc(c.id) + '">' +
+    '<span class="cli">' + esc(nomeCliente(c.clienteId) || '—') + '</span><span class="tit">' + esc(c.titulo) + '</span>' +
+    '<span class="val">' + dinheiro(fee ? c.valorAtual : c.valor) + (fee ? ' <small>/mês</small>' : ' <small>projeto</small>') + '</span>' +
+    '<span class="rodape"><span>' + esc(tempoAtivo(c.mesesAtivo)) + '</span>' +
+      (c.reajustePct ? '<span class="pilula ok" style="padding:0 7px">↑ ' + String(c.reajustePct).replace('.', ',') + '%</span>' : '') +
+      (c.nAdicionais ? '<span class="pilula destaque" style="padding:0 7px">+' + c.nAdicionais + ' extra(s)</span>' : '') +
+      (c.diasParaFim != null && c.diasParaFim >= 0 && c.diasParaFim <= 60 && c.fase !== 'encerrado' ? '<span class="pilula alerta" style="padding:0 7px">renova em ' + c.diasParaFim + 'd</span>' : '') +
+    '</span></button>';
+}
+
+function pipelineFin(lista) {
+  return FASES_FIN.map(function (fa) {
+    let cs = lista.filter(function (c) { return c.fase === fa.id; }).sort(function (a, b) { return b.valorAtual - a.valorAtual; });
+    const soma = cs.reduce(function (s, c) { return s + (c.tipo === 'fee' ? c.valorAtual : 0); }, 0), total = cs.length;
+    if (fa.id === 'encerrado') cs = cs.slice(0, 12);
+    return '<section class="coluna' + (fa.id === 'encerrado' ? ' fechada' : '') + '" data-fase="' + fa.id + '" aria-label="' + esc(fa.nome) + '">' +
+      '<header class="coluna-cab"><span class="faixa" style="background:' + fa.cor + '"></span><div class="t"><b>' + esc(fa.nome) + '</b><span class="n">' + total + '</span></div>' +
+      '<span class="soma">' + dinheiro(soma) + '/mês · <span class="mudo">' + esc(fa.dica) + '</span></span></header>' +
+      '<div class="coluna-cards">' + (cs.length ? cs.map(cardContratoFin).join('') : '<div class="vazio" style="padding:18px 8px">Arraste um contrato para cá.</div>') + '</div></section>';
+  }).join('');
+}
+
+// Arrastar entre fases: muda na hora e confirma com o servidor; se falhar, volta.
+async function moverContratoFin(id, fase) {
+  const c = contrato(id);
+  if (!c || c.fase === fase) return;
+  const antes = Object.assign({}, c);
+  c.fase = fase;
+  desenhar();
+  try {
+    aplicarRetornoContrato(await chamar('moverContratoFase', id, fase));
+    const nome = FASES_FIN.filter(function (x) { return x.id === fase; })[0].nome;
+    toast(nomeCliente(c.clienteId) + ' em ' + nome + '.', { acao: { texto: 'Desfazer', fn: function () { moverContratoFin(id, antes.fase); } } });
+  } catch (e) {
+    trocar('contratos', antes);
+    desenhar();
+    toast(e.message, { erro: true });
+  }
+}
+
+function mesAtual() { return S.dados.hoje.slice(0, 7); }
+
+function mesCurto(m, comAno) {
+  const d = new Date(m + '-15T12:00:00');
+  const t = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+  return comAno ? t + '/' + m.slice(2, 4) : t;
+}
+
+function tempoAtivo(meses) {
+  if (!meses) return 'ainda não começou';
+  const a = Math.floor(meses / 12), m = meses % 12;
+  const pa = a ? a + (a === 1 ? ' ano' : ' anos') : '', pm = m ? m + (m === 1 ? ' mês' : ' meses') : '';
+  return pa && pm ? pa + ' e ' + pm : pa || pm;
+}
+
+function pilulaContrato(s) {
+  const cls = s === 'ativo' ? ' ok' : s === 'pausado' ? ' destaque' : s === 'cancelado' ? ' alerta' : '';
+  return '<span class="pilula' + cls + '">' + esc(NOME_STATUS_C[s] || s) + '</span>';
+}
+
+function contrato(id) { return S.dados.contratos.find(function (c) { return c.id === id; }); }
+
+function aplicarRetornoContrato(r) {
+  trocar('contratos', r.contrato);
+  S.dados.ajustes = S.dados.ajustes.filter(function (a) { return a.contratoId !== r.contrato.id; }).concat(r.ajustes);
+  desenhar();
+  if (S.gavetaC && S.gavetaC.id === r.contrato.id) desenharGavetaContrato();
+}
+
+// Gráfico de barras de uma série só (SVG), com dica ao passar o mouse.
+// dados: [{ rotulo, valor, apagado, dica }]
+function graficoBarras(dados, altura) {
+  const L = 640, A = altura || 200, esq = 46, base = A - 22, topo = 10;
+  const max = Math.max.apply(null, dados.map(function (d) { return d.valor; }).concat([1]));
+  const passo = Math.pow(10, Math.floor(Math.log10(max))) * (max / Math.pow(10, Math.floor(Math.log10(max))) > 5 ? 2 : 1);
+  const teto = Math.ceil(max / passo) * passo || 1;
+  const y = function (v) { return base - (v / teto) * (base - topo); };
+  const larg = (L - esq) / Math.max(dados.length, 1), barra = Math.max(3, Math.min(34, larg - 6));
+  const ticks = [0, teto / 2, teto];
+  let svg = '<svg viewBox="0 0 ' + L + ' ' + A + '" role="img" aria-label="Gráfico de barras">';
+  ticks.forEach(function (t) {
+    svg += '<line x1="' + esq + '" x2="' + L + '" y1="' + y(t) + '" y2="' + y(t) + '" stroke="var(--linha)" stroke-width="1"/>' +
+      '<text x="' + (esq - 8) + '" y="' + (y(t) + 4) + '" text-anchor="end" class="eixo">' + esc(dinheiro(t, true)) + '</text>';
+  });
+  const cadaRotulo = Math.ceil(dados.length / 12);
+  dados.forEach(function (d, i) {
+    const cx = esq + larg * i + larg / 2, x = cx - barra / 2, yt = y(d.valor), h = base - yt, r = Math.min(4, barra / 2, h);
+    if (h > 0) {
+      svg += '<path d="M' + x + ',' + base + ' V' + (yt + r) + ' Q' + x + ',' + yt + ' ' + (x + r) + ',' + yt + ' H' + (x + barra - r) + ' Q' + (x + barra) + ',' + yt + ' ' + (x + barra) + ',' + (yt + r) + ' V' + base + ' Z" fill="' + (d.apagado ? 'color-mix(in srgb, var(--destaque) 30%, var(--superficie))' : 'var(--destaque)') + '"/>';
+    }
+    if (i % cadaRotulo === 0) svg += '<text x="' + cx + '" y="' + (A - 6) + '" text-anchor="middle" class="eixo">' + esc(d.rotulo) + '</text>';
+    svg += '<rect x="' + (esq + larg * i) + '" y="0" width="' + larg + '" height="' + base + '" fill="transparent" data-i="' + i + '"/>';
+  });
+  return '<div class="grafico" data-grafico>' + svg + '</svg><div class="dica" hidden></div></div>';
+}
+
+function ligarGraficos(el, fontes) {
+  el.querySelectorAll('[data-grafico]').forEach(function (g, k) {
+    const dados = fontes[k], dica = g.querySelector('.dica');
+    g.addEventListener('mousemove', function (e) {
+      const alvo = e.target.closest('[data-i]');
+      if (!alvo) { dica.hidden = true; return; }
+      const d = dados[Number(alvo.dataset.i)], caixa = g.getBoundingClientRect();
+      dica.innerHTML = d.dica;
+      dica.hidden = false;
+      const x = Math.min(Math.max(e.clientX - caixa.left, 70), caixa.width - 70);
+      dica.style.left = x + 'px';
+      dica.style.top = Math.max(0, e.clientY - caixa.top - dica.offsetHeight - 12) + 'px';
+    });
+    g.addEventListener('mouseleave', function () { dica.hidden = true; });
+  });
+}
+
+// ---------- tela ----------
+TELAS.financeiro = {
+  desenhar: function () {
+    const f = S.filtrosFin, hoje = S.dados.hoje, mes = mesAtual(), q = normal(f.busca);
+    const todos = S.dados.contratos;
+    const ativos = todos.filter(function (c) { return c.status === 'ativo'; });
+    const feeAtivos = ativos.filter(function (c) { return c.tipo === 'fee'; });
+    const mrr = feeAtivos.reduce(function (s, c) { return s + c.valorAtual; }, 0);
+    const ano = mes.slice(0, 4);
+    const faturadoAno = todos.reduce(function (s, c) { return s + c.serie.filter(function (x) { return x.mes.slice(0, 4) === ano && x.mes <= mes; }).reduce(function (t, x) { return t + x.total; }, 0); }, 0);
+    const renovam = ativos.filter(function (c) { return c.diasParaFim != null && c.diasParaFim >= 0 && c.diasParaFim <= 60; });
+
+    // Receita dos últimos 12 meses (todos os contratos, inclusive os já encerrados)
+    const meses = [];
+    for (let i = 11; i >= 0; i--) meses.push(somaMesTela(mes, -i));
+    const porMes = meses.map(function (m) {
+      let total = 0, n = 0;
+      todos.forEach(function (c) { const x = c.serie.find(function (s) { return s.mes === m; }); if (x && x.total) { total += x.total; n++; } });
+      return { rotulo: mesCurto(m, m.slice(5) === '01' || m === meses[0]), valor: total, dica: '<b>' + esc(mesCurto(m, true)) + '</b><span>' + esc(dinheiro(total)) + '</span><small>' + n + ' contrato(s)</small>' };
+    });
+
+    const lista = todos.filter(function (c) {
+      if (f.status === 'ativo' && c.status !== 'ativo' && c.status !== 'pausado') return false;
+      if (f.status === 'encerrado' && c.status !== 'encerrado' && c.status !== 'cancelado') return false;
+      return !q || normal(nomeCliente(c.clienteId) + ' ' + c.titulo + ' ' + c.servico).indexOf(q) >= 0;
+    }).sort(function (a, b) { return b.valorAtual - a.valorAtual; });
+
+    const semContrato = opsAtivas().filter(function (o) {
+      const e = etapa(o.etapa);
+      return e && e.tipo === 'ganho' && !todos.some(function (c) { return c.oportunidadeId === o.id; });
+    });
+
+    const pct = Number(f.simulacao) || 0;
+
+    const tabela = lista.length ? '<div class="tabela-wrap"><table class="tabela"><thead><tr><th>Cliente</th><th class="some-cel">Tempo ativo</th><th class="d">Mensal hoje</th><th class="some-cel">Extras</th><th class="some-cel">Fim</th><th>Status</th></tr></thead><tbody>' +
+      lista.map(function (c) {
+        const fim = c.status === 'encerrado' || c.status === 'cancelado' ? dataBr(c.encerradoEm)
+          : c.semPrazo ? '<span class="mudo">sem prazo</span>' : c.fim ? dataBr(c.fim) + (c.diasParaFim != null && c.diasParaFim <= 60 && c.diasParaFim >= 0 ? '<br><span class="pequeno" style="color:var(--destaque)">renova em ' + c.diasParaFim + ' dias</span>' : '') : '—';
+        return '<tr data-c="' + esc(c.id) + '"><td><b>' + esc(nomeCliente(c.clienteId) || '—') + '</b><br><span class="mudo pequeno">' + esc(c.titulo) + (c.tipo === 'projeto' ? ' · projeto' : '') + '</span></td>' +
+          '<td class="some-cel">' + esc(tempoAtivo(c.mesesAtivo)) + '<br><span class="mudo pequeno">desde ' + dataBr(c.inicio) + '</span></td>' +
+          '<td class="d num"><b>' + dinheiro(c.tipo === 'fee' ? c.valorAtual : c.valor) + '</b>' + (c.tipo === 'fee' ? '<span class="mudo pequeno">/mês</span>' : '') +
+            (c.reajustePct ? '<br><span class="pilula ok" style="padding:0 7px">↑ ' + String(c.reajustePct).replace('.', ',') + '%</span>' : '') + '</td>' +
+          '<td class="some-cel">' + (c.nAdicionais ? '<span class="pilula destaque">' + c.nAdicionais + ' serviço(s)</span>' : '<span class="mudo">—</span>') + '</td>' +
+          '<td class="some-cel num">' + fim + '</td><td>' + pilulaContrato(c.status) + '</td></tr>';
+      }).join('') + '</tbody></table></div>'
+      : '<div class="vazio"><b>Nenhum contrato aqui.</b>Crie um contrato ou gere a partir de um fechamento do funil.</div>';
+
+    return {
+      rotulo: 'Restrito',
+      titulo: 'Financeiro e <em>contratos</em>',
+      banner: {
+        texto: 'A receita mensal ativa é de <b>' + dinheiro(mrr, true) + '</b> em ' + feeAtivos.length + ' contrato(s) de fee; <b>' + dinheiro(faturadoAno, true) + '</b> faturados em ' + ano + '.' +
+          (renovam.length ? ' <span class="al">' + renovam.length + ' renovação(ões)</span> nos próximos 60 dias.' : ' Nenhuma renovação nos próximos 60 dias.'),
+        visual: { tipo: 'pontos', formas: ['moeda', 'barras'] },
+      },
+      acoes: '<label class="busca">' + icone('busca') + '<input class="entrada" type="search" id="fin-busca" placeholder="Buscar cliente" value="' + esc(f.busca) + '" aria-label="Buscar"></label>' +
+        '<div class="segmentado" role="group" id="fin-visao">' + [['pipeline', 'Pipeline'], ['lista', 'Lista']].map(function (x) { return '<button data-v="' + x[0] + '" aria-pressed="' + (f.visao === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>' +
+        '<div class="segmentado" role="group" id="fin-status"' + (f.visao === 'pipeline' ? ' hidden' : '') + '>' + [['ativo', 'Vigentes'], ['encerrado', 'Encerrados'], ['todos', 'Todos']].map(function (x) {
+          return '<button data-v="' + x[0] + '" aria-pressed="' + (f.status === x[0]) + '">' + x[1] + '</button>';
+        }).join('') + '</div>' +
+        (pode('colaborador') ? '<button class="btn btn-primario" data-novo-c>' + icone('mais') + '<span>Novo contrato</span></button>' : ''),
+      corpo: '<div class="conteudo"><div class="kpis">' +
+        kpi('Receita mensal ativa', dinheiro(mrr, true), feeAtivos.length + ' contrato(s) de fee', true) +
+        kpi('Faturado em ' + ano, dinheiro(faturadoAno, true), 'até ' + mesCurto(mes) + ', com extras') +
+        kpi('Ticket médio', feeAtivos.length ? dinheiro(mrr / feeAtivos.length, true) : '—', 'por contrato, por mês') +
+        kpi('Renovações em 60 dias', String(renovam.length), renovam.length ? dinheiro(renovam.reduce(function (s, c) { return s + c.valorAtual; }, 0)) + '/mês em jogo' : 'nenhuma por agora') +
+        '</div>' + (f.visao === 'pipeline'
+          ? '<div class="quadro" id="fin-quadro" style="padding:4px 0 22px;min-height:0">' + pipelineFin(todos.filter(function (c) { return !q || normal(nomeCliente(c.clienteId) + ' ' + c.titulo + ' ' + c.servico).indexOf(q) >= 0; })) + '</div>'
+          : '<div class="cartao" style="margin-bottom:18px"><div class="cartao-cab"><h2>Contratos</h2><span class="mudo pequeno">' + lista.length + ' de ' + todos.length + '</span></div>' + tabela + '</div>') +
+        '<div class="painel"><div>' +
+          '<div class="cartao"><div class="cartao-cab"><h2>Receita por mês</h2><span class="mudo pequeno">últimos 12 meses · fee, projetos e extras</span></div><div class="cartao-corpo">' + graficoBarras(porMes, 210) + '</div></div>' +
+        '</div><div>' +
+          '<div class="cartao"><div class="cartao-cab"><h2>Simular reajuste</h2></div><div class="cartao-corpo">' +
+            '<p class="mudo pequeno" style="margin:0 0 12px">E se todos os contratos de fee vigentes forem reajustados em…</p>' +
+            '<div style="display:flex;align-items:center;gap:12px"><input type="range" id="sim" min="0" max="20" step="0.5" value="' + pct + '" aria-label="Percentual de reajuste simulado" style="flex:1;accent-color:var(--destaque)"><b class="num" id="sim-pct" style="min-width:52px;text-align:right;font-weight:500"></b></div>' +
+            '<dl class="dl" style="margin-top:14px"><div><dt>Mensal hoje</dt><dd class="num">' + dinheiro(mrr) + '</dd></div><div><dt>Com reajuste</dt><dd class="num" id="sim-novo" style="color:var(--destaque)"></dd></div>' +
+            '<div><dt>A mais por mês</dt><dd class="num" id="sim-mes"></dd></div><div><dt>A mais em 12 meses</dt><dd class="num" id="sim-ano"></dd></div></dl>' +
+            '<p class="mudo pequeno" style="margin:12px 0 0">Só simulação: nada é gravado. Para aplicar, abra o contrato e registre o reajuste.</p>' +
+          '</div></div>' +
+          '<div class="cartao"><div class="cartao-cab"><h2>Fechamentos sem contrato</h2><span class="pilula' + (semContrato.length ? ' alerta' : '') + '">' + semContrato.length + '</span></div><div class="cartao-corpo">' +
+            (semContrato.length ? '<ul class="lista">' + semContrato.map(function (o) {
+              return '<li><div class="principal-li"><b>' + esc(o.titulo) + '</b><span>' + esc(nomeCliente(o.clienteId) || 'Sem cliente') + ' · <span class="num">' + dinheiro(o.contrato === 'fee' ? o.valor : totalOp(o)) + (o.contrato === 'fee' ? '/mês' : '') + '</span></span></div>' +
+                (pode('colaborador') ? '<button class="btn btn-peq" data-gerar="' + esc(o.id) + '">Criar contrato</button>' : '') + '</li>';
+            }).join('') + '</ul>' : '<div class="vazio">Todo fechamento do funil já tem contrato.</div>') +
+          '</div></div>' +
+          '<div class="cartao"><div class="cartao-cab"><h2>Últimos ajustes</h2></div><div class="cartao-corpo">' + ultimosAjustes() + '</div></div>' +
+        '</div></div></div>',
+      montar: function (el, topo) {
+        topo.querySelector('#fin-busca').addEventListener('input', function (e) {
+          f.busca = e.target.value;
+          const pos = e.target.selectionStart;
+          desenhar();
+          const i = document.getElementById('fin-busca'); i.focus(); i.setSelectionRange(pos, pos);
+        });
+        topo.querySelector('#fin-visao').addEventListener('click', function (e) { const b = e.target.closest('[data-v]'); if (b) { f.visao = b.dataset.v; desenhar(); } });
+        const quadro = el.querySelector('#fin-quadro');
+        if (quadro) {
+          let arr = null;
+          quadro.addEventListener('click', function (e) { const cd = e.target.closest('[data-cf]'); if (cd) abrirContrato(cd.dataset.cf); });
+          quadro.addEventListener('dragstart', function (e) { const cd = e.target.closest('[data-cf]'); if (!cd) return; arr = cd.dataset.cf; e.dataTransfer.setData('text/plain', arr); requestAnimationFrame(function () { cd.classList.add('arrastando'); }); });
+          quadro.addEventListener('dragend', function () { arr = null; quadro.querySelectorAll('.arrastando,.alvo').forEach(function (x) { x.classList.remove('arrastando', 'alvo'); }); });
+          quadro.addEventListener('dragover', function (e) { const col = e.target.closest('.coluna'); if (!col || !arr) return; e.preventDefault(); quadro.querySelectorAll('.alvo').forEach(function (x) { if (x !== col) x.classList.remove('alvo'); }); col.classList.add('alvo'); });
+          quadro.addEventListener('drop', function (e) { const col = e.target.closest('.coluna'); if (!col || !arr) return; e.preventDefault(); moverContratoFin(arr, col.dataset.fase); });
+        }
+        topo.querySelector('#fin-status').addEventListener('click', function (e) { const b = e.target.closest('[data-v]'); if (b) { f.status = b.dataset.v; desenhar(); } });
+        const n = topo.querySelector('[data-novo-c]');
+        if (n) n.onclick = function () { abrirFormContrato(); };
+        const simular = function () {
+          const p = Number(f.simulacao) || 0;
+          const novo = feeAtivos.reduce(function (s, c) { return s + c.baseAtual * (1 + p / 100) + c.adicionaisAtuais; }, 0);
+          el.querySelector('#sim-pct').textContent = String(p).replace('.', ',') + '%';
+          el.querySelector('#sim-novo').textContent = dinheiro(novo);
+          el.querySelector('#sim-mes').textContent = '+ ' + dinheiro(novo - mrr);
+          el.querySelector('#sim-ano').textContent = '+ ' + dinheiro((novo - mrr) * 12);
+        };
+        el.querySelector('#sim').addEventListener('input', function (e) { f.simulacao = e.target.value; simular(); });
+        simular();
+        el.addEventListener('click', function (e) {
+          const g = e.target.closest('[data-gerar]');
+          if (g) return contratoDaOportunidade(oportunidade(g.dataset.gerar));
+          const tr = e.target.closest('[data-c]');
+          if (tr) abrirContrato(tr.dataset.c);
+        });
+        ligarGraficos(el, [porMes]);
+      },
+    };
+  },
+};
+
+function somaMesTela(mes, n) {
+  const a = Number(mes.slice(0, 4)), m = Number(mes.slice(5, 7)) - 1 + n;
+  const y = a + Math.floor(m / 12), mm = ((m % 12) + 12) % 12 + 1;
+  return y + '-' + String(mm).padStart(2, '0');
+}
+
+function ultimosAjustes() {
+  const lista = S.dados.ajustes.slice().sort(function (a, b) { return a.data < b.data ? 1 : -1; }).slice(0, 6);
+  if (!lista.length) return '<div class="vazio">Nenhum reajuste ou serviço extra ainda.</div>';
+  return '<ul class="lista">' + lista.map(function (a) {
+    const c = contrato(a.contratoId);
+    return '<li data-c="' + esc(a.contratoId) + '" style="cursor:pointer"><div class="principal-li"><b>' + esc(nomeCliente(c && c.clienteId) || '—') + '</b><span>' +
+      (a.tipo === 'reajuste' ? 'Reajuste para ' + dinheiro(a.valor) + '/mês' : esc(a.descricao) + ' · ' + dinheiro(a.valor) + (a.recorrente ? '/mês' : ' avulso')) + '</span></div>' +
+      '<span class="pilula' + (a.tipo === 'reajuste' ? ' ok' : ' destaque') + '">' + dataCurta(a.data) + '</span></li>';
+  }).join('') + '</ul>';
+}
+
+// ---------- formulário do contrato ----------
+function contratoDaOportunidade(o) {
+  abrirFormContrato({
+    clienteId: o.clienteId, oportunidadeId: o.id, titulo: o.titulo, servico: o.servico,
+    tipo: o.contrato === 'fee' ? 'fee' : 'projeto', valor: o.valor, meses: o.contrato === 'fee' ? o.meses : 0,
+    inicio: String(o.fechadoEm || S.dados.hoje).slice(0, 10),
+  });
+}
+
+function abrirFormContrato(base) {
+  base = base || {};
+  const novo = !base.id, c = Object.assign({ tipo: 'fee', meses: 12, status: 'ativo', inicio: S.dados.hoje }, base);
+  const clientes = S.dados.clientes.filter(function (x) { return !x.arquivado || x.id === c.clienteId; }).sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+  const cfg = S.dados.config;
+  const m = modal({
+    titulo: novo ? 'Novo contrato' : 'Editar contrato',
+    corpo: '<form id="form-c" class="grade" autocomplete="off">' +
+      '<label class="campo"><span>Cliente</span><select name="clienteId" required>' + opcoes(clientes.map(function (x) { return { v: x.id, t: x.nome }; }), c.clienteId, 'Escolha') + '</select></label>' +
+      '<label class="campo"><span>Serviço</span><select name="servico">' + opcoes(cfg.servicos.indexOf(c.servico) < 0 && c.servico ? cfg.servicos.concat([c.servico]) : cfg.servicos, c.servico, 'Escolha') + '</select></label>' +
+      '<label class="campo inteira"><span>Nome do contrato</span><input name="titulo" maxlength="140" value="' + esc(c.titulo) + '" placeholder="Ex.: Assessoria completa"></label>' +
+      '<div class="campo"><span>Tipo</span><div class="segmentado" role="group" id="seg-tipo">' +
+        '<button type="button" data-v="fee" aria-pressed="' + (c.tipo === 'fee') + '">Fee mensal</button><button type="button" data-v="projeto" aria-pressed="' + (c.tipo === 'projeto') + '">Projeto</button></div>' +
+        '<input type="hidden" name="tipo" value="' + esc(c.tipo) + '"></div>' +
+      '<label class="campo"><span id="rot-valor-c">' + (c.tipo === 'fee' ? 'Valor mensal inicial' : 'Valor do projeto') + '</span><input name="valor" inputmode="decimal" value="' + (c.valor ? String(c.valor).replace('.', ',') : '') + '"><small>' + (novo ? '' : 'Mudou o valor no meio do caminho? Use "Registrar reajuste".') + '</small></label>' +
+      '<label class="campo"><span>Início</span><input name="inicio" type="date" value="' + esc(String(c.inicio).slice(0, 10)) + '"></label>' +
+      '<label class="campo" id="campo-meses-c"' + (c.tipo === 'fee' ? '' : ' hidden') + '><span>Duração (meses)</span><input name="meses" type="number" min="0" max="120" value="' + esc(c.meses) + '"><small>0 = sem prazo definido</small></label>' +
+      '<label class="campo"><span>Status</span><select name="status">' + opcoes(Object.keys(NOME_STATUS_C).map(function (k) { return { v: k, t: NOME_STATUS_C[k] }; }), c.status) + '</select></label>' +
+      '<label class="campo" id="campo-enc"' + (c.status === 'encerrado' || c.status === 'cancelado' ? '' : ' hidden') + '><span>Encerrado em</span><input name="encerradoEm" type="date" value="' + esc(c.encerradoEm || S.dados.hoje) + '"></label>' +
+      '<label class="campo inteira"><span>Observações</span><textarea name="obs" placeholder="Índice de reajuste, forma de pagamento, dia de vencimento…">' + esc(c.obs) + '</textarea></label>' +
+      '<input type="hidden" name="oportunidadeId" value="' + esc(c.oportunidadeId) + '"></form>',
+    pe: '<button class="btn btn-fantasma" data-fechar>Cancelar</button><button class="btn btn-primario" data-salvar>' + (novo ? 'Criar contrato' : 'Salvar') + '</button>',
+  });
+  const form = m.el.querySelector('#form-c');
+  m.el.querySelector('#seg-tipo').addEventListener('click', function (e) {
+    const b = e.target.closest('[data-v]');
+    if (!b) return;
+    form.tipo.value = b.dataset.v;
+    this.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b); });
+    m.el.querySelector('#campo-meses-c').hidden = b.dataset.v !== 'fee';
+    m.el.querySelector('#rot-valor-c').textContent = b.dataset.v === 'fee' ? 'Valor mensal inicial' : 'Valor do projeto';
+  });
+  form.status.addEventListener('change', function () { m.el.querySelector('#campo-enc').hidden = !(this.value === 'encerrado' || this.value === 'cancelado'); });
+  const salvar = m.el.querySelector('[data-salvar]');
+  form.addEventListener('submit', function (e) { e.preventDefault(); salvar.click(); });
+  salvar.onclick = function () {
+    const d = lerForm(form);
+    if (!d.clienteId) return form.clienteId.focus();
+    if (c.id) d.id = c.id;
+    ocupado(salvar, async function () {
+      const r = await gravar('salvarContrato', [d], novo ? 'Contrato criado.' : 'Contrato salvo.');
+      if (!r) return;
+      m.fechar();
+      aplicarRetornoContrato(r);
+      if (novo) abrirContrato(r.contrato.id);
+    });
+  };
+}
+
+// ---------- gaveta do contrato ----------
+S.gavetaC = null;
+
+function abrirContrato(id) {
+  if (!contrato(id)) return;
+  if (S.gavetaC) S.gavetaC.api.fechar();
+  const g = { id: id };
+  g.api = modal({ gaveta: true, titulo: 'Contrato', html: '', aoFechar: function () { if (S.gavetaC === g) S.gavetaC = null; } });
+  S.gavetaC = g;
+  desenharGavetaContrato();
+}
+
+function desenharGavetaContrato() {
+  const g = S.gavetaC, c = contrato(g.id);
+  if (!c) return g.api.fechar();
+  const fee = c.tipo === 'fee', mes = mesAtual(), edita = pode('colaborador');
+  const aj = S.dados.ajustes.filter(function (a) { return a.contratoId === c.id; });
+  const dados = c.serie.map(function (s) {
+    const partes = ['<b>' + esc(mesCurto(s.mes, true)) + (s.mes > mes ? ' · previsto' : '') + '</b><span>' + esc(dinheiro(s.total)) + '</span>'];
+    if (s.adicionais) partes.push('<small>' + esc(dinheiro(s.base)) + ' + ' + esc(dinheiro(s.adicionais)) + ' de extras</small>');
+    if (s.avulsos) partes.push('<small>inclui ' + esc(dinheiro(s.avulsos)) + ' avulso</small>');
+    return { rotulo: mesCurto(s.mes, s.mes.slice(5) === '01' || s === c.serie[0]), valor: s.total, apagado: s.mes > mes, dica: partes.join('') };
+  });
+  const eventos = [{ data: c.inicio, html: '<b style="font-weight:500">Início</b> do contrato · ' + dinheiro(c.valor) + (fee ? '/mês' : '') }]
+    .concat(aj.map(function (a) {
+      return {
+        data: a.data, id: a.id,
+        html: a.tipo === 'reajuste'
+          ? '<b style="font-weight:500">Reajuste</b> para ' + dinheiro(a.valor) + '/mês' + (a.descricao ? ' <span class="mudo">· ' + esc(a.descricao) + '</span>' : '')
+          : '<b style="font-weight:500">Serviço adicional</b>: ' + esc(a.descricao) + ' · ' + dinheiro(a.valor) + (a.recorrente ? '/mês' : ' avulso'),
+      };
+    }))
+    .concat(c.status === 'encerrado' || c.status === 'cancelado' ? [{ data: c.encerradoEm, html: '<b style="font-weight:500">' + esc(NOME_STATUS_C[c.status]) + '</b>' }] : [])
+    .sort(function (a, b) { return a.data < b.data ? 1 : -1; });
+
+  g.api.el.innerHTML =
+    '<div class="det-topo"><div class="linha1"><div style="flex:1;min-width:0"><span class="rotulo">' + esc(nomeCliente(c.clienteId)) + (c.servico ? ' · ' + esc(c.servico) : '') + '</span>' +
+      '<h2 style="margin-top:6px">' + esc(c.titulo) + '</h2></div>' +
+      (edita ? '<button class="btn btn-icone" data-editar-c aria-label="Editar contrato">' + icone('editar') + '</button>' : '') +
+      '<button class="btn btn-fantasma btn-icone" data-fechar aria-label="Fechar">' + icone('fechar') + '</button></div>' +
+    '<div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap"><div class="valor-g">' + dinheiro(fee ? c.valorAtual : c.valor) + '</div><span class="mudo" style="padding-bottom:3px">' +
+      (fee ? 'por mês hoje' + (c.adicionaisAtuais ? ' · ' + dinheiro(c.baseAtual) + ' + ' + dinheiro(c.adicionaisAtuais) + ' de extras' : '') : 'projeto') + '</span></div>' +
+    '<div class="chips">' + pilulaContrato(c.status) + '<span class="pilula">' + esc(tempoAtivo(c.mesesAtivo)) + ' de contrato</span>' +
+      (c.reajustePct ? '<span class="pilula ok">↑ ' + String(c.reajustePct).replace('.', ',') + '% de reajuste</span>' : fee ? '<span class="pilula">Sem reajuste</span>' : '') +
+      (c.nAdicionais ? '<span class="pilula destaque">' + c.nAdicionais + ' serviço(s) adicional(is)</span>' : '') +
+      (c.diasParaFim != null && c.diasParaFim >= 0 && c.diasParaFim <= 60 ? '<span class="pilula alerta">Renova em ' + c.diasParaFim + ' dias</span>' : '') + '</div>' +
+    (edita && c.status !== 'encerrado' && c.status !== 'cancelado' ? '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      (fee ? '<button class="btn btn-peq btn-escuro" data-reajuste>' + icone('seta') + 'Registrar reajuste</button>' : '') +
+      '<button class="btn btn-peq" data-adicional>' + icone('mais') + 'Serviço adicional</button></div>' : '') +
+    '</div>' +
+    '<div class="det-corpo" style="border-top:1px solid var(--linha);margin-top:18px">' +
+      '<dl class="dl">' +
+        '<div><dt>Início</dt><dd>' + dataBr(c.inicio) + '</dd></div>' +
+        '<div><dt>' + (c.status === 'encerrado' || c.status === 'cancelado' ? 'Encerrado em' : 'Fim previsto') + '</dt><dd>' + (c.semPrazo ? 'Sem prazo definido' : dataBr(c.fim) || '—') + '</dd></div>' +
+        '<div><dt>Valor original</dt><dd class="num">' + dinheiro(c.valor) + (fee ? '/mês' : '') + '</dd></div>' +
+        '<div><dt>Duração</dt><dd>' + (fee ? (c.meses ? c.meses + ' meses' : 'Sem prazo') : 'Projeto') + '</dd></div>' +
+        '<div><dt>Faturado até agora</dt><dd class="num">' + dinheiro(c.faturado) + '</dd></div>' +
+        '<div><dt>' + (c.semPrazo ? 'Previsto' : 'Total do contrato') + '</dt><dd class="num">' + (c.semPrazo ? dinheiro(c.valorAtual) + '/mês enquanto durar' : dinheiro(c.totalPrevisto)) + '</dd></div>' +
+        (c.oportunidadeId && oportunidade(c.oportunidadeId) ? '<div style="grid-column:1/-1"><dt>Veio do funil</dt><dd><a href="#" data-op-c="' + esc(c.oportunidadeId) + '">' + esc(oportunidade(c.oportunidadeId).titulo) + '</a></dd></div>' : '') +
+        (c.obs ? '<div style="grid-column:1/-1"><dt>Observações</dt><dd style="white-space:pre-wrap">' + esc(c.obs) + '</dd></div>' : '') +
+      '</dl>' +
+      '<div style="margin-top:26px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:8px"><span class="rotulo">Valor mês a mês</span>' +
+        '<span class="legenda"><i></i>Faturado <i class="claro"></i>Previsto</span></div>' + graficoBarras(dados, 190) + '</div>' +
+      '<div style="margin-top:26px"><span class="rotulo" style="display:block;margin-bottom:14px">Linha do tempo</span><ul class="linha-tempo">' + eventos.map(function (ev) {
+        return '<li><time>' + dataBr(ev.data) + '</time>' + ev.html +
+          (ev.id && edita ? ' <button class="btn btn-fantasma btn-icone btn-peq" data-tirar-aj="' + esc(ev.id) + '" aria-label="Remover ajuste" style="vertical-align:middle">' + icone('lixo') + '</button>' : '') + '</li>';
+      }).join('') + '</ul></div>' +
+    '</div>';
+
+  const el = g.api.el;
+  ligarGraficos(el, [dados]);
+  const ed = el.querySelector('[data-editar-c]');
+  if (ed) ed.onclick = function () { abrirFormContrato(c); };
+  const rj = el.querySelector('[data-reajuste]');
+  if (rj) rj.onclick = function () { abrirReajuste(c); };
+  const ad = el.querySelector('[data-adicional]');
+  if (ad) ad.onclick = function () { abrirAdicional(c); };
+  const op = el.querySelector('[data-op-c]');
+  if (op) op.onclick = function (e) { e.preventDefault(); g.api.fechar(); abrirOportunidade(op.dataset.opC); };
+  el.querySelectorAll('[data-tirar-aj]').forEach(function (b) {
+    b.onclick = async function () {
+      if (!(await confirmar('Remover este ajuste?', 'Os valores do contrato são recalculados sem ele.', 'Remover', true))) return;
+      const r = await gravar('removerAjuste', [b.dataset.tirarAj], 'Ajuste removido.');
+      if (r) aplicarRetornoContrato(r);
+    };
+  });
+}
+
+// Reajuste com prévia: mostra o novo valor e o impacto antes de gravar.
+function abrirReajuste(c) {
+  const restantes = function (data) { return c.serie.filter(function (s) { return s.mes >= String(data).slice(0, 7); }).length; };
+  const m = modal({
+    titulo: 'Registrar reajuste', estreito: true,
+    corpo: '<form id="form-rj" class="grade" autocomplete="off">' +
+      '<p class="mudo inteira" style="margin:0">' + esc(nomeCliente(c.clienteId)) + ' · hoje ' + dinheiro(c.baseAtual) + '/mês' + (c.adicionaisAtuais ? ' (fora os extras)' : '') + '</p>' +
+      '<div class="campo inteira"><span>Reajustar por</span><div class="segmentado" role="group" id="seg-rj"><button type="button" data-v="pct" aria-pressed="true">Percentual</button><button type="button" data-v="valor" aria-pressed="false">Novo valor</button></div></div>' +
+      '<label class="campo" id="campo-pct"><span>Percentual</span><input name="pct" inputmode="decimal" value="5" autofocus></label>' +
+      '<label class="campo" id="campo-novo" hidden><span>Novo valor mensal</span><input name="novo" inputmode="decimal" value="' + String(c.baseAtual).replace('.', ',') + '"></label>' +
+      '<label class="campo"><span>Vale a partir de</span><input name="data" type="date" value="' + esc(S.dados.hoje) + '"></label>' +
+      '<label class="campo inteira"><span>Motivo</span><input name="descricao" maxlength="300" placeholder="Ex.: reajuste anual pelo IPCA"></label>' +
+      '<div class="inteira cartao" id="previa-rj" style="padding:14px 16px;box-shadow:none;background:var(--afundado)"></div></form>',
+    pe: '<button class="btn btn-fantasma" data-fechar>Cancelar</button><button class="btn btn-primario" data-salvar>Registrar</button>',
+  });
+  const form = m.el.querySelector('#form-rj');
+  let modo = 'pct';
+  const num = function (v) { return Number(String(v).replace(/\./g, '').replace(',', '.')) || 0; };
+  const novoValor = function () { return modo === 'pct' ? Math.round(c.baseAtual * (1 + num(form.pct.value) / 100) * 100) / 100 : num(form.novo.value); };
+  const previa = function () {
+    const v = novoValor(), dif = v - c.baseAtual, p = c.baseAtual ? dif / c.baseAtual * 100 : 0, n = c.semPrazo ? 12 : restantes(form.data.value);
+    m.el.querySelector('#previa-rj').innerHTML = '<span class="rotulo">Simulação</span>' +
+      '<div style="font-size:20px;font-weight:300;letter-spacing:-.02em;margin:6px 0 2px" class="num">' + dinheiro(c.baseAtual) + ' → <b style="font-weight:500;color:var(--destaque)">' + dinheiro(v) + '</b></div>' +
+      '<div class="mudo pequeno">' + (dif >= 0 ? '+' : '−') + ' ' + dinheiro(Math.abs(dif)) + '/mês (' + (p >= 0 ? '+' : '') + p.toFixed(1).replace('.', ',') + '%) · ' +
+      (dif >= 0 ? '+' : '−') + ' ' + dinheiro(Math.abs(dif * n)) + (c.semPrazo ? ' em 12 meses' : ' até o fim do contrato (' + n + ' meses)') + '</div>';
+  };
+  m.el.querySelector('#seg-rj').addEventListener('click', function (e) {
+    const b = e.target.closest('[data-v]');
+    if (!b) return;
+    modo = b.dataset.v;
+    this.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b); });
+    m.el.querySelector('#campo-pct').hidden = modo !== 'pct';
+    m.el.querySelector('#campo-novo').hidden = modo !== 'valor';
+    previa();
+  });
+  form.addEventListener('input', previa);
+  previa();
+  const salvar = m.el.querySelector('[data-salvar]');
+  form.addEventListener('submit', function (e) { e.preventDefault(); salvar.click(); });
+  salvar.onclick = function () {
+    ocupado(salvar, async function () {
+      const r = await gravar('registrarAjuste', [{ contratoId: c.id, tipo: 'reajuste', valor: novoValor(), data: form.data.value, descricao: form.descricao.value }], 'Reajuste registrado.');
+      if (r) { m.fechar(); aplicarRetornoContrato(r); }
+    });
+  };
+}
+
+function abrirAdicional(c) {
+  const fee = c.tipo === 'fee';
+  const m = modal({
+    titulo: 'Serviço adicional', estreito: true,
+    corpo: '<form id="form-ad" class="grade" autocomplete="off">' +
+      '<label class="campo inteira"><span>Serviço</span><input name="descricao" maxlength="300" required placeholder="Ex.: Gestão do Google Meu Negócio" autofocus></label>' +
+      '<label class="campo"><span>Valor</span><input name="valor" inputmode="decimal"></label>' +
+      '<label class="campo"><span>A partir de</span><input name="data" type="date" value="' + esc(S.dados.hoje) + '"></label>' +
+      (fee ? '<div class="campo inteira"><span>Cobrança</span><div class="segmentado" role="group" id="seg-ad"><button type="button" data-v="1" aria-pressed="true">Todo mês</button><button type="button" data-v="0" aria-pressed="false">Uma vez (avulso)</button></div></div>' : '') +
+      '</form>',
+    pe: '<button class="btn btn-fantasma" data-fechar>Cancelar</button><button class="btn btn-primario" data-salvar>Adicionar</button>',
+  });
+  const form = m.el.querySelector('#form-ad');
+  let recorrente = fee;
+  const seg = m.el.querySelector('#seg-ad');
+  if (seg) seg.addEventListener('click', function (e) {
+    const b = e.target.closest('[data-v]');
+    if (!b) return;
+    recorrente = b.dataset.v === '1';
+    this.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b); });
+  });
+  const salvar = m.el.querySelector('[data-salvar]');
+  form.addEventListener('submit', function (e) { e.preventDefault(); salvar.click(); });
+  salvar.onclick = function () {
+    if (!form.descricao.value.trim()) return form.descricao.focus();
+    ocupado(salvar, async function () {
+      const r = await gravar('registrarAjuste', [{ contratoId: c.id, tipo: 'adicional', valor: form.valor.value, data: form.data.value, recorrente: recorrente, descricao: form.descricao.value }], 'Serviço adicional registrado.');
+      if (r) { m.fechar(); aplicarRetornoContrato(r); }
+    });
+  };
+}
+</script>

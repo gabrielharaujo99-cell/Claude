@@ -1,0 +1,498 @@
+<script>
+/** Telas de Clientes, Tarefas, Propostas e Horas, com os formulários de cada uma. */
+const NOME_STATUS_T = { afazer: 'A fazer', fazendo: 'Fazendo', feito: 'Feito' };
+const NOME_STATUS_P = { rascunho: 'Rascunho', enviada: 'Enviada', aprovada: 'Aprovada', recusada: 'Recusada' };
+
+// ================= Clientes =================
+S.filtrosCli = { busca: '', segmento: '', arquivados: false };
+
+TELAS.clientes = {
+  desenhar: function () {
+    const f = S.filtrosCli, cfg = S.dados.config;
+    const ativos = S.dados.clientes.filter(function (c) { return !c.arquivado; });
+    const porSeg = cfg.segmentos.map(function (s) { return { s: s, n: ativos.filter(function (c) { return c.segmento === s; }).length }; }).filter(function (x) { return x.n; });
+    return {
+      titulo: 'Carteira de <em>clientes</em>',
+      banner: {
+        texto: '<b>' + ativos.length + '</b> cliente(s) ativos' + (porSeg.length ? ': ' + porSeg.map(function (x) { return esc(x.s) + ' <b>' + x.n + '</b>'; }).join(' · ') : '') + '.',
+        visual: { tipo: 'pontos', formas: ['pessoas', 'folha'] },
+      },
+      acoes: '<label class="busca">' + icone('busca') + '<input class="entrada" type="search" id="c-busca" placeholder="Buscar cliente" value="' + esc(f.busca) + '" aria-label="Buscar"></label>' +
+        '<select class="entrada filtro" id="c-seg" aria-label="Segmento">' + opcoes(cfg.segmentos, f.segmento, 'Todos os segmentos') + '</select>' +
+        (pode('colaborador') ? '<button class="btn btn-primario" data-novo>' + icone('mais') + '<span>Novo cliente</span></button>' : ''),
+      corpo: '<div class="conteudo"><div class="cartao"><div id="lista-cli"></div></div>' +
+        '<label class="chk pequeno mudo" style="margin-top:14px"><input type="checkbox" id="c-arq"' + (f.arquivados ? ' checked' : '') + '>Mostrar arquivados</label></div>',
+      montar: function (el, topo) {
+        topo.querySelector('#c-busca').addEventListener('input', function (e) { f.busca = e.target.value; listaClientes(); });
+        topo.querySelector('#c-seg').addEventListener('change', function (e) { f.segmento = e.target.value; listaClientes(); });
+        el.querySelector('#c-arq').addEventListener('change', function (e) { f.arquivados = e.target.checked; listaClientes(); });
+        const n = topo.querySelector('[data-novo]');
+        if (n) n.onclick = function () { abrirFormCliente(); };
+        el.querySelector('#lista-cli').addEventListener('click', function (e) {
+          const tr = e.target.closest('[data-cli]');
+          if (tr && !e.target.closest('a')) abrirFormCliente(cliente(tr.dataset.cli));
+        });
+        listaClientes();
+      },
+    };
+  },
+};
+
+function listaClientes() {
+  const f = S.filtrosCli, q = normal(f.busca);
+  const lista = S.dados.clientes.filter(function (c) {
+    if (c.arquivado && !f.arquivados) return false;
+    if (f.segmento && c.segmento !== f.segmento) return false;
+    return !q || normal(c.nome + ' ' + c.contato + ' ' + c.email + ' ' + c.instagram).indexOf(q) >= 0;
+  }).sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+  const box = document.getElementById('lista-cli');
+  if (!lista.length) {
+    box.innerHTML = '<div class="vazio"><b>Nenhum cliente encontrado.</b>' + (S.dados.clientes.length ? 'Ajuste a busca.' : 'Os clientes também nascem ao criar uma oportunidade.') + '</div>';
+    return;
+  }
+  box.innerHTML = '<div class="tabela-wrap"><table class="tabela"><thead><tr><th>Cliente</th><th class="some-cel">Segmento</th><th class="some-cel">Instagram</th><th class="d">Em aberto</th><th class="d">Ganho</th></tr></thead><tbody>' +
+    lista.map(function (c) {
+      const ops = S.dados.oportunidades.filter(function (o) { return o.clienteId === c.id && !o.arquivado; });
+      const tipo = function (o) { const e = etapa(o.etapa); return e ? e.tipo : ''; };
+      const aberto = ops.filter(function (o) { return tipo(o) === 'aberta'; });
+      const ganho = ops.filter(function (o) { return tipo(o) === 'ganho'; }).reduce(function (s, o) { return s + totalOp(o); }, 0);
+      return '<tr data-cli="' + esc(c.id) + '"><td><b>' + esc(c.nome) + '</b>' + (c.arquivado ? ' <span class="pilula">arquivado</span>' : '') +
+        (c.contato ? '<br><span class="mudo pequeno">' + esc(c.contato) + '</span>' : '') + '</td>' +
+        '<td class="some-cel">' + (c.segmento ? '<span class="pilula">' + esc(c.segmento) + '</span>' : '<span class="mudo">—</span>') + '</td>' +
+        '<td class="some-cel">' + (c.instagram ? '<a href="https://instagram.com/' + esc(c.instagram.replace(/^@/, '')) + '" target="_blank" rel="noopener">' + esc(c.instagram) + '</a>' : '<span class="mudo">—</span>') + '</td>' +
+        '<td class="d num">' + (aberto.length ? dinheiro(aberto.reduce(function (s, o) { return s + totalOp(o); }, 0)) + '<br><span class="mudo pequeno">' + aberto.length + ' op.</span>' : '<span class="mudo">—</span>') + '</td>' +
+        '<td class="d num">' + (ganho ? dinheiro(ganho) : '<span class="mudo">—</span>') + '</td></tr>';
+    }).join('') + '</tbody></table></div>';
+}
+
+function abrirFormCliente(base) {
+  base = base || {};
+  const novo = !base.id, cfg = S.dados.config, c = base;
+  const ops = novo ? [] : S.dados.oportunidades.filter(function (o) { return o.clienteId === c.id; });
+  const ler = !pode('colaborador');
+  const m = modal({
+    titulo: novo ? 'Novo cliente' : c.nome,
+    corpo: '<form id="form-cli" class="grade" autocomplete="off"><fieldset style="display:contents"' + (ler ? ' disabled' : '') + '>' +
+      '<label class="campo inteira"><span>Nome</span><input name="nome" required maxlength="100" value="' + esc(c.nome) + '"></label>' +
+      '<label class="campo"><span>Segmento</span><select name="segmento">' + opcoes(cfg.segmentos.indexOf(c.segmento) < 0 && c.segmento ? cfg.segmentos.concat([c.segmento]) : cfg.segmentos, c.segmento, 'Escolha') + '</select></label>' +
+      '<label class="campo"><span>Contato</span><input name="contato" value="' + esc(c.contato) + '" placeholder="Pessoa de contato"></label>' +
+      '<label class="campo"><span>E-mail</span><input name="email" type="email" value="' + esc(c.email) + '"></label>' +
+      '<label class="campo"><span>Telefone</span><input name="telefone" type="tel" value="' + esc(c.telefone) + '"></label>' +
+      '<label class="campo"><span>Instagram</span><input name="instagram" value="' + esc(c.instagram) + '" placeholder="@perfil"></label>' +
+      '<label class="campo"><span>Site</span><input name="site" value="' + esc(c.site) + '" placeholder="site.com.br"></label>' +
+      '<label class="campo inteira"><span>Observações</span><textarea name="obs">' + esc(c.obs) + '</textarea></label></fieldset></form>' +
+      (ops.length ? '<div style="margin-top:22px"><span class="rotulo">Oportunidades</span><ul class="lista" style="margin-top:6px">' + ops.map(function (o) {
+        const e = etapa(o.etapa);
+        return '<li data-op="' + esc(o.id) + '" style="cursor:pointer"><div class="principal-li"><b>' + esc(o.titulo) + '</b><span class="num">' + dinheiro(totalOp(o)) + '</span></div>' +
+          '<span class="pilula" style="color:' + esc(e ? e.cor : '') + '"><span class="ponto"></span><span style="color:var(--texto)">' + esc(e ? e.nome : '') + '</span></span></li>';
+      }).join('') + '</ul></div>' : ''),
+    pe: (!novo && pode('gestor') ? '<div class="esq"><button class="btn btn-fantasma btn-peq" data-arq>' + (c.arquivado ? 'Desarquivar' : 'Arquivar') + '</button></div>' : '') +
+      '<button class="btn btn-fantasma" data-fechar>' + (ler ? 'Fechar' : 'Cancelar') + '</button>' + (ler ? '' : '<button class="btn btn-primario" data-salvar>' + (novo ? 'Criar' : 'Salvar') + '</button>'),
+  });
+  const form = m.el.querySelector('#form-cli');
+  m.el.querySelectorAll('[data-op]').forEach(function (li) { li.onclick = function () { m.fechar(); abrirOportunidade(li.dataset.op); }; });
+  const arq = m.el.querySelector('[data-arq]');
+  if (arq) arq.onclick = async function () {
+    const r = await gravar('arquivarCliente', [c.id, !c.arquivado], c.arquivado ? 'Cliente desarquivado.' : 'Cliente arquivado.');
+    if (r) { trocar('clientes', r); m.fechar(); desenhar(); }
+  };
+  const salvar = m.el.querySelector('[data-salvar]');
+  if (!salvar) return;
+  form.addEventListener('submit', function (e) { e.preventDefault(); salvar.click(); });
+  salvar.onclick = function () {
+    const d = lerForm(form);
+    if (!d.nome.trim()) return form.nome.focus();
+    if (c.id) d.id = c.id;
+    ocupado(salvar, async function () {
+      const r = await gravar('salvarCliente', [d], novo ? 'Cliente criado.' : 'Salvo.');
+      if (r) { trocar('clientes', r); m.fechar(); desenhar(); atualizarGaveta(); }
+    });
+  };
+}
+
+// ================= Tarefas =================
+S.filtrosTar = { quem: 'minhas' };
+
+// compacto: para colunas estreitas (quadro por pessoa): prazo embaixo do título e sem avatar.
+function linhaTarefa(t, compacto) {
+  const feito = t.status === 'feito', atrasada = !feito && t.prazo && t.prazo < S.dados.hoje, hoje = !feito && t.prazo === S.dados.hoje;
+  const o = t.oportunidadeId ? oportunidade(t.oportunidadeId) : null;
+  const onde = o ? o.titulo + (nomeCliente(o.clienteId) ? ' · ' + nomeCliente(o.clienteId) : '') : nomeCliente(t.clienteId);
+  const prazo = t.prazo ? '<span class="pilula' + (atrasada ? ' alerta' : hoje ? ' destaque' : '') + '"' + (compacto ? ' style="margin-top:6px"' : '') + '>' + (atrasada ? 'Atrasada · ' : hoje ? 'Hoje · ' : '') + dataCurta(t.prazo) + '</span>' : '';
+  return '<div class="tarefa' + (feito ? ' feita' : '') + '" style="flex:1;min-width:0">' +
+    '<button type="button" class="marcar' + (feito ? ' feito' : '') + '" data-marcar="' + esc(t.id) + '" aria-label="' + (feito ? 'Reabrir' : 'Concluir') + ' tarefa"' + (pode('colaborador') ? '' : ' disabled') + '>' + icone('check') + '</button>' +
+    '<div class="tt" data-tarefa="' + esc(t.id) + '" style="cursor:pointer"><b>' + esc(t.titulo) + '</b><span>' + esc(onde || 'Tarefa solta') + '</span>' + (compacto ? prazo : '') + '</div>' +
+    (compacto ? '' : prazo + (t.responsavel ? avatar(t.responsavel) : '')) + '</div>';
+}
+
+// Clique em tarefa (concluir ou abrir), usado em várias telas. Devolve true se tratou.
+function tratarCliqueTarefa(e) {
+  const mk = e.target.closest('[data-marcar]');
+  if (mk) { const t = S.dados.tarefas.find(function (x) { return x.id === mk.dataset.marcar; }); if (t) moverTarefaPara(t, t.status === 'feito' ? 'afazer' : 'feito'); return true; }
+  const tt = e.target.closest('[data-tarefa]');
+  if (tt) { abrirFormTarefa(S.dados.tarefas.find(function (x) { return x.id === tt.dataset.tarefa; })); return true; }
+  return false;
+}
+
+async function moverTarefaPara(t, status, ordem) {
+  const antes = Object.assign({}, t);
+  t.status = status;
+  if (ordem != null) t.ordem = ordem;
+  desenhar(); atualizarGaveta();
+  try {
+    trocar('tarefas', await chamar('moverTarefa', t.id, status, ordem == null ? '' : ordem));
+    if (status === 'feito' && antes.status !== 'feito') toast('Tarefa concluída.', { acao: { texto: 'Desfazer', fn: function () { moverTarefaPara(t, antes.status); } } });
+  } catch (err) {
+    trocar('tarefas', antes);
+    toast(err.message, { erro: true });
+  }
+  desenhar(); atualizarGaveta();
+}
+
+TELAS.tarefas = {
+  desenhar: function () {
+    const f = S.filtrosTar, eu = S.dados.eu.email;
+    const lista = S.dados.tarefas.filter(function (t) { return f.quem !== 'minhas' || t.responsavel === eu; });
+    const colunas = ['afazer', 'fazendo', 'feito'].map(function (s) {
+      let ts = lista.filter(function (t) { return t.status === s; });
+      ts = s === 'feito'
+        ? ts.sort(function (a, b) { return a.concluidoEm < b.concluidoEm ? 1 : -1; }).slice(0, 25)
+        : ts.sort(function (a, b) { return (a.prazo || '9999') < (b.prazo || '9999') ? -1 : (a.prazo || '9999') > (b.prazo || '9999') ? 1 : a.ordem - b.ordem; });
+      return '<section class="coluna" data-status="' + s + '"><header class="coluna-cab"><div class="t"><b>' + NOME_STATUS_T[s] + '</b><span class="n">' + ts.length + '</span>' +
+        (s !== 'feito' && pode('colaborador') ? '<button class="btn btn-fantasma btn-icone btn-peq" data-nova-t="' + s + '" aria-label="Nova tarefa">' + icone('mais') + '</button>' : '') + '</div></header>' +
+        '<div class="coluna-cards">' + (ts.length ? ts.map(function (t) {
+          return '<div class="op" draggable="' + pode('colaborador') + '" data-t="' + esc(t.id) + '" style="cursor:' + (pode('colaborador') ? 'grab' : 'default') + '">' + linhaTarefa(t) +
+            (t.descricao ? '<span class="mudo pequeno" style="padding-left:28px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + esc(t.descricao) + '</span>' : '') + '</div>';
+        }).join('') : '<div class="vazio" style="padding:18px 8px">Nada aqui.</div>') + '</div></section>';
+    }).join('');
+    const porPessoa = f.quem === 'pessoa';
+    const titulos = { minhas: 'Minhas <em>tarefas</em>', todas: 'Tarefas da <em>equipe</em>', pessoa: 'Quadro por <em>pessoa</em>' };
+    const hojeT = S.dados.hoje, abertasT = lista.filter(function (t) { return t.status !== 'feito'; });
+    const atrasadasT = abertasT.filter(function (t) { return t.prazo && t.prazo < hojeT; }).length, hojeN = abertasT.filter(function (t) { return t.prazo === hojeT; }).length;
+    return {
+      titulo: titulos[f.quem] || titulos.minhas,
+      banner: {
+        compacto: true,
+        texto: '<b>' + abertasT.length + '</b> em aberto' + (hojeN ? ', <b>' + hojeN + '</b> para hoje' : '') +
+          (atrasadasT ? ' e <span class="al">' + atrasadasT + ' atrasada(s)</span>.' : '. Nenhuma atrasada.'),
+        visual: { tipo: 'pontos', formas: ['check', 'relogio'] },
+      },
+      acoes: '<div class="segmentado" role="group" id="t-quem">' + [['minhas', 'Minhas'], ['todas', 'Toda a equipe'], ['pessoa', 'Por pessoa']].map(function (x) {
+        return '<button data-v="' + x[0] + '" aria-pressed="' + (f.quem === x[0]) + '">' + x[1] + '</button>';
+      }).join('') + '</div>' +
+        (pode('colaborador') ? '<button class="btn btn-primario" data-nova>' + icone('mais') + '<span>Nova tarefa</span></button>' : ''),
+      corpo: porPessoa
+        ? '<div class="funil-wrap"><div class="quadro" id="quadro-t">' + colunasPorPessoa(lista) + '</div></div>'
+        : '<div class="conteudo"><div class="tarefas-quadro" id="quadro-t">' + colunas + '</div></div>',
+      montar: function (el, topo) {
+        topo.querySelector('#t-quem').addEventListener('click', function (e) { const b = e.target.closest('[data-v]'); if (b) { f.quem = b.dataset.v; desenhar(); } });
+        const n = topo.querySelector('[data-nova]');
+        if (n) n.onclick = function () { abrirFormTarefa(); };
+        const q = el.querySelector('#quadro-t');
+        q.addEventListener('click', function (e) {
+          const nt = e.target.closest('[data-nova-t]');
+          if (nt) return abrirFormTarefa({ status: nt.dataset.novaT });
+          const np = e.target.closest('[data-nova-p]');
+          if (np) return abrirFormTarefa({ responsavel: np.dataset.novaP });
+          tratarCliqueTarefa(e);
+        });
+        let arr = null;
+        q.addEventListener('dragstart', function (e) { const c = e.target.closest('[data-t]'); if (!c) return; arr = c.dataset.t; e.dataTransfer.setData('text/plain', arr); requestAnimationFrame(function () { c.classList.add('arrastando'); }); });
+        q.addEventListener('dragend', function () { arr = null; q.querySelectorAll('.arrastando,.alvo').forEach(function (x) { x.classList.remove('arrastando', 'alvo'); }); });
+        q.addEventListener('dragover', function (e) { const col = e.target.closest('.coluna'); if (!col || !arr) return; e.preventDefault(); q.querySelectorAll('.alvo').forEach(function (x) { if (x !== col) x.classList.remove('alvo'); }); col.classList.add('alvo'); });
+        q.addEventListener('drop', function (e) {
+          const col = e.target.closest('.coluna'); if (!col || !arr) return; e.preventDefault();
+          const t = S.dados.tarefas.find(function (x) { return x.id === arr; });
+          if (!t) return;
+          if (col.dataset.pessoa) { if (t.responsavel !== col.dataset.pessoa) passarTarefa(t, col.dataset.pessoa); }
+          else if (t.status !== col.dataset.status) moverTarefaPara(t, col.dataset.status, Date.now());
+        });
+      },
+    };
+  },
+};
+
+// Quadro estilo Trello: uma coluna por pessoa ativa, com o que está aberto e quantas já foram feitas.
+function colunasPorPessoa(lista) {
+  const ordem = { fazendo: 0, afazer: 1 };
+  return equipeAtiva().slice().sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); }).map(function (m) {
+    const minhas = lista.filter(function (t) { return t.responsavel === m.email; });
+    const abertas = minhas.filter(function (t) { return t.status !== 'feito'; }).sort(function (a, b) {
+      return (ordem[a.status] - ordem[b.status]) || ((a.prazo || '9999') < (b.prazo || '9999') ? -1 : 1);
+    });
+    const feitas = minhas.length - abertas.length;
+    const atrasadas = abertas.filter(function (t) { return t.prazo && t.prazo < S.dados.hoje; }).length;
+    return '<section class="coluna" data-pessoa="' + esc(m.email) + '" aria-label="' + esc(m.nome) + '">' +
+      '<header class="coluna-cab"><div class="t">' + avatar(m.email) + '<div style="min-width:0;flex:1"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(m.nome) + '</b>' +
+        '<span class="mudo pequeno" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(m.cargo || NOME_PAPEL[m.papel]) + '</span></div>' +
+        (pode('colaborador') ? '<button class="btn btn-fantasma btn-icone btn-peq" data-nova-p="' + esc(m.email) + '" aria-label="Nova tarefa para ' + esc(m.nome) + '">' + icone('mais') + '</button>' : '') + '</div>' +
+        '<span class="soma">' + abertas.length + ' aberta(s)' + (atrasadas ? ' · <span style="color:var(--alerta)">' + atrasadas + ' atrasada(s)</span>' : '') + ' · ' + feitas + ' feita(s)</span></header>' +
+      '<div class="coluna-cards">' + (abertas.length ? abertas.map(function (t) {
+        return '<div class="op" draggable="' + pode('colaborador') + '" data-t="' + esc(t.id) + '">' + linhaTarefa(t, true) +
+          (t.status === 'fazendo' ? '<span class="pilula destaque" style="justify-self:start;margin-left:28px">Fazendo</span>' : '') + '</div>';
+      }).join('') : '<div class="vazio" style="padding:18px 8px">Sem tarefas abertas.</div>') + '</div></section>';
+  }).join('');
+}
+
+async function passarTarefa(t, email) {
+  const antes = Object.assign({}, t);
+  t.responsavel = email;
+  desenhar();
+  try {
+    trocar('tarefas', await chamar('salvarTarefa', Object.assign({}, t)));
+    toast('Tarefa passada para ' + nomeMembro(email) + '.', { acao: { texto: 'Desfazer', fn: function () { passarTarefa(t, antes.responsavel); } } });
+  } catch (err) {
+    trocar('tarefas', antes);
+    toast(err.message, { erro: true });
+  }
+  desenhar(); atualizarGaveta();
+}
+
+function abrirFormTarefa(base) {
+  base = base || {};
+  const novo = !base.id, t = Object.assign({ status: 'afazer', responsavel: S.dados.eu.email }, base);
+  const ler = !pode('colaborador');
+  const ops = opsAtivas().filter(function (o) { const e = etapa(o.etapa); return (e && e.tipo === 'aberta') || o.id === t.oportunidadeId; });
+  const m = modal({
+    titulo: novo ? 'Nova tarefa' : 'Tarefa',
+    corpo: '<form id="form-t" class="grade" autocomplete="off"><fieldset style="display:contents"' + (ler ? ' disabled' : '') + '>' +
+      '<label class="campo inteira"><span>O que precisa ser feito</span><input name="titulo" required maxlength="200" value="' + esc(t.titulo) + '"></label>' +
+      '<label class="campo inteira"><span>Oportunidade</span><select name="oportunidadeId">' + opcoes(ops.map(function (o) { return { v: o.id, t: o.titulo + (nomeCliente(o.clienteId) ? ' · ' + nomeCliente(o.clienteId) : '') }; }), t.oportunidadeId, 'Nenhuma (tarefa solta)') + '</select></label>' +
+      '<label class="campo"><span>Responsável</span><select name="responsavel">' + opcoes(equipeAtiva().map(function (x) { return { v: x.email, t: x.nome }; }), t.responsavel) + '</select><small>Se for outra pessoa, ela recebe um e-mail.</small></label>' +
+      '<label class="campo"><span>Prazo</span><input name="prazo" type="date" value="' + esc(t.prazo) + '"></label>' +
+      '<label class="campo"><span>Status</span><select name="status">' + opcoes(Object.keys(NOME_STATUS_T).map(function (k) { return { v: k, t: NOME_STATUS_T[k] }; }), t.status) + '</select></label>' +
+      '<label class="campo inteira"><span>Detalhes</span><textarea name="descricao">' + esc(t.descricao) + '</textarea></label></fieldset></form>',
+    pe: (!novo && pode('colaborador') && (t.criadoPor === S.dados.eu.email || pode('gestor')) ? '<div class="esq"><button class="btn btn-fantasma btn-perigo btn-peq" data-apagar>' + icone('lixo') + 'Apagar</button></div>' : '') +
+      '<button class="btn btn-fantasma" data-fechar>' + (ler ? 'Fechar' : 'Cancelar') + '</button>' + (ler ? '' : '<button class="btn btn-primario" data-salvar>' + (novo ? 'Criar' : 'Salvar') + '</button>'),
+  });
+  const ap = m.el.querySelector('[data-apagar]');
+  if (ap) ap.onclick = async function () {
+    if (!(await confirmar('Apagar tarefa?', t.titulo, 'Apagar', true))) return;
+    if (await gravar('removerTarefa', [t.id], 'Tarefa apagada.') != null) {
+      S.dados.tarefas = S.dados.tarefas.filter(function (x) { return x.id !== t.id; });
+      m.fechar(); desenhar(); atualizarGaveta();
+    }
+  };
+  const form = m.el.querySelector('#form-t'), salvar = m.el.querySelector('[data-salvar]');
+  if (!salvar) return;
+  form.addEventListener('submit', function (e) { e.preventDefault(); salvar.click(); });
+  salvar.onclick = function () {
+    const d = lerForm(form);
+    if (!d.titulo.trim()) return form.titulo.focus();
+    if (t.id) d.id = t.id;
+    if (t.clienteId && !d.oportunidadeId) d.clienteId = t.clienteId;
+    ocupado(salvar, async function () {
+      const r = await gravar('salvarTarefa', [d], novo ? 'Tarefa criada.' : 'Salvo.');
+      if (r) { trocar('tarefas', r); m.fechar(); desenhar(); atualizarGaveta(); }
+    });
+  };
+}
+
+// ================= Propostas =================
+S.filtrosProp = { status: '' };
+
+function pilulaProposta(s) {
+  const cls = s === 'aprovada' ? ' ok' : s === 'recusada' ? ' alerta' : s === 'enviada' ? ' destaque' : '';
+  return '<span class="pilula' + cls + '">' + esc(NOME_STATUS_P[s] || s) + '</span>';
+}
+
+TELAS.propostas = {
+  desenhar: function () {
+    const f = S.filtrosProp;
+    const todas = S.dados.propostas.slice().sort(function (a, b) { return (a.enviadaEm || a.criadoEm) < (b.enviadaEm || b.criadoEm) ? 1 : -1; });
+    const lista = todas.filter(function (p) { return !f.status || p.status === f.status; });
+    const soma = function (s) { return todas.filter(function (p) { return p.status === s; }).reduce(function (t, p) { return t + p.valor; }, 0); };
+    const decididas = todas.filter(function (p) { return p.status === 'aprovada' || p.status === 'recusada'; });
+    const taxa = decididas.length ? Math.round(100 * decididas.filter(function (p) { return p.status === 'aprovada'; }).length / decididas.length) + '%' : '—';
+    const nEnv = todas.filter(function (p) { return p.status === 'enviada'; }).length;
+    return {
+      titulo: 'Propostas <em>comerciais</em>',
+      banner: {
+        texto: '<b>' + dinheiro(soma('enviada'), true) + '</b> aguardando resposta em ' + nEnv + ' proposta(s). Aprovadas somam <b>' + dinheiro(soma('aprovada'), true) + '</b>' +
+          (decididas.length ? ', com taxa de aprovação de <b>' + taxa + '</b>.' : '.'),
+        visual: { tipo: 'pontos', formas: ['documento', 'check'] },
+      },
+      acoes: '<div class="segmentado" role="group" id="p-status">' + [['', 'Todas']].concat(Object.keys(NOME_STATUS_P).map(function (k) { return [k, NOME_STATUS_P[k]]; })).map(function (x) {
+        return '<button data-v="' + x[0] + '" aria-pressed="' + (f.status === x[0]) + '">' + x[1] + '</button>';
+      }).join('') + '</div>' + (pode('colaborador') ? '<button class="btn btn-primario" data-nova>' + icone('mais') + '<span>Nova</span></button>' : ''),
+      corpo: '<div class="conteudo"><div class="kpis">' +
+        kpi('Aguardando resposta', dinheiro(soma('enviada'), true), todas.filter(function (p) { return p.status === 'enviada'; }).length + ' enviada(s)', true) +
+        kpi('Aprovadas', dinheiro(soma('aprovada'), true), 'total aprovado') +
+        kpi('Taxa de aprovação', taxa, decididas.length + ' decidida(s)') +
+        kpi('Rascunhos', String(todas.filter(function (p) { return p.status === 'rascunho'; }).length), 'em preparação') + '</div>' +
+        '<div class="cartao">' + (lista.length ? '<div class="tabela-wrap"><table class="tabela"><thead><tr><th>Proposta</th><th class="some-cel">Oportunidade</th><th class="d">Valor</th><th>Status</th><th class="some-cel">Enviada</th><th class="some-cel">Validade</th><th></th></tr></thead><tbody>' +
+          lista.map(function (p) {
+            const o = oportunidade(p.oportunidadeId), vencida = p.status === 'enviada' && p.validade && p.validade < S.dados.hoje;
+            return '<tr data-p="' + esc(p.id) + '"><td><b>' + esc(p.titulo) + '</b><br><span class="mudo pequeno">' + esc(o ? nomeCliente(o.clienteId) : '') + '</span></td>' +
+              '<td class="some-cel">' + esc(o ? o.titulo : '—') + '</td><td class="d num">' + dinheiro(p.valor) + '</td><td>' + pilulaProposta(p.status) + '</td>' +
+              '<td class="some-cel num">' + (dataBr(p.enviadaEm) || '<span class="mudo">—</span>') + '</td>' +
+              '<td class="some-cel num">' + (p.validade ? '<span' + (vencida ? ' style="color:var(--alerta)"' : '') + '>' + dataBr(p.validade) + '</span>' : '<span class="mudo">—</span>') + '</td>' +
+              '<td class="d">' + (p.url ? '<a class="btn btn-fantasma btn-icone btn-peq" href="' + esc(p.url) + '" target="_blank" rel="noopener" aria-label="Abrir documento">' + icone('link') + '</a>' : '') + '</td></tr>';
+          }).join('') + '</tbody></table></div>' : '<div class="vazio"><b>Nenhuma proposta' + (f.status ? ' com esse status' : '') + '.</b>As propostas ficam ligadas a uma oportunidade do funil.</div>') + '</div></div>',
+      montar: function (el, topo) {
+        topo.querySelector('#p-status').addEventListener('click', function (e) { const b = e.target.closest('[data-v]'); if (b) { f.status = b.dataset.v; desenhar(); } });
+        const n = topo.querySelector('[data-nova]');
+        if (n) n.onclick = function () { abrirFormProposta(); };
+        el.addEventListener('click', function (e) {
+          const tr = e.target.closest('[data-p]');
+          if (tr && !e.target.closest('a')) abrirFormProposta(S.dados.propostas.find(function (p) { return p.id === tr.dataset.p; }));
+        });
+      },
+    };
+  },
+};
+
+function abrirFormProposta(base) {
+  base = base || {};
+  const novo = !base.id, p = Object.assign({ status: 'rascunho' }, base);
+  const ler = !pode('colaborador');
+  const ops = opsAtivas();
+  if (!ops.length) return toast('Crie uma oportunidade antes da proposta.', { erro: true });
+  const m = modal({
+    titulo: novo ? 'Nova proposta' : 'Proposta',
+    corpo: '<form id="form-p" class="grade" autocomplete="off"><fieldset style="display:contents"' + (ler ? ' disabled' : '') + '>' +
+      '<label class="campo inteira"><span>Oportunidade</span><select name="oportunidadeId" required>' + opcoes(ops.map(function (o) { return { v: o.id, t: o.titulo + (nomeCliente(o.clienteId) ? ' · ' + nomeCliente(o.clienteId) : '') }; }), p.oportunidadeId, 'Escolha') + '</select></label>' +
+      '<label class="campo inteira"><span>Título</span><input name="titulo" required maxlength="140" value="' + esc(p.titulo) + '"></label>' +
+      '<label class="campo inteira"><span>Link do documento</span><input name="url" type="url" value="' + esc(p.url) + '" placeholder="https://docs.google.com/…"><small>Drive, Canva, PDF: onde a proposta estiver.</small></label>' +
+      '<label class="campo"><span>Valor</span><input name="valor" inputmode="decimal" value="' + (p.valor ? String(p.valor).replace('.', ',') : '') + '"></label>' +
+      '<label class="campo"><span>Status</span><select name="status">' + opcoes(Object.keys(NOME_STATUS_P).map(function (k) { return { v: k, t: NOME_STATUS_P[k] }; }), p.status) + '</select></label>' +
+      '<label class="campo"><span>Enviada em</span><input name="enviadaEm" type="date" value="' + esc(p.enviadaEm) + '"></label>' +
+      '<label class="campo"><span>Válida até</span><input name="validade" type="date" value="' + esc(p.validade) + '"></label>' +
+      '<label class="campo inteira"><span>Observações</span><textarea name="obs">' + esc(p.obs) + '</textarea></label></fieldset></form>',
+    pe: (!novo && pode('colaborador') && (p.criadoPor === S.dados.eu.email || pode('gestor')) ? '<div class="esq"><button class="btn btn-fantasma btn-perigo btn-peq" data-apagar>' + icone('lixo') + 'Apagar</button></div>' : '') +
+      '<button class="btn btn-fantasma" data-fechar>' + (ler ? 'Fechar' : 'Cancelar') + '</button>' + (ler ? '' : '<button class="btn btn-primario" data-salvar>' + (novo ? 'Criar' : 'Salvar') + '</button>'),
+  });
+  const ap = m.el.querySelector('[data-apagar]');
+  if (ap) ap.onclick = async function () {
+    if (!(await confirmar('Apagar proposta?', p.titulo, 'Apagar', true))) return;
+    if (await gravar('removerProposta', [p.id], 'Proposta apagada.') != null) {
+      S.dados.propostas = S.dados.propostas.filter(function (x) { return x.id !== p.id; });
+      m.fechar(); desenhar(); atualizarGaveta();
+    }
+  };
+  const form = m.el.querySelector('#form-p'), salvar = m.el.querySelector('[data-salvar]');
+  if (!salvar) return;
+  form.addEventListener('submit', function (e) { e.preventDefault(); salvar.click(); });
+  salvar.onclick = function () {
+    const d = lerForm(form);
+    if (!d.oportunidadeId) return form.oportunidadeId.focus();
+    if (!d.titulo.trim()) return form.titulo.focus();
+    if (p.id) d.id = p.id;
+    ocupado(salvar, async function () {
+      const r = await gravar('salvarProposta', [d], novo ? 'Proposta criada.' : 'Salvo.');
+      if (r) { trocar('propostas', r); m.fechar(); desenhar(); atualizarGaveta(); }
+    });
+  };
+}
+
+// ================= Horas =================
+S.filtrosHoras = { periodo: 'mes', email: '' };
+S.horas = null;
+
+function periodoHoras(p) {
+  const hoje = S.dados.hoje, [a, m] = hoje.split('-').map(Number);
+  const iso = function (y, mm, d) { return y + '-' + String(mm).padStart(2, '0') + '-' + String(d).padStart(2, '0'); };
+  if (p === 'mes') return { de: iso(a, m, 1), ate: hoje };
+  if (p === 'anterior') { const y = m === 1 ? a - 1 : a, mm = m === 1 ? 12 : m - 1; return { de: iso(y, mm, 1), ate: iso(y, mm, new Date(y, mm, 0).getDate()) }; }
+  if (p === 'semana') { const d = new Date(hoje + 'T12:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return { de: d.toISOString().slice(0, 10), ate: hoje }; }
+  return {};
+}
+
+TELAS.horas = {
+  desenhar: function () {
+    const f = S.filtrosHoras;
+    return {
+      titulo: 'Horas por <em>cliente</em>',
+      banner: {
+        compacto: true,
+        texto: 'Onde o tempo da equipe está indo: horas lançadas por cliente e por pessoa, no período escolhido.',
+        visual: { tipo: 'pontos', formas: ['relogio', 'pulso'] },
+      },
+      acoes: '<select class="entrada filtro" id="h-per" aria-label="Período">' + opcoes([{ v: 'semana', t: 'Esta semana' }, { v: 'mes', t: 'Este mês' }, { v: 'anterior', t: 'Mês passado' }, { v: 'tudo', t: 'Tudo' }], f.periodo) + '</select>' +
+        (pode('gestor') ? '<select class="entrada filtro" id="h-pessoa" aria-label="Pessoa">' + opcoes(S.dados.equipe.map(function (m) { return { v: m.email, t: m.nome }; }), f.email, 'Toda a equipe') + '</select>' : '') +
+        (pode('colaborador') ? '<button class="btn btn-primario" data-lancar>' + icone('mais') + '<span>Lançar horas</span></button>' : ''),
+      corpo: '<div class="conteudo" id="horas-corpo"><div class="vazio">Carregando…</div></div>',
+      montar: function (el, topo) {
+        topo.querySelector('#h-per').addEventListener('change', function (e) { f.periodo = e.target.value; carregarHoras(); });
+        const p = topo.querySelector('#h-pessoa');
+        if (p) p.addEventListener('change', function (e) { f.email = e.target.value; carregarHoras(); });
+        const l = topo.querySelector('[data-lancar]');
+        if (l) l.onclick = function () { abrirFormHoras(); };
+        el.addEventListener('click', function (e) {
+          const tr = e.target.closest('[data-h]');
+          if (tr && S.horas) abrirFormHoras(S.horas.find(function (h) { return h.id === tr.dataset.h; }));
+        });
+        carregarHoras();
+      },
+    };
+  },
+};
+
+async function carregarHoras() {
+  const f = S.filtrosHoras;
+  try {
+    S.horas = await chamar('listarHoras', Object.assign({ email: f.email }, periodoHoras(f.periodo)));
+    desenharHoras();
+  } catch (e) { toast(e.message, { erro: true }); }
+}
+
+function desenharHoras() {
+  const box = document.getElementById('horas-corpo');
+  if (!box || !S.horas) return;
+  const hs = S.horas, total = hs.reduce(function (s, h) { return s + h.horas; }, 0);
+  const porCli = {};
+  hs.forEach(function (h) { porCli[h.clienteId] = (porCli[h.clienteId] || 0) + h.horas; });
+  const ranking = Object.keys(porCli).sort(function (a, b) { return porCli[b] - porCli[a]; });
+  const maior = ranking.length ? porCli[ranking[0]] : 1;
+  const fmtH = function (n) { return n.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' h'; };
+  const dias = new Set(hs.map(function (h) { return h.data; })).size;
+  box.innerHTML = '<div class="kpis">' + kpi('Total no período', fmtH(total), hs.length + ' lançamento(s)', true) + kpi('Clientes atendidos', String(ranking.length), 'com horas lançadas') +
+    kpi('Média por dia', dias ? fmtH(total / dias) : '—', dias + ' dia(s) com lançamento') + kpi('Maior cliente', ranking.length ? fmtH(porCli[ranking[0]]) : '—', ranking.length ? nomeCliente(ranking[0]) : 'sem dados') + '</div>' +
+    '<div class="painel"><div><div class="cartao">' + (hs.length ? '<div class="tabela-wrap"><table class="tabela"><thead><tr><th>Data</th><th>Cliente</th><th class="some-cel">Descrição</th>' + (pode('gestor') ? '<th class="some-cel">Pessoa</th>' : '') + '<th class="d">Horas</th></tr></thead><tbody>' +
+      hs.map(function (h) {
+        const o = h.oportunidadeId ? oportunidade(h.oportunidadeId) : null;
+        return '<tr data-h="' + esc(h.id) + '"><td class="num">' + dataCurta(h.data) + '</td><td><b>' + esc(nomeCliente(h.clienteId) || '—') + '</b>' + (o ? '<br><span class="mudo pequeno">' + esc(o.titulo) + '</span>' : '') + '</td>' +
+          '<td class="some-cel mudo">' + esc(h.descricao) + '</td>' + (pode('gestor') ? '<td class="some-cel">' + avatar(h.email) + '</td>' : '') + '<td class="d num">' + fmtH(h.horas) + '</td></tr>';
+      }).join('') + '</tbody></table></div>' : '<div class="vazio"><b>Nenhuma hora neste período.</b>Lance o tempo dedicado a cada cliente.</div>') + '</div></div>' +
+    '<div><div class="cartao"><div class="cartao-cab"><h2>Por cliente</h2></div><div class="cartao-corpo">' + (ranking.length ? '<div class="barra-funil">' + ranking.slice(0, 10).map(function (id) {
+      return '<div class="linha"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(nomeCliente(id) || '—') + '</span><span class="trilho"><i style="width:' + Math.round(100 * porCli[id] / maior) + '%;background:var(--destaque)"></i></span><span class="num pequeno">' + fmtH(porCli[id]) + '</span></div>';
+    }).join('') + '</div>' : '<div class="vazio">Sem dados.</div>') + '</div></div></div></div>';
+}
+
+function abrirFormHoras(base) {
+  base = base || {};
+  const novo = !base.id, h = Object.assign({ data: S.dados.hoje, email: S.dados.eu.email }, base);
+  const meu = h.email === S.dados.eu.email, editavel = pode('colaborador') && (meu || pode('gestor'));
+  const clientes = S.dados.clientes.filter(function (c) { return !c.arquivado || c.id === h.clienteId; }).sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+  const opsDe = function (cid) { return opsAtivas().filter(function (o) { return o.clienteId === cid; }).map(function (o) { return { v: o.id, t: o.titulo }; }); };
+  const m = modal({
+    titulo: novo ? 'Lançar horas' : 'Lançamento', estreito: true,
+    corpo: '<form id="form-h" class="grade" autocomplete="off"><fieldset style="display:contents"' + (editavel ? '' : ' disabled') + '>' +
+      (pode('gestor') ? '<label class="campo inteira"><span>Pessoa</span><select name="email">' + opcoes(equipeAtiva().map(function (x) { return { v: x.email, t: x.nome }; }), h.email) + '</select></label>' : '') +
+      '<label class="campo"><span>Data</span><input name="data" type="date" value="' + esc(h.data) + '"></label>' +
+      '<label class="campo"><span>Horas</span><input name="horas" inputmode="decimal" value="' + (h.horas ? String(h.horas).replace('.', ',') : '') + '" placeholder="1,5" autofocus></label>' +
+      '<label class="campo inteira"><span>Cliente</span><select name="clienteId" required>' + opcoes(clientes.map(function (c) { return { v: c.id, t: c.nome }; }), h.clienteId, 'Escolha') + '</select></label>' +
+      '<label class="campo inteira"><span>Oportunidade (opcional)</span><select name="oportunidadeId">' + opcoes(opsDe(h.clienteId), h.oportunidadeId, '—') + '</select></label>' +
+      '<label class="campo inteira"><span>O que foi feito</span><input name="descricao" maxlength="500" value="' + esc(h.descricao) + '"></label></fieldset></form>',
+    pe: (!novo && editavel ? '<div class="esq"><button class="btn btn-fantasma btn-perigo btn-peq" data-apagar>' + icone('lixo') + 'Apagar</button></div>' : '') +
+      '<button class="btn btn-fantasma" data-fechar>' + (editavel ? 'Cancelar' : 'Fechar') + '</button>' + (editavel ? '<button class="btn btn-primario" data-salvar>' + (novo ? 'Lançar' : 'Salvar') + '</button>' : ''),
+  });
+  const form = m.el.querySelector('#form-h');
+  form.clienteId.addEventListener('change', function () { form.oportunidadeId.innerHTML = opcoes(opsDe(form.clienteId.value), '', '—'); });
+  const ap = m.el.querySelector('[data-apagar]');
+  if (ap) ap.onclick = async function () {
+    if (await gravar('removerHoras', [h.id], 'Lançamento apagado.') != null) { m.fechar(); carregarHoras(); }
+  };
+  const salvar = m.el.querySelector('[data-salvar]');
+  if (!salvar) return;
+  form.addEventListener('submit', function (e) { e.preventDefault(); salvar.click(); });
+  salvar.onclick = function () {
+    const d = lerForm(form);
+    if (h.id) d.id = h.id;
+    ocupado(salvar, async function () {
+      const r = await gravar('lancarHoras', [d], novo ? 'Horas lançadas.' : 'Salvo.');
+      if (r) { m.fechar(); if (S.tela === 'horas') carregarHoras(); }
+    });
+  };
+}
+</script>

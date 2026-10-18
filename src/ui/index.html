@@ -6,19 +6,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link id="fontes" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&display=swap">
+  <link id="fontes" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@200;300;400;500;600&display=swap">
+  <script>try { document.documentElement.setAttribute('data-tema', localStorage.getItem('flowloop.tema') || 'claro'); } catch (e) {}</script>
   <?!= include('ui/estilos'); ?>
 </head>
 <body>
-  <div id="app"><div class="tela-carregando"><div class="pulso"></div><p>Carregando…</p></div></div>
+  <div id="app"><div class="tela-carregando"><canvas id="particulas-carregando" class="particulas" aria-hidden="true"></canvas><p>Carregando…</p></div></div>
   <div id="camada-modal"></div>
   <div id="toasts" aria-live="polite"></div>
   <?!= include('ui/js-base'); ?>
+  <?!= include('ui/js-particulas'); ?>
+  <?!= include('ui/js-banners'); ?>
+  <script>particulas(document.getElementById('particulas-carregando'), { modo: 'logo', escala: 0.9 });</script>
   <?!= include('ui/js-inicio'); ?>
   <?!= include('ui/js-funil'); ?>
   <?!= include('ui/js-oportunidade'); ?>
   <?!= include('ui/js-telas'); ?>
+  <?!= include('ui/js-financeiro'); ?>
+  <?!= include('ui/js-social'); ?>
+  <?!= include('ui/js-social-marca'); ?>
+  <?!= include('ui/js-trafego'); ?>
+  <?!= include('ui/js-cvision'); ?>
+  <?!= include('ui/js-perfil'); ?>
   <?!= include('ui/js-admin'); ?>
+  <?!= include('ui/js-recursos'); ?>
+  <?!= include('ui/js-boasvindas'); ?>
   <script>iniciar();</script>
 </body>
 </html>

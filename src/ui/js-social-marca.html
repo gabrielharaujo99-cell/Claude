@@ -1,0 +1,902 @@
+<style>
+/* Social media por cliente: visão geral, página do cliente (estratégia, conteúdo, pedidos, jornada, reports). */
+.smg-barra { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.smg-barra .mudo { font-size: 12.5px; }
+.smg-ig { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; }
+.smg-ig .t { margin-right: auto; display: flex; align-items: center; gap: 10px; }
+.smg-ig svg { width: 18px; height: 18px; color: var(--destaque); }
+.smg-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; margin-bottom: 22px; }
+.smc { display: flex; flex-direction: column; gap: 10px; padding: 16px; text-align: left; cursor: pointer; border: 1px solid var(--linha); background: var(--superficie);
+  border-radius: var(--raio); box-shadow: var(--sombra); transition: border-color .15s, transform .15s; position: relative; overflow: hidden; color: inherit; font: inherit; }
+.smc:hover { border-color: color-mix(in srgb, var(--destaque) 45%, var(--linha)); transform: translateY(-2px); }
+.smc::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--smc-cor, var(--destaque)); }
+.smc-topo { display: flex; align-items: flex-start; gap: 10px; }
+.smc-topo .n { min-width: 0; flex: 1; }
+.smc-topo b { display: block; font-weight: 600; font-size: 15.5px; letter-spacing: -.01em; }
+.smc-topo span.mudo { font-size: 12px; }
+.smc-fase { font-size: 11.5px; color: var(--suave); }
+.smc-fase b { color: var(--texto); font-weight: 500; }
+.smc-freq { display: grid; gap: 5px; }
+.smc-freq .l { display: flex; justify-content: space-between; font-size: 12px; color: var(--suave); }
+.smc-freq .l b { color: var(--texto); font-weight: 600; }
+.smc-trilho { height: 6px; border-radius: 100px; background: var(--afundado); overflow: hidden; }
+.smc-trilho i { display: block; height: 100%; border-radius: 100px; background: var(--destaque); }
+.smc-trilho i.baixo { background: var(--alerta); }
+.smc-pe { display: flex; gap: 6px; flex-wrap: wrap; }
+.smc.pausa { opacity: .75; }
+.smg-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.smg-tabs .tabela td { font-size: 13px; }
+.smg-tabs .tit { font-weight: 500; display: block; max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* faixa de pedidos no calendário */
+.smp-faixa { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 16px; margin-bottom: 14px; }
+.smp-faixa .rotulo { margin-right: 4px; }
+.smp-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 100px; border: 1px dashed color-mix(in srgb, var(--destaque) 55%, var(--linha));
+  background: var(--destaque-claro); color: var(--texto); font-size: 12px; cursor: grab; }
+.smp-chip.alta { border-color: var(--alerta); background: color-mix(in srgb, var(--alerta) 10%, var(--superficie)); }
+.smp-chip.arrastando { opacity: .4; }
+.smp-chip em { font-style: normal; color: var(--suave); }
+
+/* pedidos */
+.smp-acoes { display: flex; gap: 4px; justify-content: flex-end; flex-wrap: wrap; }
+.smp-origem.cliente { background: color-mix(in srgb, var(--cobre) 14%, var(--superficie)); color: var(--cobre); }
+
+/* página do cliente */
+.smx-hero { padding: 22px 24px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: start; position: relative; overflow: hidden; }
+.smx-hero::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 5px; background: var(--smc-cor, var(--destaque)); }
+.smx-hero h2 { font-weight: 300; font-size: 26px; letter-spacing: -.02em; }
+.smx-hero p { margin: 6px 0 0; color: var(--suave); font-size: 13.5px; }
+.smx-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.smx-fases { display: flex; gap: 4px; margin-top: 18px; overflow-x: auto; grid-column: 1 / -1; }
+.smx-fase { flex: 1 0 120px; display: grid; gap: 6px; font-size: 11.5px; color: var(--apagado); text-align: center; }
+.smx-fase i { height: 5px; border-radius: 100px; background: var(--afundado); }
+.smx-fase.feita i { background: color-mix(in srgb, var(--destaque) 45%, var(--superficie)); }
+.smx-fase.atual { color: var(--texto); font-weight: 600; }
+.smx-fase.atual i { background: var(--destaque); box-shadow: 0 0 0 3px color-mix(in srgb, var(--destaque) 20%, transparent); }
+.smx-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.smx-bloco { padding: 18px 20px; }
+.smx-bloco h3 { font: var(--rotulo); letter-spacing: .14em; text-transform: uppercase; color: var(--suave); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.smx-bloco p { margin: 0; white-space: pre-wrap; line-height: 1.6; font-size: 14px; }
+.smx-bloco p.vaz { color: var(--apagado); font-style: italic; }
+.smx-cores { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.smx-cor { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--linha); }
+.smx-logo { max-height: 42px; max-width: 140px; object-fit: contain; }
+.smx-pil { display: grid; gap: 10px; }
+.smx-pil .linha { display: grid; grid-template-columns: 150px minmax(0, 1fr) 92px; gap: 12px; align-items: center; font-size: 13px; }
+.smx-pil .linha span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.smx-pil .trilho { position: relative; height: 10px; border-radius: 100px; background: var(--afundado); }
+.smx-pil .trilho i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 100px; background: var(--destaque); }
+.smx-pil .trilho b { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--texto); border-radius: 2px; }
+.smx-pil .num { text-align: right; color: var(--suave); font-size: 12px; }
+.smx-pil .num b { color: var(--texto); }
+.smx-leg { display: flex; gap: 14px; font-size: 11.5px; color: var(--suave); margin-top: 10px; }
+.smx-leg i { display: inline-block; width: 12px; height: 8px; border-radius: 3px; background: var(--destaque); margin-right: 6px; }
+.smx-leg i.meta { width: 2px; height: 12px; background: var(--texto); vertical-align: middle; }
+.smx-semanas { display: flex; align-items: flex-end; gap: 6px; height: 120px; padding-top: 8px; }
+.smx-semanas div { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; font-size: 11px; color: var(--suave); }
+.smx-semanas span.b { width: 100%; max-width: 34px; border-radius: 6px 6px 2px 2px; background: var(--destaque); min-height: 3px; }
+.smx-semanas span.b.baixo { background: color-mix(in srgb, var(--alerta) 70%, var(--superficie)); }
+.smx-meta-linha { position: relative; }
+.smx-evol { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.smx-evol .cv-kpi { padding: 14px 16px; }
+
+/* jornada */
+.smj-filtros { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.smj-lista { position: relative; display: grid; gap: 0; padding-left: 26px; }
+.smj-lista::before { content: ''; position: absolute; left: 9px; top: 6px; bottom: 6px; width: 2px; background: var(--linha); }
+.smj-item { position: relative; padding: 0 0 18px; }
+.smj-item::before { content: ''; position: absolute; left: -22px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--superficie); border: 2px solid var(--smj-cor, var(--destaque)); }
+.smj-item .cab { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--suave); }
+.smj-item h4 { margin: 4px 0 2px; font-weight: 600; font-size: 14.5px; }
+.smj-item p { margin: 2px 0 0; font-size: 13.5px; color: var(--texto); white-space: pre-wrap; }
+.smj-diff { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 10px; align-items: stretch; margin-top: 8px; font-size: 12.5px; }
+.smj-diff div { padding: 8px 10px; border-radius: 10px; background: var(--afundado); white-space: pre-wrap; }
+.smj-diff div.novo { background: var(--destaque-claro); }
+.smj-diff span { align-self: center; color: var(--apagado); }
+.smj-acoes { position: absolute; right: 0; top: 0; display: flex; gap: 2px; }
+.smj-t-feedback { --smj-cor: #3E7CB1; } .smj-t-ajuste { --smj-cor: var(--cobre); } .smj-t-overdelivering { --smj-cor: #2F9E6A; }
+.smj-t-reuniao { --smj-cor: var(--apagado); } .smj-t-marco { --smj-cor: var(--destaque); } .smj-t-alerta { --smj-cor: var(--alerta); }
+.smj-pil { background: color-mix(in srgb, var(--smj-cor) 14%, var(--superficie)); color: var(--smj-cor); }
+
+/* reports */
+.smr-lista { display: grid; gap: 14px; }
+.smr { padding: 16px 18px; display: grid; gap: 12px; }
+.smr-cab { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.smr-cab h3 { font-weight: 400; font-size: 18px; margin-right: auto; }
+.smr-nums { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+.smr-nums div { padding: 10px 12px; border-radius: 12px; background: var(--afundado); }
+.smr-nums span { display: block; font: var(--rotulo); letter-spacing: .1em; text-transform: uppercase; color: var(--suave); }
+.smr-nums b { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.smr-nums em { font-style: normal; font-size: 11.5px; margin-left: 4px; }
+.smr-nums em.s { color: var(--ok); } .smr-nums em.d { color: var(--alerta); }
+.smr-drop { border: 2px dashed var(--linha-forte); border-radius: var(--raio); padding: 22px; text-align: center; color: var(--suave); cursor: pointer; transition: border-color .15s, background .15s; }
+.smr-drop:hover, .smr-drop.sobre { border-color: var(--destaque); background: var(--destaque-claro); }
+.smr-drop b { display: block; color: var(--texto); font-weight: 500; margin-bottom: 4px; }
+.smr-lido { font-size: 12.5px; color: var(--ok); margin-top: 8px; }
+.smm-pilares { display: grid; gap: 8px; }
+.smm-pilares .p { display: grid; grid-template-columns: minmax(0, 1fr) 90px 36px; gap: 8px; }
+.smm-fmt { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 1000px) {
+  .smg-tabs, .smx-grade, .smx-evol { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 820px) {
+  .smx-hero { grid-template-columns: minmax(0, 1fr); padding: 18px; }
+  .smx-pil .linha { grid-template-columns: 100px minmax(0, 1fr) 70px; }
+  .smm-fmt { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .smj-diff { grid-template-columns: minmax(0, 1fr); }
+  .smj-diff span { display: none; }
+}
+</style>
+<script>
+/**
+ * Social media por cliente: visão geral da carteira, página de cada cliente com o perfil de marca e a estratégia,
+ * o dashboard de conteúdo (frequência, pilares, formatos, Instagram), os pedidos de próximos posts, a jornada
+ * e os reports mensais (com leitura do PDF do Instagram e apresentação para a reunião).
+ */
+const SM_JOR = { feedback: 'Feedback', ajuste: 'Ajuste', overdelivering: 'Overdelivering', reuniao: 'Reunião', marco: 'Marco', alerta: 'Alerta' };
+const SM_ABAS = [['estrategia', 'Estratégia'], ['conteudo', 'Conteúdo'], ['pedidos', 'Pedidos'], ['jornada', 'Jornada'], ['reports', 'Reports']];
+const SM_PRIO = { alta: 'Alta', normal: 'Normal', baixa: 'Baixa' };
+const SM_REP = [['seguidores', 'Seguidores'], ['novosSeguidores', 'Novos seguidores'], ['alcance', 'Contas alcançadas'], ['impressoes', 'Impressões'],
+  ['interacoes', 'Interações'], ['engajamento', 'Engajamento (%)'], ['visitasPerfil', 'Visitas ao perfil'], ['cliquesLink', 'Cliques no link'], ['postsPublicados', 'Posts publicados']];
+
+// ---------- dados ----------
+function smMarcas() { return (S.dados && S.dados.marcas) || []; }
+function smMarca(id) { return smMarcas().find(function (m) { return m.clienteId === id; }) || null; }
+function smPedidos() { return (S.dados && S.dados.pedidos) || []; }
+function smJornada(id) { return ((S.dados && S.dados.jornada) || []).filter(function (j) { return j.clienteId === id; }).sort(function (a, b) { return (b.data + b.criadoEm).localeCompare(a.data + a.criadoEm); }); }
+function smReports(id) { return ((S.dados && S.dados.reports) || []).filter(function (r) { return r.clienteId === id; }).sort(function (a, b) { return a.mes.localeCompare(b.mes); }); }
+// Reserva: as mesmas fases de FASES_ESTRATEGIA (SocialMarca.gs), caso o servidor ainda não as mande.
+const SM_FASES = ['Criação de base', 'Fortalecimento de marca', 'Autoridade e educação', 'Captação de leads', 'Conversão e vendas', 'Retenção e comunidade'];
+function smFases() { const l = S.dados.listas && S.dados.listas.fasesEstrategia; return l && l.length ? l : SM_FASES; }
+function smNumBr(v, casas) { return Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: casas == null ? 0 : casas }); }
+function smInsta(c) { const u = String((c && c.instagram) || '').replace(/^@/, '').trim(); return u ? { u: '@' + u, url: 'https://www.instagram.com/' + encodeURIComponent(u) + '/' } : null; }
+function smMesNome(mes) { const d = new Date(mes + '-01T12:00:00'); return smCap(d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })); }
+
+function smOpcoesPilar(cid, atual) {
+  const m = smMarca(cid), l = m ? m.pilares.map(function (p) { return p.nome; }) : [];
+  return opcoes(smLista(l, atual), atual, l.length ? 'Sem pilar' : 'Defina os pilares no perfil');
+}
+
+// Números do cliente: frequência real x meta, Instagram, filas, distribuição por pilar e formato.
+function smMetricas(cid) {
+  const hoje = S.dados.hoje, m = smMarca(cid), meta = m ? Number(m.frequencia) || 0 : 0;
+  const ps = smPosts().filter(function (p) { return p.clienteId === cid; });
+  const pubs = ps.filter(function (p) { return p.status === 'publicado' && p.data && p.data <= hoje; });
+  const desde30 = smSomaDias(hoje, -30), desde90 = smSomaDias(hoje, -90);
+  const ult30 = pubs.filter(function (p) { return p.data > desde30; });
+  const freq = Math.round(ult30.length / (30 / 7) * 10) / 10;
+  const igDias = m && m.igUltimoPost ? Math.max(0, Math.round((smData(hoje) - smData(m.igUltimoPost)) / 864e5)) : null;
+  const limite = meta ? Math.max(3, Math.ceil(7 / meta * 2)) : 7;
+  const dist = function (campo, base) {
+    const l = pubs.filter(function (p) { return p.data > desde90; }), c = {};
+    l.forEach(function (p) { const k = p[campo] || 'Sem ' + (campo === 'pilar' ? 'pilar' : 'formato'); c[k] = (c[k] || 0) + 1; });
+    const nomes = smLista(base, null).concat(Object.keys(c).filter(function (k) { return base.indexOf(k) < 0; }));
+    return { total: l.length, linhas: nomes.map(function (k) { return { nome: k, n: c[k] || 0, pct: l.length ? Math.round((c[k] || 0) * 100 / l.length) : 0 }; }) };
+  };
+  return {
+    meta: meta, freq: freq, ult30: ult30.length,
+    pubMes: pubs.filter(function (p) { return p.data.slice(0, 7) === hoje.slice(0, 7); }).length,
+    igDias: igDias, igAtraso: igDias != null && igDias > limite, limite: limite,
+    apr: ps.filter(function (p) { return p.status === 'aprovacao'; }).length,
+    prod: ps.filter(function (p) { return p.status === 'producao'; }).length,
+    atr: ps.filter(smAtrasado).length,
+    pedidos: smPedidos().filter(function (p) { return p.clienteId === cid && p.status === 'pendente'; }).length,
+    pilares: dist('pilar', m ? m.pilares.map(function (p) { return p.nome; }) : []),
+    formatos: dist('formato', m ? Object.keys(m.formatosMeta || {}) : []),
+    pubs: pubs,
+  };
+}
+
+function smPilulaIg(x, m) {
+  if (!m || !m.igUltimoPost) return '<span class="pilula">' + icone('social') + 'Instagram não verificado</span>';
+  const txt = x.igDias === 0 ? 'hoje' : x.igDias === 1 ? 'ontem' : 'há ' + x.igDias + ' dias';
+  return '<span class="pilula ' + (x.igAtraso ? 'alerta' : 'ok') + '" title="Última postagem no Instagram: ' + esc(dataBr(m.igUltimoPost)) + '">Último post ' + txt + '</span>';
+}
+
+// ---------- visão geral ----------
+function smGeral(lista) {
+  const f = S.filtrosSocial;
+  const marcas = smMarcas().filter(function (m) { return cliente(m.clienteId) && (f.statusCli === 'todos' || (m.status || 'ativo') === f.statusCli) && (!f.cliente || m.clienteId === f.cliente); })
+    .sort(function (a, b) { return nomeCliente(a.clienteId).localeCompare(nomeCliente(b.clienteId), 'pt-BR'); });
+  const conta = function (s) { return smMarcas().filter(function (m) { return (m.status || 'ativo') === s; }).length; };
+  const semPerfil = S.dados.clientes.filter(function (c) { return !c.arquivado && !smMarca(c.id); });
+  const ig = '<div class="cartao smg-ig"><span class="t">' + icone('social') + '<span>Verificação diária do Instagram: <b>' + (S.dados.igDiario ? 'ligada' : 'desligada') + '</b>' +
+    (S.dados.igUltimaRodada ? ' · última rodada ' + esc(quando(S.dados.igUltimaRodada)) : '') + '</span></span>' +
+    (pode('colaborador') && smMarcas().length ? '<button class="btn btn-peq" data-ig-verificar="">' + icone('recarregar') + 'Verificar agora</button>' : '') +
+    (pode('gestor') ? '<button class="btn btn-fantasma btn-peq" data-ig-diario="' + (S.dados.igDiario ? '0' : '1') + '">' + (S.dados.igDiario ? 'Desligar diária' : 'Ligar todo dia às 7h') + '</button>' : '') + '</div>';
+  const cards = marcas.length ? '<div class="smg-grade">' + marcas.map(function (m) {
+    const c = cliente(m.clienteId), x = smMetricas(m.clienteId), ins = smInsta(c), pct = x.meta ? Math.min(100, Math.round(x.freq * 100 / x.meta)) : 0;
+    return '<button type="button" class="smc' + (m.status === 'pausa' ? ' pausa' : '') + '" data-abrir-cli="' + esc(m.clienteId) + '" style="--smc-cor:' + esc(m.corPrimaria || 'var(--destaque)') + '">' +
+      '<span class="smc-topo"><span class="n"><b>' + esc(c.nome) + '</b><span class="mudo">' + esc(ins ? ins.u : 'sem @ cadastrado') + '</span></span>' +
+        '<span class="pilula ' + (m.status === 'pausa' ? '' : 'ok') + '">' + (m.status === 'pausa' ? 'Em pausa' : 'Ativo') + '</span></span>' +
+      '<span class="smc-fase">Fase: <b>' + esc(m.fase || '—') + '</b></span>' +
+      '<span class="smc-freq"><span class="l"><span>Frequência (30 dias)</span><span><b>' + smNumBr(x.freq, 1) + '</b>/sem' + (x.meta ? ' · meta ' + smNumBr(x.meta, 1) : '') + '</span></span>' +
+        '<span class="smc-trilho"><i class="' + (x.meta && pct < 75 ? 'baixo' : '') + '" style="width:' + (x.meta ? pct : 0) + '%"></i></span></span>' +
+      '<span class="smc-pe">' + smPilulaIg(x, m) + (x.apr ? '<span class="pilula destaque">' + x.apr + ' em aprovação</span>' : '') +
+        (x.prod ? '<span class="pilula">' + x.prod + ' em produção</span>' : '') + (x.pedidos ? '<span class="pilula">' + x.pedidos + ' pedido(s)</span>' : '') +
+        (x.atr ? '<span class="pilula alerta">' + x.atr + ' atrasado(s)</span>' : '') + '</span></button>';
+  }).join('') + '</div>' : '<div class="cartao" style="margin-bottom:22px"><div class="vazio"><b>' + (smMarcas().length ? 'Nenhum cliente neste filtro.' : 'Nenhum cliente com perfil de marca ainda.') + '</b>' +
+    (smMarcas().length ? 'Troque o filtro de status.' : 'Adicione os clientes que a social atende para ver persona, estratégia e frequência de cada um.') +
+    (!smMarcas().length && pode('admin') ? '<br><br><button class="btn btn-peq" data-exemplo-social>Carregar exemplo da social</button>' : '') + '</div></div>';
+  const filas = function (status, titulo, dica) {
+    const ps = lista.filter(function (p) { return p.status === status; }).sort(smOrdem);
+    return '<div class="cartao"><div class="cartao-cab"><h2>' + titulo + ' <span class="mudo">' + ps.length + '</span></h2><span class="mudo pequeno">' + dica + '</span></div>' +
+      (ps.length ? '<div class="tabela-wrap"><table class="tabela"><thead><tr><th>Conteúdo</th><th>Pilar · formato</th><th>Publicação</th><th class="d">Há</th></tr></thead><tbody>' +
+        ps.map(function (p) {
+          return '<tr data-post="' + esc(p.id) + '"><td><span class="tit">' + esc(p.titulo) + '</span><span class="mudo pequeno">' + esc(nomeCliente(p.clienteId)) + '</span></td>' +
+            '<td><span class="pequeno">' + esc(p.pilar || '—') + '</span><br><span class="mudo pequeno">' + esc(p.formato) + '</span></td>' +
+            '<td>' + smPilulaData(p) + '</td><td class="d num mudo pequeno">' + (p.atualizadoEm ? diasDesde(p.atualizadoEm) + 'd' : '—') + '</td></tr>';
+        }).join('') + '</tbody></table></div>' : '<div class="vazio">Nada aqui agora.</div>') + '</div>';
+  };
+  return ig + '<div class="smg-barra"><div class="segmentado" role="group" aria-label="Status do cliente">' +
+      [['ativo', 'Ativos', conta('ativo')], ['pausa', 'Em pausa', conta('pausa')], ['todos', 'Todos', smMarcas().length]].map(function (s) {
+        return '<button type="button" data-statuscli="' + s[0] + '" aria-pressed="' + (f.statusCli === s[0]) + '">' + s[1] + ' · ' + s[2] + '</button>';
+      }).join('') + '</div>' +
+      (pode('colaborador') && semPerfil.length ? '<button class="btn btn-peq" data-nova-marca>' + icone('mais') + 'Cliente na social</button>' : '') +
+      '<span class="mudo">Clique em um cliente para ver persona, estratégia, conteúdo, jornada e reports.</span></div>' + cards +
+    '<div class="smg-tabs">' + filas('aprovacao', 'Aguardando aprovação', 'com o cliente') + filas('producao', 'Em produção', 'sendo criados pela equipe') + '</div>';
+}
+
+// ---------- pedidos ----------
+function smPedidosVista(cid) {
+  const f = S.filtrosSocial, alvo = cid || f.cliente, prio = { alta: 0, normal: 1, baixa: 2 };
+  const todos = smPedidos().filter(function (p) { return !alvo || p.clienteId === alvo; });
+  const pend = todos.filter(function (p) { return p.status === 'pendente'; })
+    .sort(function (a, b) { return (prio[a.prioridade] - prio[b.prioridade]) || String(a.prazo || '9').localeCompare(String(b.prazo || '9')); });
+  const aloc = todos.filter(function (p) { return p.status === 'alocado'; }).sort(function (a, b) { return b.atualizadoEm.localeCompare(a.atualizadoEm); }).slice(0, 12);
+  const desc = todos.filter(function (p) { return p.status === 'descartado'; });
+  const edita = pode('colaborador');
+  const linha = function (p) {
+    const post = p.postId ? smPost(p.postId) : null;
+    return '<tr><td><b>' + esc(p.titulo) + '</b>' + (p.descricao ? '<br><span class="mudo pequeno">' + esc(p.descricao) + '</span>' : '') + (alvo ? '' : '<br><span class="mudo pequeno">' + esc(nomeCliente(p.clienteId)) + '</span>') + '</td>' +
+      '<td><span class="pilula smp-origem ' + esc(p.origem) + '">' + (p.origem === 'cliente' ? 'Pedido do cliente' : 'Ideia da equipe') + '</span></td>' +
+      '<td class="pequeno">' + esc([p.pilar, p.formato].filter(Boolean).join(' · ') || '—') + '</td>' +
+      '<td>' + (p.status === 'pendente' ? '<span class="pilula ' + (p.prioridade === 'alta' ? 'alerta' : '') + '">' + SM_PRIO[p.prioridade] + '</span>' + (p.prazo ? ' <span class="mudo pequeno">até ' + dataCurta(p.prazo) + '</span>' : '')
+        : post ? smPilulaData(post) : '<span class="mudo pequeno">—</span>') + '</td>' +
+      '<td><div class="smp-acoes">' + (!edita ? '' : p.status === 'pendente'
+        ? '<button class="btn btn-primario btn-peq" data-alocar="' + esc(p.id) + '">' + icone('calendario') + 'Alocar</button><button class="btn btn-fantasma btn-icone btn-peq" data-ed-pedido="' + esc(p.id) + '" aria-label="Editar">' + icone('editar') + '</button><button class="btn btn-fantasma btn-icone btn-peq" data-desc-pedido="' + esc(p.id) + '" aria-label="Descartar" title="Descartar">' + icone('fechar') + '</button>'
+        : p.status === 'alocado' && post ? '<button class="btn btn-fantasma btn-peq" data-post="' + esc(post.id) + '">Abrir conteúdo</button>'
+        : '<button class="btn btn-fantasma btn-peq" data-volta-pedido="' + esc(p.id) + '">Voltar para pendentes</button>') + '</div></td></tr>';
+  };
+  const tabela = function (l) { return '<div class="tabela-wrap"><table class="tabela"><thead><tr><th>Pedido</th><th>Origem</th><th>Pilar · formato</th><th>Prioridade / data</th><th></th></tr></thead><tbody>' + l.map(linha).join('') + '</tbody></table></div>'; };
+  return '<div class="cartao"><div class="cartao-cab"><h2>Pedidos aguardando calendário <span class="mudo">' + pend.length + '</span></h2>' +
+      (edita ? '<button class="btn btn-primario btn-peq" data-novo-pedido="' + esc(alvo || '') + '">' + icone('mais') + 'Novo pedido</button>' : '') + '</div>' +
+      '<p class="mudo pequeno" style="padding:6px 20px 0;margin:0">Pedidos do cliente e ideias da equipe ficam aqui até ganharem um dia. Use “Alocar” ou arraste o pedido para um dia no calendário.</p>' +
+      (pend.length ? tabela(pend) : '<div class="vazio"><b>Nenhum pedido pendente.</b>Anote aqui o próximo pedido do cliente ou uma ideia.</div>') + '</div>' +
+    (aloc.length ? '<div class="cartao" style="margin-top:16px"><div class="cartao-cab"><h2>Alocados recentemente</h2></div>' + tabela(aloc) + '</div>' : '') +
+    (desc.length ? '<details class="cartao" style="margin-top:16px;padding:0 0 8px"><summary class="cartao-cab" style="cursor:pointer;padding-bottom:12px"><h2>Descartados <span class="mudo">' + desc.length + '</span></h2></summary>' + tabela(desc) + '</details>' : '');
+}
+
+function smFaixaPedidos() {
+  const f = S.filtrosSocial, l = smPedidos().filter(function (p) { return p.status === 'pendente' && (!f.cliente || p.clienteId === f.cliente); });
+  if (!l.length) return '';
+  const arr = pode('colaborador');
+  return '<div class="cartao smp-faixa"><span class="rotulo">' + l.length + ' pedido(s) para alocar</span>' + l.slice(0, 14).map(function (p) {
+    return '<button type="button" class="smp-chip' + (p.prioridade === 'alta' ? ' alta' : '') + '" draggable="' + arr + '" data-pedido-arr="' + esc(p.id) + '" title="Arraste para um dia ou clique para escolher a data">' +
+      (f.cliente ? '' : '<em>' + esc(nomeCliente(p.clienteId)) + ' ·</em>') + esc(p.titulo) + '</button>';
+  }).join('') + (l.length > 14 ? '<span class="mudo pequeno">+ ' + (l.length - 14) + '</span>' : '') + '<span class="mudo pequeno" style="margin-left:auto">Arraste para um dia</span></div>';
+}
+
+async function smAlocar(id, dia, resp) {
+  const r = await gravar('alocarPedido', [id, dia, resp || ''], 'Pedido no calendário em ' + dataCurta(dia) + '.');
+  if (r) { trocar('pedidos', r.pedido); trocar('posts', r.post); }
+  smRedesenhar();
+}
+
+function abrirAlocar(id) {
+  const p = smPedidos().find(function (x) { return x.id === id; });
+  if (!p) return;
+  const m = modal({
+    titulo: 'Alocar no calendário', estreito: true,
+    corpo: '<p class="mudo" style="margin:0 0 14px">' + esc(nomeCliente(p.clienteId)) + ' · <b>' + esc(p.titulo) + '</b></p><form class="grade" id="f-aloc">' +
+      '<label class="campo"><span>Dia</span><input type="date" name="data" required value="' + esc(p.prazo || smSomaDias(S.dados.hoje, 2)) + '"></label>' +
+      '<label class="campo"><span>Responsável</span><select name="resp">' + opcoes(smEquipe().map(function (x) { return { v: x.email, t: x.nome }; }), S.dados.eu.email, 'Eu') + '</select></label></form>' +
+      '<p class="mudo pequeno" style="margin:12px 0 0">Vira um conteúdo na pauta com essa data. Depois é só seguir o fluxo normal.</p>',
+    pe: '<button class="btn btn-fantasma" data-fechar>Cancelar</button><button class="btn btn-primario" data-ok>Alocar</button>',
+  });
+  m.el.querySelector('[data-ok]').onclick = function () {
+    const d = lerForm(m.el.querySelector('#f-aloc'));
+    if (!d.data) return toast('Escolha o dia.', { erro: true });
+    m.fechar(); smAlocar(id, d.data, d.resp);
+  };
+}
+
+function abrirFormPedido(base) {
+  base = base || {};
+  const novo = !base.id, clientes = S.dados.clientes.filter(function (c) { return !c.arquivado || c.id === base.clienteId; }).sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+  const p = Object.assign({ origem: 'cliente', prioridade: 'normal' }, base);
+  const m = modal({
+    titulo: novo ? 'Novo pedido de post' : 'Pedido',
+    corpo: '<form id="f-ped" class="grade" autocomplete="off">' +
+      '<label class="campo inteira"><span>Cliente</span><select name="clienteId" required>' + opcoes(clientes.map(function (c) { return { v: c.id, t: c.nome }; }), p.clienteId, 'Escolha') + '</select></label>' +
+      '<label class="campo inteira"><span>O que é o post</span><input name="titulo" required maxlength="160" value="' + esc(p.titulo) + '" placeholder="Ex.: divulgar o novo horário de domingo"></label>' +
+      '<label class="campo"><span>Origem</span><select name="origem">' + opcoes([{ v: 'cliente', t: 'Pedido do cliente' }, { v: 'ideia', t: 'Ideia da equipe' }], p.origem) + '</select></label>' +
+      '<label class="campo"><span>Prioridade</span><select name="prioridade">' + opcoes([{ v: 'alta', t: 'Alta' }, { v: 'normal', t: 'Normal' }, { v: 'baixa', t: 'Baixa' }], p.prioridade) + '</select></label>' +
+      '<label class="campo"><span>Formato</span><select name="formato">' + opcoes((S.dados.listas.formatos || []), p.formato, 'Definir depois') + '</select></label>' +
+      '<label class="campo"><span>Pilar</span><select name="pilar" id="ped-pilar">' + smOpcoesPilar(p.clienteId, p.pilar) + '</select></label>' +
+      '<label class="campo"><span>Precisa sair até</span><input type="date" name="prazo" value="' + esc(p.prazo) + '"></label>' +
+      '<label class="campo inteira"><span>Detalhes</span><textarea name="descricao" maxlength="2000" placeholder="Referências, texto que o cliente mandou, data importante…">' + esc(p.descricao) + '</textarea></label></form>',
+    pe: (!novo && pode('colaborador') ? '<div class="esq"><button class="btn btn-fantasma btn-perigo btn-peq" data-apagar>' + icone('lixo') + 'Apagar</button></div>' : '') +
+      '<button class="btn btn-fantasma" data-fechar>Cancelar</button><button class="btn btn-primario" data-ok>' + (novo ? 'Criar pedido' : 'Salvar') + '</button>',
+  });
+  const form = m.el.querySelector('#f-ped');
+  form.clienteId.addEventListener('change', function () { m.el.querySelector('#ped-pilar').innerHTML = smOpcoesPilar(form.clienteId.value, ''); });
+  const ap = m.el.querySelector('[data-apagar]');
+  if (ap) ap.onclick = async function () {
+    if (!(await confirmar('Apagar pedido?', p.titulo, 'Apagar', true))) return;
+    if (await gravar('removerPedido', [p.id], 'Pedido apagado.') != null) { S.dados.pedidos = smPedidos().filter(function (x) { return x.id !== p.id; }); m.fechar(); smRedesenhar(); }
+  };
+  const ok = m.el.querySelector('[data-ok]');
+  ok.onclick = function () {
+    const d = lerForm(form);
+    if (!d.clienteId) return form.clienteId.focus();
+    if (!d.titulo.trim()) return form.titulo.focus();
+    if (p.id) d.id = p.id;
+    ocupado(ok, async function () {
+      const r = await gravar('salvarPedido', [d], 'Pedido salvo.');
+      if (r) { trocar('pedidos', r); m.fechar(); smRedesenhar(); }
+    });
+  };
+}
+
+// ---------- cliques extras do corpo da social ----------
+function smCliqueExtra(e) {
+  const t = e.target, f = S.filtrosSocial;
+  const sel = function (s) { return t.closest(s); };
+  let x;
+  if ((x = sel('[data-abrir-cli]'))) { smAbrirCliente(x.dataset.abrirCli); return true; }
+  if ((x = sel('[data-statuscli]'))) { f.statusCli = x.dataset.statuscli; smAtualizar(); return true; }
+  if ((x = sel('[data-novo-pedido]'))) { abrirFormPedido({ clienteId: x.dataset.novoPedido || f.pagina || f.cliente }); return true; }
+  if ((x = sel('[data-alocar]'))) { abrirAlocar(x.dataset.alocar); return true; }
+  if ((x = sel('[data-pedido-arr]'))) { abrirAlocar(x.dataset.pedidoArr); return true; }
+  if ((x = sel('[data-ed-pedido]'))) { abrirFormPedido(smPedidos().find(function (p) { return p.id === x.dataset.edPedido; })); return true; }
+  if ((x = sel('[data-desc-pedido]')) || (x = sel('[data-volta-pedido]'))) {
+    const volta = !!x.dataset.voltaPedido, id = x.dataset.descPedido || x.dataset.voltaPedido;
+    gravar('descartarPedido', [id, volta], volta ? 'Pedido de volta aos pendentes.' : 'Pedido descartado.').then(function (r) { if (r) { trocar('pedidos', r); smRedesenhar(); } });
+    return true;
+  }
+  if (sel('[data-nova-marca]')) { abrirNovaMarca(); return true; }
+  if ((x = sel('[data-ed-marca]'))) { abrirFormMarca(x.dataset.edMarca); return true; }
+  if ((x = sel('[data-ig-verificar]'))) { smVerificarIg(x.dataset.igVerificar, x); return true; }
+  if ((x = sel('[data-ig-diario]'))) {
+    gravar('ligarVerificacaoInstagram', [x.dataset.igDiario === '1'], x.dataset.igDiario === '1' ? 'Verificação diária ligada (todo dia às 7h).' : 'Verificação diária desligada.')
+      .then(function (r) { if (r != null) { S.dados.igDiario = !!r; smRedesenhar(); } });
+    return true;
+  }
+  if (sel('[data-exemplo-social]')) {
+    gravar('popularSocialExemplo', [], 'Exemplo da social carregado.').then(function (r) { if (r) recarregar(); });
+    return true;
+  }
+  if ((x = sel('[data-nova-jor]'))) { abrirFormJornada({ clienteId: f.pagina, tipo: x.dataset.novaJor || 'feedback' }); return true; }
+  if ((x = sel('[data-ed-jor]'))) { abrirFormJornada(((S.dados.jornada) || []).find(function (j) { return j.id === x.dataset.edJor; })); return true; }
+  if ((x = sel('[data-filtro-jor]'))) { f.filtroJor = x.dataset.filtroJor; smAtualizar(); return true; }
+  if ((x = sel('[data-novo-report]'))) { abrirFormReport({ clienteId: f.pagina }); return true; }
+  if ((x = sel('[data-ed-report]'))) { abrirFormReport(((S.dados.reports) || []).find(function (r) { return r.id === x.dataset.edReport; })); return true; }
+  if ((x = sel('[data-apres]'))) { smApresentacao(x.dataset.apres); return true; }
+  return false;
+}
+
+async function smVerificarIg(cid, btn) {
+  const fazer = async function () {
+    const l = await gravar('verificarInstagram', [cid || '']);
+    if (!l) return;
+    l.forEach(function (m) { trocar('marcas', m, 'clienteId'); });
+    const erros = l.filter(function (m) { return m.igErro; });
+    toast(erros.length ? (l.length - erros.length) + ' de ' + l.length + ' verificados. ' + nomeCliente(erros[0].clienteId) + ': ' + erros[0].igErro : 'Instagram verificado.', { erro: erros.length === l.length });
+    smRedesenhar();
+  };
+  if (btn) ocupado(btn, fazer); else fazer();
+}
+
+// ---------- página do cliente ----------
+function smAbrirCliente(id) { const f = S.filtrosSocial; f.pagina = id; window.scrollTo(0, 0); desenhar(); }
+
+function smPaginaCliente(id) {
+  const f = S.filtrosSocial, c = cliente(id), m = smMarca(id);
+  return {
+    titulo: esc(c.nome) + (m && m.status === 'pausa' ? ' <em>em pausa</em>' : ''),
+    acoes: '<button class="btn btn-fantasma btn-peq" data-voltar-sm>' + icone('seta').replace('<svg', '<svg style="transform:scaleX(-1)"') + 'Social media</button>' +
+      '<div class="segmentado" role="group" aria-label="Seção" id="smx-abas">' + SM_ABAS.map(function (a) {
+        return '<button type="button" data-aba="' + a[0] + '" aria-pressed="' + (f.aba === a[0]) + '">' + a[1] + '</button>';
+      }).join('') + '</div>' +
+      (pode('colaborador') ? (m ? '<button class="btn btn-primario" data-ed-marca="' + esc(id) + '">' + icone('editar') + '<span>Editar perfil</span></button>'
+        : '<button class="btn btn-primario" data-ed-marca="' + esc(id) + '">' + icone('mais') + '<span>Criar perfil de marca</span></button>') : ''),
+    corpo: '<div id="sm-corpo">' + smPaginaCorpo(id) + '</div>',
+    montar: function (el, topo) {
+      topo.querySelector('[data-voltar-sm]').onclick = function () { f.pagina = ''; desenhar(); };
+      topo.querySelector('#smx-abas').addEventListener('click', function (e) { const b = e.target.closest('[data-aba]'); if (b) { f.aba = b.dataset.aba; desenhar(); } });
+      const ed = topo.querySelector('[data-ed-marca]');
+      if (ed) ed.onclick = function () { abrirFormMarca(id); };
+      smLigar(el.querySelector('#sm-corpo'));
+    },
+  };
+}
+
+function smPaginaCorpo(id) {
+  const f = S.filtrosSocial, m = smMarca(id), c = cliente(id);
+  const aba = f.aba === 'conteudo' ? smAbaConteudo(id, m, c) : f.aba === 'pedidos' ? smPedidosVista(id) : f.aba === 'jornada' ? smAbaJornada(id) : f.aba === 'reports' ? smAbaReports(id, m) : smAbaEstrategia(id, m, c);
+  return '<div class="conteudo">' + aba + '</div>';
+}
+
+function smBloco(titulo, texto, extra) {
+  return '<div class="cartao smx-bloco"><h3>' + esc(titulo) + '</h3>' + (extra || (texto ? '<p>' + esc(texto) + '</p>' : '<p class="vaz">Ainda não definido.</p>')) + '</div>';
+}
+
+function smHero(id, m, c) {
+  const ins = smInsta(c), fases = smFases(), i = fases.indexOf(m.fase), x = smMetricas(id);
+  return '<div class="cartao smx-hero" style="--smc-cor:' + esc(m.corPrimaria || 'var(--destaque)') + '"><div>' +
+      '<span class="rotulo">Objetivo da estratégia</span><h2>' + esc(m.objetivo || 'Defina o objetivo no perfil') + '</h2>' +
+      '<p>' + esc([c.segmento, m.inicio ? 'cliente desde ' + dataBr(m.inicio) : '', m.aprovador ? 'aprova: ' + m.aprovador : ''].filter(Boolean).join(' · ')) + '</p>' +
+      '<div class="smx-meta"><span class="pilula ' + (m.status === 'pausa' ? '' : 'ok') + '">' + (m.status === 'pausa' ? 'Em pausa' : 'Ativo') + '</span>' +
+        (ins ? '<a class="pilula destaque" href="' + esc(ins.url) + '" target="_blank" rel="noopener">' + esc(ins.u) + '</a>' : '') +
+        (m.redes ? '<span class="pilula">' + esc(m.redes) + '</span>' : '') + smPilulaIg(x, m) +
+        (m.linkDrive ? '<a class="pilula" href="' + esc(m.linkDrive) + '" target="_blank" rel="noopener">' + icone('link') + 'Pasta da marca</a>' : '') + '</div></div>' +
+    (m.logoUrl ? '<img class="smx-logo" src="' + esc(m.logoUrl) + '" alt="">' : '') +
+    '<div class="smx-fases" aria-label="Fases da estratégia">' + fases.map(function (fa, k) {
+      return '<div class="smx-fase' + (k < i ? ' feita' : k === i ? ' atual' : '') + '"><i></i>' + esc(fa) + '</div>';
+    }).join('') + '</div></div>';
+}
+
+function smAbaEstrategia(id, m, c) {
+  if (!m) {
+    return '<div class="cartao sm-boas"><span class="rotulo">Perfil de marca</span><h2>' + esc(c.nome) + ' ainda não tem <em>perfil</em>.</h2>' +
+      '<p class="mudo">Persona, tom de voz, diretrizes, cultura de marca, fase da estratégia, pilares e metas de frequência: tudo num lugar só, para a equipe criar com consistência.</p>' +
+      (pode('colaborador') ? '<button class="btn btn-primario" data-ed-marca="' + esc(id) + '">' + icone('mais') + 'Criar perfil de marca</button>' : '') + '</div>';
+  }
+  const ajustes = smJornada(id).filter(function (j) { return j.tipo === 'ajuste'; }).slice(0, 3);
+  const fm = m.formatosMeta || {};
+  return smHero(id, m, c) +
+    '<div class="smx-grade">' +
+      smBloco('Persona', m.persona) + smBloco('Tom de voz', m.tomVoz) +
+      smBloco('Diretrizes de conteúdo', m.diretrizes) + smBloco('Cultura de marca', m.cultura) +
+      smBloco('Público', m.publico) + smBloco('Diferenciais', m.diferenciais) +
+      smBloco('Linguagem', '', '<p><b>Usamos:</b> ' + esc(m.palavrasUsar || '—') + '</p><p style="margin-top:6px"><b>Evitamos:</b> ' + esc(m.palavrasEvitar || '—') + '</p>') +
+      smBloco('Pilares e metas', '', m.pilares.length ? '<div class="smx-pil">' + m.pilares.map(function (p) {
+        return '<div class="linha"><span>' + esc(p.nome) + '</span><span class="trilho"><i style="width:' + (p.meta || 0) + '%"></i></span><span class="num"><b>' + (p.meta || 0) + '%</b> meta</span></div>';
+      }).join('') + '</div><p class="mudo pequeno" style="margin-top:12px">Frequência alvo: <b>' + smNumBr(m.frequencia, 1) + ' posts por semana</b>' +
+        (Object.keys(fm).length ? ' · ' + Object.keys(fm).map(function (k) { return k + ' ' + fm[k] + '%'; }).join(' · ') : '') + '</p>' : '<p class="vaz">Sem pilares definidos.</p>') +
+      smBloco('Referências e concorrentes', '', '<p>' + esc(m.referencias || '—') + '</p><p class="mudo pequeno" style="margin-top:8px">Concorrentes: ' + esc(m.concorrentes || '—') + '</p><p class="mudo pequeno" style="margin-top:4px">Hashtags: ' + esc(m.hashtags || '—') + '</p>') +
+      smBloco('Identidade visual', '', '<div class="smx-cores">' + [m.corPrimaria, m.corSecundaria].filter(Boolean).map(function (cor) { return '<span class="smx-cor" style="background:' + esc(cor) + '" title="' + esc(cor) + '"></span>'; }).join('') +
+        (m.logoUrl ? '<img class="smx-logo" src="' + esc(m.logoUrl) + '" alt="Logo">' : '') + (!m.corPrimaria && !m.logoUrl ? '<span class="mudo">Cadastre as cores e o logo para a apresentação mensal.</span>' : '') + '</div>') +
+    '</div>' +
+    (ajustes.length ? '<div class="cartao smx-bloco" style="margin-top:16px"><h3>Mudou recentemente</h3>' + ajustes.map(function (j) {
+      return '<p style="margin-bottom:6px"><b>' + esc(j.titulo) + '</b> <span class="mudo pequeno">· ' + dataCurta(j.data) + (j.texto ? ' · ' + esc(j.texto) : '') + '</span></p>';
+    }).join('') + '<button class="btn btn-fantasma btn-peq" onclick="S.filtrosSocial.aba=\'jornada\';desenhar()">Ver a jornada</button></div>' : '');
+}
+
+function smDistribuicao(d, metas) {
+  if (!d.total) return '<p class="vaz mudo">Sem conteúdos publicados nos últimos 90 dias.</p>';
+  return '<div class="smx-pil">' + d.linhas.map(function (l) {
+    const meta = metas[l.nome];
+    return '<div class="linha"><span title="' + esc(l.nome) + '">' + esc(l.nome) + '</span><span class="trilho"><i style="width:' + l.pct + '%"></i>' + (meta != null ? '<b style="left:calc(' + meta + '% - 1px)" title="Meta ' + meta + '%"></b>' : '') + '</span>' +
+      '<span class="num"><b>' + l.pct + '%</b> · ' + l.n + (meta != null ? ' · meta ' + meta + '%' : '') + '</span></div>';
+  }).join('') + '</div><div class="smx-leg"><span><i></i>Real (90 dias, ' + d.total + ' posts)</span><span><i class="meta"></i>Meta</span></div>';
+}
+
+function smSemanas(x) {
+  const hoje = S.dados.hoje, semanas = [];
+  for (let k = 7; k >= 0; k--) {
+    const fim = smSomaDias(hoje, -k * 7), ini = smSomaDias(fim, -6);
+    semanas.push({ ini: ini, n: x.pubs.filter(function (p) { return p.data >= ini && p.data <= fim; }).length });
+  }
+  const max = Math.max.apply(null, semanas.map(function (s) { return s.n; }).concat([x.meta || 1, 1]));
+  return '<div class="smx-semanas">' + semanas.map(function (s) {
+    return '<div title="Semana de ' + dataCurta(s.ini) + ': ' + s.n + ' post(s)"><b>' + s.n + '</b><span class="b' + (x.meta && s.n < x.meta ? ' baixo' : '') + '" style="height:' + Math.round(s.n * 82 / max) + '%"></span>' + dataCurta(s.ini).replace(/\s.*/, '') + '</div>';
+  }).join('') + '</div>' + (x.meta ? '<p class="mudo pequeno" style="margin:8px 0 0">Meta: ' + smNumBr(x.meta, 1) + ' por semana. Barras em vermelho ficaram abaixo da meta.</p>' : '');
+}
+
+function smAbaConteudo(id, m, c) {
+  const x = smMetricas(id), hoje = S.dados.hoje, reps = smReports(id);
+  const metasP = {}; (m ? m.pilares : []).forEach(function (p) { metasP[p.nome] = p.meta; });
+  const metasF = (m && m.formatosMeta) || {};
+  const prox = smPosts().filter(function (p) { return p.clienteId === id && p.status !== 'publicado' && p.data && p.data >= hoje; }).sort(smOrdem).slice(0, 8);
+  const igTxt = m && m.igUltimoPost ? (x.igDias === 0 ? 'hoje' : x.igDias + (x.igDias === 1 ? ' dia' : ' dias')) : '—';
+  const serie = function (campo) { return reps.slice(-6).map(function (r) { return Number(r[campo]) || 0; }); };
+  const ult = reps[reps.length - 1], ant = reps[reps.length - 2];
+  const varr = function (campo) { if (!ult || !ant || !ant[campo]) return ''; const v = Math.round((ult[campo] - ant[campo]) * 1000 / ant[campo]) / 10; return cvVar(v); };
+  return (m ? '<div class="cartao smx-bloco" style="margin-bottom:16px"><h3>Objetivo que estamos seguindo</h3><p><b>' + esc(m.objetivo || '—') + '</b> · fase <b>' + esc(m.fase) + '</b></p></div>' : '') +
+    '<div class="kpis">' +
+      kpi('Frequência · 30 dias', smNumBr(x.freq, 1) + '/sem', x.meta ? 'meta ' + smNumBr(x.meta, 1) + ' por semana' : 'defina a meta no perfil', true) +
+      kpi('Publicados no mês', String(x.pubMes), 'pela equipe' + (m && m.igPostsMes ? ' · ' + m.igPostsMes + ' no Instagram' : '')) +
+      kpi('Último post no Instagram', igTxt, m && m.igUltimoPost ? dataBr(m.igUltimoPost) + (x.igAtraso ? ' · acima do intervalo de ' + x.limite + ' dias' : '') : 'ainda não verificado') +
+      kpi('Na fila', String(x.prod + x.apr), x.prod + ' em produção · ' + x.apr + ' em aprovação') + '</div>' +
+    '<div class="cartao smg-ig" style="margin-top:16px"><span class="t">' + icone('social') + '<span>' +
+      (m && m.igVerificadoEm ? 'Instagram verificado ' + esc(quando(m.igVerificadoEm)) + (m.igSeguidores ? ' · ' + smNumBr(m.igSeguidores) + ' seguidores' : '') : 'Instagram ainda não verificado') +
+      (m && m.igErro ? ' · <span style="color:var(--alerta)">' + esc(m.igErro) + '</span>' : '') + '</span></span>' +
+      (pode('colaborador') && m ? '<button class="btn btn-peq" data-ig-verificar="' + esc(id) + '">' + icone('recarregar') + 'Verificar agora</button>' : '') + '</div>' +
+    '<div class="smx-grade">' +
+      '<div class="cartao smx-bloco"><h3>Posts por semana</h3>' + smSemanas(x) + '</div>' +
+      '<div class="cartao smx-bloco"><h3>Próximos conteúdos</h3>' + (prox.length ? '<div class="sm-ag-lista">' + prox.map(smItem).join('') + '</div>' : '<p class="vaz">Nada programado. Aloque um pedido ou crie um conteúdo.</p>') + '</div>' +
+      '<div class="cartao smx-bloco"><h3>Distribuição por pilar</h3>' + smDistribuicao(x.pilares, metasP) + '</div>' +
+      '<div class="cartao smx-bloco"><h3>Distribuição por formato</h3>' + smDistribuicao(x.formatos, metasF) + '</div>' +
+    '</div>' +
+    (reps.length ? '<div class="cartao smx-bloco" style="margin-top:16px"><h3>Evolução pelos reports mensais</h3><div class="smx-evol">' +
+      cvKpi('Seguidores', smNumBr(ult.seguidores), smMesNome(ult.mes), varr('seguidores'), cvSpark(serie('seguidores'))) +
+      cvKpi('Contas alcançadas', smNumBr(ult.alcance), smMesNome(ult.mes), varr('alcance'), cvSpark(serie('alcance'))) +
+      cvKpi('Engajamento', smNumBr(ult.engajamento, 1) + '%', smMesNome(ult.mes), varr('engajamento'), cvSpark(serie('engajamento'))) +
+      '</div></div>' : '<div class="cartao smx-bloco" style="margin-top:16px"><h3>Evolução</h3><p class="vaz">Importe os PDFs de report do Instagram na aba Reports para ver a evolução aqui.</p></div>');
+}
+
+// ---------- jornada ----------
+function smAbaJornada(id) {
+  const f = S.filtrosSocial, todos = smJornada(id), filtro = f.filtroJor || '';
+  const l = todos.filter(function (j) { return !filtro || j.tipo === filtro; });
+  const tri = smSomaDias(S.dados.hoje, -90), recentes = todos.filter(function (j) { return j.data >= tri; });
+  const c = function (fn) { return recentes.filter(fn).length; };
+  const eu = S.dados.eu.email;
+  return '<div class="kpis">' +
+      kpi('Feedbacks · 90 dias', String(c(function (j) { return j.tipo === 'feedback'; })), c(function (j) { return j.tipo === 'feedback' && j.sentimento === 'positivo'; }) + ' positivos · ' + c(function (j) { return j.tipo === 'feedback' && j.sentimento === 'negativo'; }) + ' negativos', true) +
+      kpi('Ajustes no perfil', String(c(function (j) { return j.tipo === 'ajuste'; })), 'persona, tom de voz, diretrizes…') +
+      kpi('Overdelivering', String(c(function (j) { return j.tipo === 'overdelivering'; })), 'entregas além do combinado') +
+      kpi('Reuniões', String(c(function (j) { return j.tipo === 'reuniao'; })), 'nos últimos 90 dias') + '</div>' +
+    '<div class="cartao" style="margin-top:16px;padding:18px 20px"><div class="smg-barra" style="justify-content:space-between">' +
+      '<div class="smj-filtros">' + [['', 'Tudo']].concat(Object.keys(SM_JOR).map(function (k) { return [k, SM_JOR[k]]; })).map(function (x) {
+        return '<button class="btn btn-peq ' + (filtro === x[0] ? 'btn-escuro' : 'btn-fantasma') + '" data-filtro-jor="' + x[0] + '">' + x[1] + '</button>';
+      }).join('') + '</div>' +
+      (pode('colaborador') ? '<div class="smj-filtros"><button class="btn btn-primario btn-peq" data-nova-jor="feedback">' + icone('mais') + 'Feedback</button><button class="btn btn-peq" data-nova-jor="overdelivering">Overdelivering</button><button class="btn btn-peq" data-nova-jor="reuniao">Reunião</button></div>' : '') +
+    '</div>' +
+    (l.length ? '<div class="smj-lista">' + l.map(function (j) {
+      const ref = j.refId ? ((S.dados.jornada) || []).find(function (x) { return x.id === j.refId; }) : null;
+      return '<div class="smj-item smj-t-' + esc(j.tipo) + '"><div class="cab"><span class="pilula smj-pil">' + esc(SM_JOR[j.tipo] || j.tipo) + '</span><span>' + dataBr(j.data) + '</span>' +
+          (j.sentimento ? '<span>' + (j.sentimento === 'positivo' ? '😊 positivo' : j.sentimento === 'negativo' ? '😕 negativo' : 'neutro') + '</span>' : '') +
+          '<span>· ' + esc(nomeMembro(j.autor)) + '</span></div>' +
+        '<h4>' + esc(j.titulo) + '</h4>' + (j.texto ? '<p>' + esc(j.texto) + '</p>' : '') +
+        (j.tipo === 'ajuste' && (j.de || j.para) ? '<div class="smj-diff"><div>' + esc(j.de || '—') + '</div><span>→</span><div class="novo">' + esc(j.para || '—') + '</div></div>' : '') +
+        (ref ? '<p class="mudo pequeno" style="margin-top:6px">Motivado pelo feedback de ' + dataCurta(ref.data) + ': “' + esc(ref.titulo) + '”</p>' : '') +
+        (pode('colaborador') && j.tipo !== 'ajuste' && (j.autor === eu || pode('gestor')) ? '<div class="smj-acoes"><button class="btn btn-fantasma btn-icone btn-peq" data-ed-jor="' + esc(j.id) + '" aria-label="Editar">' + icone('editar') + '</button></div>' : '') + '</div>';
+    }).join('') + '</div>' : '<div class="vazio"><b>Nada registrado ainda.</b>Anote feedbacks, reuniões e entregas extras. Mudanças no perfil de marca entram aqui sozinhas.</div>') + '</div>';
+}
+
+function abrirFormJornada(base) {
+  base = base || {};
+  const j = Object.assign({ tipo: 'feedback', data: S.dados.hoje, sentimento: '' }, base), novo = !j.id;
+  const tipos = Object.keys(SM_JOR).filter(function (k) { return k !== 'ajuste'; });
+  const m = modal({
+    titulo: novo ? 'Novo registro na jornada' : 'Registro da jornada',
+    corpo: '<form id="f-jor" class="grade" autocomplete="off">' +
+      '<label class="campo"><span>Tipo</span><select name="tipo">' + opcoes(tipos.map(function (k) { return { v: k, t: SM_JOR[k] }; }), j.tipo) + '</select></label>' +
+      '<label class="campo"><span>Data</span><input type="date" name="data" value="' + esc(j.data) + '"></label>' +
+      '<label class="campo inteira"><span>Título</span><input name="titulo" required maxlength="160" value="' + esc(j.titulo) + '" placeholder="Ex.: pediu menos posts de oferta"></label>' +
+      '<label class="campo"><span>Sentimento</span><select name="sentimento">' + opcoes([{ v: 'positivo', t: 'Positivo' }, { v: 'neutro', t: 'Neutro' }, { v: 'negativo', t: 'Negativo' }], j.sentimento, 'Não se aplica') + '</select></label>' +
+      '<label class="campo inteira"><span>Detalhes</span><textarea name="texto" maxlength="3000" rows="5" placeholder="O que foi dito, combinado ou entregue.">' + esc(j.texto) + '</textarea></label></form>' +
+      '<p class="mudo pequeno" style="margin:12px 0 0">Se o feedback pedir mudança na persona, tom de voz ou diretrizes, edite o perfil de marca e escolha este feedback como motivo: o ajuste fica ligado a ele.</p>',
+    pe: (!novo ? '<div class="esq"><button class="btn btn-fantasma btn-perigo btn-peq" data-apagar>' + icone('lixo') + 'Apagar</button></div>' : '') +
+      '<button class="btn btn-fantasma" data-fechar>Cancelar</button><button class="btn btn-primario" data-ok>Salvar</button>',
+  });
+  const form = m.el.querySelector('#f-jor');
+  const ap = m.el.querySelector('[data-apagar]');
+  if (ap) ap.onclick = async function () {
+    if (!(await confirmar('Apagar registro?', j.titulo, 'Apagar', true))) return;
+    if (await gravar('removerJornada', [j.id], 'Registro apagado.') != null) { S.dados.jornada = S.dados.jornada.filter(function (x) { return x.id !== j.id; }); m.fechar(); smRedesenhar(); }
+  };
+  const ok = m.el.querySelector('[data-ok]');
+  ok.onclick = function () {
+    const d = lerForm(form);
+    if (!d.titulo.trim()) return form.titulo.focus();
+    d.clienteId = j.clienteId;
+    if (j.id) d.id = j.id;
+    ocupado(ok, async function () {
+      const r = await gravar('salvarJornada', [d], 'Registro salvo.');
+      if (r) { trocar('jornada', r); m.fechar(); smRedesenhar(); }
+    });
+  };
+}
+
+// ---------- perfil de marca ----------
+function abrirNovaMarca() {
+  const l = S.dados.clientes.filter(function (c) { return !c.arquivado && !smMarca(c.id); }).sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+  const m = modal({
+    titulo: 'Cliente na social media', estreito: true,
+    corpo: '<form id="f-nm" class="grade"><label class="campo inteira"><span>Cliente</span><select name="clienteId">' + opcoes(l.map(function (c) { return { v: c.id, t: c.nome }; }), '', 'Escolha') + '</select></label>' +
+      '<label class="campo inteira"><span>Fase da estratégia</span><select name="fase">' + opcoes(smFases(), smFases()[0]) + '</select></label></form>',
+    pe: '<button class="btn btn-fantasma" data-fechar>Cancelar</button><button class="btn btn-primario" data-ok>Adicionar</button>',
+  });
+  const ok = m.el.querySelector('[data-ok]');
+  ok.onclick = function () {
+    const d = lerForm(m.el.querySelector('#f-nm'));
+    if (!d.clienteId) return toast('Escolha o cliente.', { erro: true });
+    ocupado(ok, async function () {
+      const r = await gravar('salvarMarca', [{ clienteId: d.clienteId, fase: d.fase, status: 'ativo' }], 'Cliente adicionado. Complete o perfil de marca.');
+      if (r) { trocar('marcas', r, 'clienteId'); m.fechar(); S.filtrosSocial.aba = 'estrategia'; smAbrirCliente(d.clienteId); abrirFormMarca(d.clienteId); }
+    });
+  };
+}
+
+function abrirFormMarca(id) {
+  const atual = smMarca(id), c = cliente(id);
+  const mm = Object.assign({ status: 'ativo', fase: smFases()[0], pilares: [], formatosMeta: {}, frequencia: 3 }, atual || {});
+  const feedbacks = smJornada(id).filter(function (j) { return j.tipo === 'feedback'; }).slice(0, 10);
+  const area = function (nome, rot, ph, linhas) { return '<label class="campo inteira"><span>' + rot + '</span><textarea name="' + nome + '" rows="' + (linhas || 3) + '" placeholder="' + esc(ph || '') + '">' + esc(mm[nome]) + '</textarea></label>'; };
+  const inp = function (nome, rot, ph, tipo) { return '<label class="campo"><span>' + rot + '</span><input name="' + nome + '" type="' + (tipo || 'text') + '" value="' + esc(mm[nome]) + '" placeholder="' + esc(ph || '') + '"></label>'; };
+  const pil = function (p) { return '<div class="p"><input class="entrada" data-pn value="' + esc(p.nome) + '" placeholder="Ex.: Educação em saúde"><input class="entrada" data-pm type="number" min="0" max="100" value="' + esc(p.meta || '') + '" placeholder="% meta"><button type="button" class="btn btn-fantasma btn-icone btn-peq" data-tira aria-label="Tirar">' + icone('fechar') + '</button></div>'; };
+  const m = modal({
+    titulo: 'Perfil de marca · ' + c.nome,
+    corpo: '<form id="f-marca" class="grade" autocomplete="off">' +
+      '<label class="campo"><span>Status</span><select name="status">' + opcoes([{ v: 'ativo', t: 'Ativo' }, { v: 'pausa', t: 'Em pausa' }], mm.status) + '</select></label>' +
+      '<label class="campo"><span>Fase da estratégia</span><select name="fase">' + opcoes(smFases(), mm.fase) + '</select></label>' +
+      '<label class="campo inteira"><span>Objetivo da estratégia de social media</span><input name="objetivo" maxlength="600" value="' + esc(mm.objetivo) + '" placeholder="Ex.: gerar 60 leads de matrícula por mês pelo direct"></label>' +
+      area('persona', 'Persona', 'Quem é, idade, rotina, desejos, objeções…', 4) + area('tomVoz', 'Tom de voz', 'Como a marca fala: energético, sereno, técnico, próximo…') +
+      area('diretrizes', 'Diretrizes de conteúdo', 'O que sempre fazemos e o que nunca fazemos nas peças e legendas.', 4) + area('cultura', 'Cultura de marca', 'Crenças, valores e propósito.') +
+      area('publico', 'Público', 'Região, faixa de renda, interesses.', 2) + area('diferenciais', 'Diferenciais', '', 2) +
+      inp('palavrasUsar', 'Palavras que usamos', 'constância, cuidado…') + inp('palavrasEvitar', 'Palavras que evitamos', 'milagre, rápido…') +
+      '<div class="campo inteira"><span>Pilares de conteúdo e meta de distribuição</span><div class="smm-pilares" id="smm-pil">' + (mm.pilares.length ? mm.pilares : [{ nome: '', meta: '' }]).map(pil).join('') + '</div>' +
+        '<button type="button" class="btn btn-fantasma btn-peq" data-pil-mais style="justify-self:start;margin-top:6px">' + icone('mais') + 'Pilar</button><small id="smm-soma"></small></div>' +
+      '<label class="campo"><span>Frequência alvo (posts por semana)</span><input name="frequencia" type="number" min="0" max="50" step="0.5" value="' + esc(mm.frequencia) + '"></label>' +
+      inp('redes', 'Redes atendidas', 'Instagram, TikTok') +
+      '<div class="campo inteira"><span>Meta de distribuição por formato (%)</span><div class="smm-fmt">' + (S.dados.listas.formatos || []).map(function (fo) {
+        return '<label class="campo"><small>' + esc(fo) + '</small><input type="number" min="0" max="100" data-fmt="' + esc(fo) + '" value="' + esc((mm.formatosMeta || {})[fo] || '') + '"></label>';
+      }).join('') + '</div></div>' +
+      area('referencias', 'Referências', 'Perfis e marcas que inspiram.', 2) + inp('concorrentes', 'Concorrentes', '') + inp('hashtags', 'Hashtags', '#…') +
+      inp('aprovador', 'Quem aprova do lado do cliente', 'Nome') + inp('inicio', 'Cliente da social desde', '', 'date') +
+      inp('corPrimaria', 'Cor principal da marca', '#1F4E79') + inp('corSecundaria', 'Cor secundária', '#F4F1EA') +
+      inp('logoUrl', 'Link do logo (imagem)', 'https://…', 'url') + inp('linkDrive', 'Pasta da marca (Drive)', 'https://drive.google.com/…', 'url') +
+      (atual ? '<label class="campo inteira"><span>Esta mudança veio de qual feedback? (opcional)</span><select name="feedbackId">' + opcoes(feedbacks.map(function (j) { return { v: j.id, t: dataCurta(j.data) + ' · ' + j.titulo }; }), '', 'Nenhum, foi decisão da equipe') + '</select>' +
+        '<small>Mudanças na persona, tom de voz, diretrizes, cultura, fase, objetivo ou pilares entram sozinhas na jornada do cliente.</small></label>' +
+        '<label class="campo inteira"><span>Motivo (se não veio de feedback)</span><input name="motivo" maxlength="300" placeholder="Ex.: fase de captação começou"></label>' : '') +
+      '</form>',
+    pe: '<button class="btn btn-fantasma" data-fechar>Cancelar</button><button class="btn btn-primario" data-ok>Salvar perfil</button>',
+  });
+  const box = m.el.querySelector('#smm-pil'), soma = m.el.querySelector('#smm-soma');
+  const recalc = function () {
+    const t = Array.prototype.reduce.call(box.querySelectorAll('[data-pm]'), function (s, x) { return s + (Number(x.value) || 0); }, 0);
+    soma.textContent = t ? 'Soma das metas: ' + t + '%' + (t !== 100 ? ' (o ideal é somar 100%)' : '') : '';
+  };
+  box.addEventListener('input', recalc); recalc();
+  m.el.querySelector('[data-pil-mais]').onclick = function () { box.insertAdjacentHTML('beforeend', pil({ nome: '', meta: '' })); };
+  box.addEventListener('click', function (e) { const b = e.target.closest('[data-tira]'); if (b) { b.parentNode.remove(); recalc(); } });
+  const ok = m.el.querySelector('[data-ok]');
+  ok.onclick = function () {
+    const form = m.el.querySelector('#f-marca'), d = lerForm(form);
+    d.clienteId = id;
+    d.pilares = Array.prototype.map.call(box.querySelectorAll('.p'), function (r) { return { nome: r.querySelector('[data-pn]').value.trim(), meta: Number(r.querySelector('[data-pm]').value) || 0 }; }).filter(function (p) { return p.nome; });
+    d.formatosMeta = {};
+    m.el.querySelectorAll('[data-fmt]').forEach(function (x) { if (Number(x.value)) d.formatosMeta[x.dataset.fmt] = Number(x.value); });
+    Object.keys(d).forEach(function (k) { if (/^(p[nm]|fmt)$/.test(k)) delete d[k]; });
+    ocupado(ok, async function () {
+      const r = await gravar('salvarMarca', [d], 'Perfil de marca salvo.');
+      if (!r) return;
+      trocar('marcas', r, 'clienteId');
+      try { const fresco = await chamar('carregar'); S.dados.jornada = fresco.jornada || S.dados.jornada; } catch (e) { /* a jornada atualiza no próximo carregamento */ }
+      m.fechar(); desenhar();
+    });
+  };
+}
+
+// ---------- reports ----------
+function smAbaReports(id, m) {
+  const reps = smReports(id).slice().reverse();
+  const ant = function (r) { const l = smReports(id), i = l.indexOf(r); return i > 0 ? l[i - 1] : null; };
+  return '<div class="cartao smx-bloco" style="margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="flex:1;min-width:240px"><h3>Reports mensais do Instagram</h3>' +
+      '<p class="mudo pequeno">Importe o PDF do report: os números são lidos sozinhos, você confere, escreve a análise e gera a apresentação da reunião com a identidade da agência e do cliente. Os números alimentam o dashboard de conteúdo.</p></div>' +
+      (pode('colaborador') ? '<button class="btn btn-primario" data-novo-report>' + icone('arquivo') + 'Importar report</button>' : '') + '</div>' +
+    (reps.length ? '<div class="smr-lista">' + reps.map(function (r) {
+      const a = ant(r);
+      const v = function (campo) {
+        if (!a || !a[campo]) return '';
+        const p = Math.round((r[campo] - a[campo]) * 1000 / a[campo]) / 10;
+        return '<em class="' + (p >= 0 ? 's' : 'd') + '">' + (p >= 0 ? '▲' : '▼') + ' ' + smNumBr(Math.abs(p), 1) + '%</em>';
+      };
+      return '<div class="cartao smr"><div class="smr-cab"><h3>' + esc(smMesNome(r.mes)) + '</h3>' +
+          (r.arquivoUrl ? '<a class="btn btn-fantasma btn-peq" href="' + esc(r.arquivoUrl) + '" target="_blank" rel="noopener">' + icone('link') + 'PDF</a>' : '') +
+          '<button class="btn btn-peq" data-ed-report="' + esc(r.id) + '">' + icone('editar') + 'Abrir</button>' +
+          '<button class="btn btn-primario btn-peq" data-apres="' + esc(r.id) + '">Apresentação</button></div>' +
+        '<div class="smr-nums">' + [['seguidores', 'Seguidores'], ['alcance', 'Alcance'], ['impressoes', 'Impressões'], ['interacoes', 'Interações'], ['engajamento', 'Engajamento'], ['visitasPerfil', 'Visitas ao perfil']].map(function (k) {
+          return '<div><span>' + k[1] + '</span><b>' + (k[0] === 'engajamento' ? smNumBr(r[k[0]], 1) + '%' : smNumBr(r[k[0]])) + '</b>' + v(k[0]) + '</div>';
+        }).join('') + '</div>' +
+        (r.ajustes ? '<p class="pequeno" style="margin:0"><b>Ajustes na estratégia:</b> ' + esc(r.ajustes) + '</p>' : '') + '</div>';
+    }).join('') + '</div>' : '<div class="cartao"><div class="vazio"><b>Nenhum report ainda.</b>Importe o PDF de report do Instagram do último mês.</div></div>');
+}
+
+function smMesPassado() { const d = smData(S.dados.hoje); d.setDate(1); d.setMonth(d.getMonth() - 1); return smIso(d).slice(0, 7); }
+
+function abrirFormReport(base) {
+  base = base || {};
+  const r = Object.assign({ mes: smMesPassado() }, base), novo = !r.id;
+  let pdf = null;
+  const num = function (k, rot) { return '<label class="campo"><span>' + rot + '</span><input name="' + k + '" type="number" min="0" step="any" value="' + esc(r[k] != null && r[k] !== '' ? r[k] : '') + '"></label>'; };
+  const area = function (k, rot, ph) { return '<label class="campo inteira"><span>' + rot + '</span><textarea name="' + k + '" rows="3" placeholder="' + esc(ph) + '">' + esc(r[k]) + '</textarea></label>'; };
+  const m = modal({
+    titulo: (novo ? 'Importar report' : 'Report') + ' · ' + nomeCliente(r.clienteId),
+    corpo: (novo || !r.arquivoUrl ? '<div class="smr-drop" id="smr-drop" tabindex="0"><b>Solte aqui o PDF do report do Instagram</b>ou clique para escolher. Os números são lidos sozinhos para você conferir.<input type="file" accept="application/pdf" hidden id="smr-arq"><div class="smr-lido" id="smr-lido"></div></div>' : '') +
+      '<form id="f-rep" class="grade" autocomplete="off" style="margin-top:16px">' +
+      '<label class="campo"><span>Mês</span><input type="month" name="mes" value="' + esc(r.mes) + '" required></label><span></span>' +
+      SM_REP.map(function (k) { return num(k[0], k[1]); }).join('') +
+      area('destaques', 'Destaques do mês', 'Conteúdos que mais performaram e por quê.') +
+      area('resultados', 'Resultados', 'O que os números mostram em relação ao objetivo.') +
+      area('ajustes', 'Ajustes na estratégia', 'O que vamos mudar a partir de agora.') +
+      area('proximosPassos', 'Próximos passos', 'Testes, séries, collabs, datas importantes.') + '</form>',
+    pe: (!novo && pode('gestor') ? '<div class="esq"><button class="btn btn-fantasma btn-perigo btn-peq" data-apagar>' + icone('lixo') + 'Apagar</button></div>' : '') +
+      '<button class="btn btn-fantasma" data-fechar>Cancelar</button>' + (!novo ? '<button class="btn" data-apres-m>Apresentação</button>' : '') + '<button class="btn btn-primario" data-ok>Salvar report</button>',
+  });
+  const form = m.el.querySelector('#f-rep'), drop = m.el.querySelector('#smr-drop');
+  if (drop) {
+    const arq = drop.querySelector('#smr-arq'), lido = drop.querySelector('#smr-lido');
+    const usar = async function (file) {
+      if (!file) return;
+      if (file.size > 12 * 1024 * 1024) return toast('PDF grande demais (máximo 12 MB).', { erro: true });
+      lido.style.color = ''; lido.textContent = 'Lendo ' + file.name + '…';
+      try {
+        const texto = await smTextoPdf(file), achado = smExtrairReport(texto);
+        Object.keys(achado.valores).forEach(function (k) { if (form.elements[k]) form.elements[k].value = achado.valores[k]; });
+        if (achado.mes) form.mes.value = achado.mes;
+        const n = Object.keys(achado.valores).length;
+        lido.textContent = n ? '✓ ' + n + ' número(s) lidos de ' + file.name + '. Confira antes de salvar.' : 'Não achei os números neste PDF. Preencha à mão (o arquivo será guardado mesmo assim).';
+        if (!n) lido.style.color = 'var(--alerta)';
+      } catch (e) { lido.textContent = 'Não consegui ler o PDF (' + e.message + '). Preencha à mão.'; lido.style.color = 'var(--alerta)'; }
+      const leitor = new FileReader();
+      leitor.onload = function () { pdf = { nome: file.name, base64: String(leitor.result).split(',')[1] }; };
+      leitor.readAsDataURL(file);
+    };
+    drop.onclick = function (e) { if (e.target !== arq) arq.click(); };
+    drop.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); arq.click(); } };
+    arq.onchange = function () { usar(arq.files[0]); };
+    drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.classList.add('sobre'); });
+    drop.addEventListener('dragleave', function () { drop.classList.remove('sobre'); });
+    drop.addEventListener('drop', function (e) { e.preventDefault(); drop.classList.remove('sobre'); usar(e.dataTransfer.files[0]); });
+  }
+  const ap = m.el.querySelector('[data-apagar]');
+  if (ap) ap.onclick = async function () {
+    if (!(await confirmar('Apagar report?', smMesNome(r.mes), 'Apagar', true))) return;
+    if (await gravar('removerReport', [r.id], 'Report apagado.') != null) { S.dados.reports = S.dados.reports.filter(function (x) { return x.id !== r.id; }); m.fechar(); smRedesenhar(); }
+  };
+  const apm = m.el.querySelector('[data-apres-m]');
+  if (apm) apm.onclick = function () { smApresentacao(r.id); };
+  const ok = m.el.querySelector('[data-ok]');
+  ok.onclick = function () {
+    const d = lerForm(form);
+    if (!d.mes) return form.mes.focus();
+    d.clienteId = r.clienteId;
+    if (r.id) d.id = r.id;
+    if (pdf) d.pdf = pdf;
+    ocupado(ok, async function () {
+      const salvo = await gravar('salvarReport', [d], 'Report salvo.' + (pdf ? '' : ''));
+      if (!salvo) return;
+      trocar('reports', salvo);
+      if (pdf && !salvo.arquivoUrl) toast('Números salvos. O PDF não foi para o Drive (falta a permissão do Drive).', { erro: true });
+      m.fechar(); smRedesenhar();
+    });
+  };
+}
+
+// Lê o texto do PDF no navegador com o pdf.js (carregado só quando precisa).
+function smPdfJs() {
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  return new Promise(function (ok, erro) {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload = function () { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; ok(window.pdfjsLib); };
+    s.onerror = function () { erro(new Error('leitor de PDF indisponível')); };
+    document.head.appendChild(s);
+  });
+}
+
+async function smTextoPdf(file) {
+  const lib = await smPdfJs(), doc = await lib.getDocument({ data: await file.arrayBuffer() }).promise;
+  let texto = '';
+  for (let i = 1; i <= Math.min(doc.numPages, 40); i++) {
+    const pg = await doc.getPage(i), c = await pg.getTextContent();
+    texto += ' ' + c.items.map(function (x) { return x.str; }).join(' ');
+  }
+  return texto.replace(/\s+/g, ' ');
+}
+
+// "12,3 mil", "1.234", "12.3K", "4,5%" -> número.
+function smNum(s) {
+  s = String(s).trim().toLowerCase().replace(/%$/, '').trim();
+  let mult = 1;
+  if (/\s*(mil|k)$/.test(s)) { mult = 1e3; s = s.replace(/\s*(mil|k)$/, ''); }
+  else if (/\s*(milhões|milhão|mi|m)$/.test(s)) { mult = 1e6; s = s.replace(/\s*(milhões|milhão|mi|m)$/, ''); }
+  if (s.indexOf(',') >= 0 && s.indexOf('.') >= 0) s = s.lastIndexOf(',') > s.lastIndexOf('.') ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+  else if (s.indexOf(',') >= 0) s = (/,\d{3}$/.test(s) && mult === 1) ? s.replace(/,/g, '') : s.replace(',', '.');
+  else if (/\.\d{3}$/.test(s) && mult === 1) s = s.replace(/\./g, '');
+  const n = parseFloat(s) * mult;
+  return isFinite(n) ? Math.round(n * 100) / 100 : null;
+}
+
+function smExtrairReport(texto) {
+  const t = texto.toLowerCase(), NUM = '(\\d[\\d.,]*(?:\\s?(?:mil|mi|k|m)\\b)?)\\s*(%?)';
+  const procura = function (rotulos, semPct, tira) {
+    let base = t;
+    (tira || []).forEach(function (x) { base = base.split(x).join(' '); });
+    for (let i = 0; i < rotulos.length; i++) {
+      const r = rotulos[i].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const depois = new RegExp(r + '[^\\d%]{0,40}?' + NUM, 'i').exec(base);
+      if (depois && (!semPct || !depois[2])) { const n = smNum(depois[1]); if (n != null) return n; }
+      const antes = new RegExp(NUM + '\\s{0,3}' + r, 'i').exec(base);
+      if (antes && (!semPct || !antes[2])) { const n = smNum(antes[1]); if (n != null) return n; }
+    }
+    return null;
+  };
+  const v = {};
+  const poe = function (k, n) { if (n != null && n >= 0) v[k] = n; };
+  poe('novosSeguidores', procura(['novos seguidores', 'new followers', 'seguidores ganhos'], true));
+  poe('seguidores', procura(['total de seguidores', 'seguidores', 'followers'], true, ['novos seguidores', 'new followers', 'seguidores ganhos', 'não seguidores', 'non-followers']));
+  poe('alcance', procura(['contas alcançadas', 'accounts reached', 'alcance', 'reach'], true));
+  poe('impressoes', procura(['impressões', 'impressions', 'visualizações', 'views'], true));
+  poe('interacoes', procura(['interações com o conteúdo', 'content interactions', 'contas com engajamento', 'accounts engaged', 'interações', 'interactions'], true));
+  poe('visitasPerfil', procura(['visitas ao perfil', 'profile visits', 'atividade do perfil', 'profile activity'], true));
+  poe('cliquesLink', procura(['toques no link externo', 'toques em links externos', 'cliques no link', 'external link taps', 'link taps'], true));
+  poe('postsPublicados', procura(['publicações', 'posts publicados', 'conteúdos publicados', 'posts'], true));
+  const eng = /(?:taxa de engajamento|engagement rate)[^\d]{0,30}(\d[\d.,]*)\s*%/i.exec(t);
+  if (eng) poe('engajamento', smNum(eng[1]));
+  else if (v.interacoes && v.alcance) v.engajamento = Math.round(v.interacoes * 1000 / v.alcance) / 10;
+  const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  const en = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+  let mes = '';
+  const rm = new RegExp('(' + meses.concat(en).join('|') + ')\\s*(?:de\\s*)?(20\\d{2})', 'i').exec(t);
+  if (rm) { const k = meses.indexOf(rm[1].toLowerCase()) >= 0 ? meses.indexOf(rm[1].toLowerCase()) : en.indexOf(rm[1].toLowerCase()); mes = rm[2] + '-' + String(k + 1).padStart(2, '0'); }
+  return { valores: v, mes: mes };
+}
+
+// ---------- apresentação da reunião mensal ----------
+function smApresentacao(reportId) {
+  const r = (S.dados.reports || []).find(function (x) { return x.id === reportId; });
+  if (!r) return;
+  const c = cliente(r.clienteId), m = smMarca(r.clienteId) || { pilares: [], formatosMeta: {} }, lista = smReports(r.clienteId), i = lista.indexOf(r), a = i > 0 ? lista[i - 1] : null;
+  const cfg = S.dados.config, corC = m.corPrimaria || '#3E6B45', mk = cfg.marca || {}, logoAg = mk.logoUrl || '', nomeAg = cfg.empresa || 'Agência';
+  const corAg = mk.primaria || '#1E3324', corAg2 = mk.destaque || '#4D7C3F';
+  const ps = smPosts().filter(function (p) { return p.clienteId === r.clienteId && p.status === 'publicado' && String(p.data).slice(0, 7) === r.mes; });
+  const meta = Math.round((Number(m.frequencia) || 0) * 4.3);
+  const cont = function (campo) { const o = {}; ps.forEach(function (p) { const k = p[campo] || '—'; o[k] = (o[k] || 0) + 1; }); return Object.keys(o).map(function (k) { return [k, o[k]]; }).sort(function (x, y) { return y[1] - x[1]; }); };
+  const over = smJornada(r.clienteId).filter(function (j) { return j.tipo === 'overdelivering' && j.data.slice(0, 7) === r.mes; });
+  const ajustesMes = smJornada(r.clienteId).filter(function (j) { return j.tipo === 'ajuste' && j.data.slice(0, 7) >= r.mes; });
+  const e = esc, n = function (v, c2) { return smNumBr(v, c2); };
+  const varr = function (k) { if (!a || !a[k]) return ''; const p = Math.round((r[k] - a[k]) * 1000 / a[k]) / 10; return '<i class="' + (p >= 0 ? 's' : 'd') + '">' + (p >= 0 ? '▲' : '▼') + ' ' + n(Math.abs(p), 1) + '% vs mês anterior</i>'; };
+  const tile = function (k, rot, pct) { return '<div class="tile"><span>' + rot + '</span><b>' + (pct ? n(r[k], 1) + '%' : n(r[k])) + '</b>' + varr(k) + '</div>'; };
+  const barras = function (l) { const max = Math.max.apply(null, l.map(function (x) { return x[1]; }).concat([1])); return l.map(function (x) { return '<div class="bar"><span>' + e(x[0]) + '</span><i><b style="width:' + Math.round(x[1] * 100 / max) + '%"></b></i><em>' + x[1] + '</em></div>'; }).join('') || '<p class="vaz">Sem conteúdos publicados registrados no mês.</p>'; };
+  const ult6 = lista.slice(Math.max(0, i - 5), i + 1);
+  const coluna = function (k, rot) { const max = Math.max.apply(null, ult6.map(function (x) { return x[k] || 0; }).concat([1])); return '<div class="evo"><h4>' + rot + '</h4><div class="cols">' + ult6.map(function (x) { return '<div><b>' + n(x[k]) + '</b><i style="height:' + Math.round((x[k] || 0) * 100 / max) + '%"></i><span>' + e(smMesNome(x.mes).slice(0, 3)) + '</span></div>'; }).join('') + '</div></div>'; };
+  const par = function (t) { return t ? '<p>' + e(t).replace(/\n/g, '<br>') + '</p>' : '<p class="vaz">—</p>'; };
+  const marcaC = m.logoUrl ? '<img class="lc" src="' + e(m.logoUrl) + '" alt="">' : '<b class="nc">' + e(c.nome) + '</b>';
+  const topo = '<div class="sl-topo">' + (logoAg ? '<img class="ls" src="' + e(logoAg) + '" alt="' + e(nomeAg) + '">' : '<b>' + e(nomeAg) + '</b>') + '<span>' + e(c.nome) + ' · ' + e(smMesNome(r.mes)) + '</span></div>';
+  const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Report ' + e(c.nome) + ' · ' + e(smMesNome(r.mes)) + '</title>' +
+    '<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@200;300;400;600;700&display=swap" rel="stylesheet"><style>' +
+    ':root{--ag:' + corAg + ';--verde:' + corAg2 + ';--salvia:#C5DBAE;--cobre:' + corAg2 + ';--cli:' + corC + ';}' +
+    '*{box-sizing:border-box}body{margin:0;background:#2a2f2a;font-family:Archivo,system-ui,sans-serif;color:#1E2A20}' +
+    '.barra{position:sticky;top:0;z-index:9;display:flex;gap:10px;align-items:center;justify-content:center;padding:10px;background:#111;color:#ddd;font-size:13px}.barra button{border:0;border-radius:100px;padding:8px 18px;background:#C5DBAE;color:#1E3324;font-weight:600;cursor:pointer}' +
+    '.sl{width:1280px;height:720px;margin:24px auto;background:#FCFCF8;position:relative;overflow:hidden;padding:64px 80px 56px;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.4)}' +
+    '.sl::after{content:"";position:absolute;left:0;right:0;bottom:0;height:8px;background:linear-gradient(90deg,var(--ag),var(--verde) 40%,var(--cli) 70%,var(--cobre))}' +
+    '.sl-topo{display:flex;align-items:center;justify-content:space-between;margin-bottom:34px;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#7B8677}.sl-topo .ls{height:28px;filter:brightness(0) opacity(.75)}' +
+    'h1{font-weight:200;font-size:76px;letter-spacing:-.04em;line-height:1;margin:0}h1 b{font-weight:600}h2{font-weight:300;font-size:46px;letter-spacing:-.03em;margin:0 0 28px}h2 b{font-weight:600;color:var(--verde)}' +
+    '.capa{background:var(--ag);color:#F7F3EC;justify-content:space-between}.capa .ls{height:40px;width:auto;align-self:flex-start;object-fit:contain}.capa .faixa{position:absolute;right:0;top:0;bottom:0;width:38%;background:var(--cli);display:grid;place-items:center}' +
+    '.capa .faixa .lc{max-width:70%;max-height:40%;object-fit:contain}.capa .faixa .nc{font-size:44px;font-weight:600;letter-spacing:-.02em;color:#fff;text-align:center;padding:0 30px}.capa .rot{font-size:14px;letter-spacing:.24em;text-transform:uppercase;color:var(--salvia)}' +
+    '.capa h1{max-width:58%}.capa p{max-width:56%;color:rgba(247,243,236,.7);font-size:20px;font-weight:300}' +
+    '.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.tile{border:1px solid #E5E8DF;border-radius:20px;padding:24px 26px}.tile span{display:block;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#7B8677}' +
+    '.tile b{display:block;font-size:46px;font-weight:600;letter-spacing:-.03em;margin:8px 0 4px;color:var(--ag)}.tile i{font-style:normal;font-size:14px}.s{color:#2F8A4E}.d{color:#C0533A}' +
+    '.duas{display:grid;grid-template-columns:1fr 1fr;gap:44px;flex:1}.duas h3{font-size:14px;letter-spacing:.16em;text-transform:uppercase;color:#7B8677;margin:0 0 14px}' +
+    '.bar{display:grid;grid-template-columns:200px 1fr 40px;gap:12px;align-items:center;margin-bottom:12px;font-size:17px}.bar i{height:14px;border-radius:100px;background:#EEF1E8;overflow:hidden}.bar b{display:block;height:100%;background:var(--cli);border-radius:100px}.bar em{font-style:normal;text-align:right;font-weight:600}' +
+    '.grande{font-size:64px;font-weight:600;letter-spacing:-.03em;color:var(--ag)}.grande small{font-size:22px;font-weight:300;color:#7B8677}' +
+    'p{font-size:20px;line-height:1.55;font-weight:300;margin:0 0 12px}.vaz{color:#9AA394}ul{margin:0;padding-left:22px;font-size:19px;line-height:1.6;font-weight:300}' +
+    '.evos{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;flex:1}.evo h4{margin:0 0 12px;font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:#7B8677}.cols{display:flex;align-items:flex-end;gap:10px;height:330px}' +
+    '.cols div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:6px;font-size:13px;color:#7B8677}.cols b{color:var(--ag);font-size:14px}.cols i{width:100%;border-radius:10px 10px 3px 3px;background:var(--verde);min-height:4px}.cols div:last-child i{background:var(--cli)}' +
+    '.fase{display:flex;gap:8px;margin-top:auto}.fase div{flex:1;font-size:13px;text-align:center;color:#9AA394}.fase i{display:block;height:8px;border-radius:100px;background:#EEF1E8;margin-bottom:8px}.fase .at{color:var(--ag);font-weight:600}.fase .at i{background:var(--cli)}.fase .ok i{background:var(--salvia)}' +
+    '.fim{background:var(--ag);color:#F7F3EC;align-items:center;justify-content:center;text-align:center;gap:28px}.fim .lados{display:flex;align-items:center;gap:40px}.fim .ls{height:40px}.fim .lc{max-height:60px;max-width:220px;filter:brightness(0) invert(1)}.fim .nc{font-size:34px}' +
+    '@media print{body{background:none}.barra{display:none}.sl{margin:0;box-shadow:none;page-break-after:always;zoom:1!important}@page{size:1280px 720px;margin:0}}' +
+    '</style></head><body><div class="barra">Apresentação gerada pelo ' + e(produto()) + ' <button onclick="window.print()">Imprimir ou salvar em PDF</button></div>' +
+    // capa
+    '<section class="sl capa">' + (logoAg ? '<img class="ls" src="' + e(logoAg) + '" alt="' + e(nomeAg) + '">' : '<b>' + e(nomeAg.toUpperCase()) + '</b>') +
+      '<div><span class="rot">Report mensal de social media</span><h1><b>' + e(smMesNome(r.mes).split(' ')[0]) + '</b> ' + e(smMesNome(r.mes).split(' ').slice(1).join(' ')) + '</h1><p>Resultados, conteúdo entregue e ajustes na estratégia de ' + e(c.nome) + '.</p></div>' +
+      '<span class="rot">Fase: ' + e(m.fase || '—') + '</span><div class="faixa">' + marcaC + '</div></section>' +
+    // números
+    '<section class="sl">' + topo + '<h2>O mês em <b>números</b></h2><div class="tiles">' +
+      tile('seguidores', 'Seguidores') + tile('alcance', 'Contas alcançadas') + tile('impressoes', 'Impressões') + tile('interacoes', 'Interações') + tile('engajamento', 'Engajamento', true) + tile('visitasPerfil', 'Visitas ao perfil') + '</div></section>' +
+    // evolução
+    (ult6.length > 1 ? '<section class="sl">' + topo + '<h2>Evolução dos últimos <b>' + ult6.length + ' meses</b></h2><div class="evos">' + coluna('seguidores', 'Seguidores') + coluna('alcance', 'Alcance') + coluna('interacoes', 'Interações') + '</div></section>' : '') +
+    // conteúdo entregue
+    '<section class="sl">' + topo + '<h2>Conteúdo <b>entregue</b></h2><div class="duas"><div><h3>Publicações no mês</h3><div class="grande">' + (r.postsPublicados || ps.length) + (meta ? ' <small>de ' + meta + ' previstos</small>' : '') + '</div>' +
+      '<h3 style="margin-top:30px">Por pilar</h3>' + barras(cont('pilar')) + '</div><div><h3>Por formato</h3>' + barras(cont('formato')) +
+      (over.length ? '<h3 style="margin-top:30px">Entregas além do combinado</h3><ul>' + over.map(function (j) { return '<li>' + e(j.titulo) + '</li>'; }).join('') + '</ul>' : '') + '</div></div></section>' +
+    // destaques e resultados
+    '<section class="sl">' + topo + '<h2>Destaques e <b>resultados</b></h2><div class="duas"><div><h3>Destaques</h3>' + par(r.destaques) + '</div><div><h3>Resultados x objetivo</h3><p><b>' + e(m.objetivo || '') + '</b></p>' + par(r.resultados) + '</div></div></section>' +
+    // ajustes
+    '<section class="sl">' + topo + '<h2>Ajustes na <b>estratégia</b></h2><div class="duas"><div><h3>O que muda</h3>' + par(r.ajustes) +
+      (ajustesMes.length ? '<ul>' + ajustesMes.map(function (j) { return '<li>' + e(j.titulo) + '</li>'; }).join('') + '</ul>' : '') + '</div><div><h3>Próximos passos</h3>' + par(r.proximosPassos) + '</div></div>' +
+      '<div class="fase">' + smFases().map(function (fa, k) { const at = smFases().indexOf(m.fase); return '<div class="' + (k === at ? 'at' : k < at ? 'ok' : '') + '"><i></i>' + e(fa) + '</div>'; }).join('') + '</div></section>' +
+    // encerramento
+    '<section class="sl fim"><div class="lados">' + (logoAg ? '<img class="ls" src="' + e(logoAg) + '" alt="' + e(nomeAg) + '">' : '<b>' + e(nomeAg.toUpperCase()) + '</b>') + '<span style="opacity:.4;font-size:30px">×</span>' + marcaC + '</div><h1 style="font-size:60px">Obrigado.</h1><p style="color:rgba(247,243,236,.7)">Seguimos juntos no próximo mês.</p></section>' +
+    '<script>function caber(){var z=Math.min(1,(innerWidth-24)/1280);document.querySelectorAll(".sl").forEach(function(s){s.style.zoom=z;});}caber();addEventListener("resize",caber);<\/script></body></html>';
+  const w = window.open('', '_blank');
+  if (!w) return toast('O navegador bloqueou a nova janela. Libere pop-ups para o ' + produto() + '.', { erro: true });
+  w.document.open(); w.document.write(html); w.document.close();
+}
+</script>

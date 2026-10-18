@@ -1,0 +1,305 @@
+<script>
+/** Oportunidade: formulário (criar/editar) e gaveta de detalhe com comentários, tarefas, propostas e histórico. */
+const ROTULO_CAMPO = {
+  titulo: 'nome', clienteId: 'cliente', servico: 'serviço', contrato: 'contrato', valor: 'valor', meses: 'meses',
+  responsavel: 'responsável', prioridade: 'prioridade', origem: 'origem', previsao: 'previsão', obs: 'observações',
+  tags: 'tags', etapa: 'etapa', motivoPerda: 'motivo da perda',
+};
+const NOME_PRIO = { alta: 'Alta', media: 'Média', baixa: 'Baixa' };
+
+function abrirFormOportunidade(base) {
+  base = base || {};
+  const cfg = S.dados.config, novo = !base.id;
+  const o = Object.assign({ contrato: 'projeto', meses: 12, prioridade: 'media', responsavel: S.dados.eu.email }, base);
+  const clientes = S.dados.clientes.filter(function (c) { return !c.arquivado; });
+  const m = modal({
+    titulo: novo ? 'Nova oportunidade' : 'Editar oportunidade',
+    corpo: '<form id="form-op" class="grade" autocomplete="off">' +
+      '<label class="campo inteira"><span>Nome da oportunidade</span><input name="titulo" required maxlength="140" value="' + esc(o.titulo) + '" placeholder="Ex.: Gestão de redes sociais" autofocus></label>' +
+      '<label class="campo"><span>Cliente</span><input name="cliente" list="lista-clientes" value="' + esc(nomeCliente(o.clienteId)) + '" placeholder="Escolha ou digite um novo"><datalist id="lista-clientes">' +
+        clientes.map(function (c) { return '<option value="' + esc(c.nome) + '">'; }).join('') + '</datalist><small>Cliente novo é criado na hora.</small></label>' +
+      '<label class="campo"><span>Serviço</span><select name="servico">' + opcoes(cfg.servicos.indexOf(o.servico) < 0 && o.servico ? cfg.servicos.concat([o.servico]) : cfg.servicos, o.servico, 'Escolha') + '</select></label>' +
+      '<div class="campo"><span>Contrato</span><div class="segmentado" role="group" id="seg-contrato">' +
+        '<button type="button" data-v="projeto" aria-pressed="' + (o.contrato !== 'fee') + '">Projeto</button>' +
+        '<button type="button" data-v="fee" aria-pressed="' + (o.contrato === 'fee') + '">Fee mensal</button></div><input type="hidden" name="contrato" value="' + esc(o.contrato) + '"></div>' +
+      '<div class="grade" style="gap:12px;grid-template-columns:1fr auto">' +
+        '<label class="campo"><span id="rot-valor">' + (o.contrato === 'fee' ? 'Valor mensal' : 'Valor') + '</span><input name="valor" inputmode="decimal" value="' + (o.valor ? String(o.valor).replace('.', ',') : '') + '" placeholder="0,00"></label>' +
+        '<label class="campo" id="campo-meses"' + (o.contrato === 'fee' ? '' : ' hidden') + '><span>Meses</span><input name="meses" type="number" min="1" max="120" value="' + esc(o.meses || 12) + '" style="width:84px"></label>' +
+      '</div>' +
+      '<label class="campo"><span>Responsável</span><select name="responsavel">' + opcoes(equipeAtiva().map(function (x) { return { v: x.email, t: x.nome }; }), o.responsavel) + '</select></label>' +
+      '<label class="campo"><span>Prioridade</span><select name="prioridade">' + opcoes([{ v: 'alta', t: 'Alta' }, { v: 'media', t: 'Média' }, { v: 'baixa', t: 'Baixa' }], o.prioridade) + '</select></label>' +
+      '<label class="campo"><span>Origem</span><select name="origem">' + opcoes(cfg.origens.indexOf(o.origem) < 0 && o.origem ? cfg.origens.concat([o.origem]) : cfg.origens, o.origem, 'Escolha') + '</select></label>' +
+      '<label class="campo"><span>Previsão de fechamento</span><input name="previsao" type="date" value="' + esc(o.previsao) + '"></label>' +
+      '<label class="campo inteira"><span>Tags</span><input name="tags" value="' + esc((o.tags || []).join(', ')) + '" placeholder="Separe por vírgula"></label>' +
+      '<label class="campo inteira"><span>Observações</span><textarea name="obs" maxlength="5000">' + esc(o.obs) + '</textarea></label>' +
+      '</form>',
+    pe: '<button class="btn btn-fantasma" data-fechar>Cancelar</button><button class="btn btn-primario" data-salvar>' + (novo ? 'Criar' : 'Salvar') + '</button>',
+  });
+  const form = m.el.querySelector('#form-op');
+  m.el.querySelector('#seg-contrato').addEventListener('click', function (e) {
+    const b = e.target.closest('[data-v]');
+    if (!b) return;
+    form.contrato.value = b.dataset.v;
+    this.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b); });
+    m.el.querySelector('#campo-meses').hidden = b.dataset.v !== 'fee';
+    m.el.querySelector('#rot-valor').textContent = b.dataset.v === 'fee' ? 'Valor mensal' : 'Valor';
+  });
+  const salvar = m.el.querySelector('[data-salvar]');
+  form.addEventListener('submit', function (e) { e.preventDefault(); salvar.click(); });
+  salvar.onclick = function () {
+    const d = lerForm(form);
+    if (!d.titulo.trim()) { form.titulo.focus(); return toast('Dê um nome para a oportunidade.', { erro: true }); }
+    const achado = S.dados.clientes.find(function (c) { return normal(c.nome).trim() === normal(d.cliente).trim(); });
+    d.clienteId = achado ? achado.id : '';
+    d.clienteNome = achado ? '' : d.cliente.trim();
+    d.tags = d.tags.split(',').map(function (t) { return t.trim(); }).filter(Boolean);
+    if (base.id) d.id = base.id;
+    if (base.etapa) d.etapa = base.etapa;
+    ocupado(salvar, async function () {
+      const r = await gravar('salvarOportunidade', [d], novo ? 'Oportunidade criada.' : 'Salvo.');
+      if (!r) return;
+      m.fechar();
+      if (r.clienteId && !cliente(r.clienteId)) {
+        S.dados.clientes = await chamar('carregar').then(function (x) { return x.clientes; }).catch(function () { return S.dados.clientes; });
+      }
+      trocar('oportunidades', r);
+      desenhar();
+      atualizarGaveta();
+    });
+  };
+}
+
+// ---------- gaveta de detalhe ----------
+S.gaveta = null;
+
+async function abrirOportunidade(id, aba) {
+  if (!oportunidade(id)) return;
+  if (S.gaveta) S.gaveta.api.fechar();
+  const g = { id: id, aba: aba || 'resumo', detalhe: null };
+  g.api = modal({ gaveta: true, titulo: oportunidade(id).titulo, html: '', aoFechar: function () { if (S.gaveta === g) S.gaveta = null; } });
+  S.gaveta = g;
+  desenharGaveta();
+  try {
+    g.detalhe = await chamar('detalheOportunidade', id);
+    if (S.gaveta === g) desenharGaveta();
+  } catch (e) { toast(e.message, { erro: true }); }
+}
+
+function atualizarGaveta() { if (S.gaveta) desenharGaveta(); }
+
+function desenharGaveta() {
+  const g = S.gaveta, o = oportunidade(g.id);
+  if (!o) return g.api.fechar();
+  const e = etapa(o.etapa), fee = o.contrato === 'fee';
+  const nCom = g.detalhe ? g.detalhe.comentarios.length : (S.dados.comentarios[o.id] || 0);
+  const tarefas = S.dados.tarefas.filter(function (t) { return t.oportunidadeId === o.id; });
+  const propostas = S.dados.propostas.filter(function (p) { return p.oportunidadeId === o.id; });
+  const abas = [['resumo', 'Resumo'], ['comentarios', 'Comentários', nCom], ['tarefas', 'Tarefas', tarefas.filter(function (t) { return t.status !== 'feito'; }).length], ['propostas', 'Propostas', propostas.length], ['historico', 'Histórico']];
+  const rolagem = g.api.el.querySelector('.det-corpo');
+  const topoRol = rolagem ? rolagem.scrollTop : 0;
+
+  g.api.el.innerHTML =
+    '<div class="det-topo">' +
+      '<div class="linha1"><div style="flex:1;min-width:0"><span class="rotulo">' + esc(nomeCliente(o.clienteId) || 'Sem cliente') + (o.servico ? ' · ' + esc(o.servico) : '') + '</span>' +
+        '<h2 style="margin-top:6px">' + esc(o.titulo) + '</h2></div>' +
+        (pode('colaborador') ? '<button class="btn btn-icone" data-editar aria-label="Editar">' + icone('editar') + '</button>' : '') +
+        '<button class="btn btn-fantasma btn-icone" data-fechar aria-label="Fechar">' + icone('fechar') + '</button></div>' +
+      '<div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap"><div class="valor-g">' + dinheiro(fee ? o.valor : totalOp(o)) + '</div>' +
+        '<span class="mudo" style="padding-bottom:3px">' + (fee ? 'por mês · ' + o.meses + ' meses · total ' + dinheiro(totalOp(o)) : 'projeto') + '</span></div>' +
+      '<div class="chips">' +
+        '<span class="pilula" style="color:' + esc(e ? e.cor : '') + '"><span class="ponto"></span><span style="color:var(--texto)">' + esc(e ? e.nome : o.etapa) + '</span></span>' +
+        '<span class="pilula"><span class="prio ' + esc(o.prioridade) + '"></span>' + esc(NOME_PRIO[o.prioridade] || '') + '</span>' +
+        (o.responsavel ? '<span class="pilula" style="padding-left:3px">' + avatar(o.responsavel, 'p') + esc(nomeMembro(o.responsavel)) + '</span>' : '') +
+        (parada(o) ? '<span class="pilula alerta">Parada há ' + diasDesde(o.etapaDesde) + ' dias</span>' : '<span class="pilula">Na etapa há ' + diasDesde(o.etapaDesde) + ' dia(s)</span>') +
+        (o.arquivado ? '<span class="pilula">Arquivada</span>' : '') +
+      '</div>' +
+      (pode('colaborador') && !o.arquivado ? '<div><span class="rotulo" style="display:block;margin-bottom:8px">Mover para</span><div class="etapas-linha">' + S.dados.config.etapas.map(function (x) {
+        return '<button type="button" data-mover="' + esc(x.id) + '"' + (x.id === o.etapa ? ' aria-current="true"' : '') + '><span class="ponto" style="background:' + esc(x.cor) + '"></span>' + esc(x.nome) + '</button>';
+      }).join('') + '</div></div>' : '') +
+    '</div>' +
+    '<div class="abas" role="tablist">' + abas.map(function (a) {
+      return '<button role="tab" data-aba="' + a[0] + '" aria-selected="' + (g.aba === a[0]) + '">' + a[1] + (a[2] ? '<span class="n">' + a[2] + '</span>' : '') + '</button>';
+    }).join('') + '</div>' +
+    '<div class="det-corpo">' + corpoAba(g, o, tarefas, propostas) + '</div>';
+
+  const el = g.api.el;
+  el.querySelector('.det-corpo').scrollTop = topoRol;
+  el.querySelectorAll('[data-aba]').forEach(function (b) { b.onclick = function () { g.aba = b.dataset.aba; desenharGaveta(); }; });
+  const ed = el.querySelector('[data-editar]');
+  if (ed) ed.onclick = function () { abrirFormOportunidade(o); };
+  el.querySelectorAll('[data-mover]').forEach(function (b) {
+    b.onclick = function () {
+      if (b.dataset.mover === o.etapa) return;
+      const destino = S.dados.oportunidades.filter(function (x) { return x.etapa === b.dataset.mover; }).map(function (x) { return x.ordem; });
+      moverOp(o.id, b.dataset.mover, destino.length ? Math.min.apply(null, destino) - 1 : 0).then(atualizarGaveta);
+    };
+  });
+  montarAba(g, o, el);
+}
+
+function corpoAba(g, o, tarefas, propostas) {
+  if (g.aba === 'resumo') {
+    const campo = function (rot, v) { return '<div><dt>' + rot + '</dt><dd>' + (v || '<span class="mudo">—</span>') + '</dd></div>'; };
+    const c = cliente(o.clienteId);
+    return '<dl class="dl">' +
+      campo('Cliente', c ? esc(c.nome) + (c.contato ? '<br><span class="mudo pequeno">' + esc(c.contato) + '</span>' : '') : '') +
+      campo('Responsável', o.responsavel ? esc(nomeMembro(o.responsavel)) : '') +
+      campo('Serviço', esc(o.servico)) +
+      campo('Origem', esc(o.origem)) +
+      campo('Previsão de fechamento', dataBr(o.previsao)) +
+      campo('Probabilidade', etapa(o.etapa) ? etapa(o.etapa).prob + '%' : '') +
+      (o.motivoPerda ? campo('Motivo da perda', esc(o.motivoPerda)) : '') +
+      (o.fechadoEm ? campo('Fechada em', dataBr(o.fechadoEm)) : '') +
+      campo('Criada', dataBr(o.criadoEm) + (o.criadoPor ? ' por ' + esc(nomeMembro(o.criadoPor)) : '')) +
+      campo('Atualizada', quando(o.atualizadoEm)) +
+      ((o.tags || []).length ? '<div class="inteira" style="grid-column:1/-1"><dt>Tags</dt><dd class="chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">' + o.tags.map(function (t) { return '<span class="pilula destaque">' + esc(t) + '</span>'; }).join('') + '</dd></div>' : '') +
+      '<div style="grid-column:1/-1"><dt>Observações</dt><dd style="white-space:pre-wrap;line-height:1.6">' + (esc(o.obs) || '<span class="mudo">—</span>') + '</dd></div>' +
+      '</dl>' +
+      (pode('gestor') ? '<div style="margin-top:28px;padding-top:18px;border-top:1px solid var(--linha)"><button class="btn btn-peq" data-arquivar>' + icone('arquivo') + (o.arquivado ? 'Desarquivar' : 'Arquivar') + '</button></div>' : '');
+  }
+  if (g.aba === 'comentarios') {
+    if (!g.detalhe) return '<div class="vazio">Carregando…</div>';
+    const lista = g.detalhe.comentarios;
+    return '<div class="comentarios">' + (lista.length ? lista.map(function (c) {
+      const meu = c.autor === S.dados.eu.email;
+      return '<div class="comentario">' + avatar(c.autor) + '<div class="bolha"><header><b>' + esc(nomeMembro(c.autor)) + '</b><span class="mudo">' + quando(c.criadoEm) + '</span>' +
+        ((meu && pode('colaborador')) || pode('gestor') ? '<button class="btn btn-fantasma btn-icone btn-peq" data-apagar-com="' + esc(c.id) + '" aria-label="Apagar comentário">' + icone('lixo') + '</button>' : '') +
+        '</header><p>' + realcarMencoes(c.texto) + '</p></div></div>';
+    }).join('') : '<div class="vazio"><b>Nenhum comentário ainda.</b>Use @ para chamar alguém da equipe.</div>') + '</div>' +
+      (pode('colaborador') ? '<form class="escrever" id="form-com"><label class="campo"><span>Comentar</span><textarea name="texto" rows="3" placeholder="Escreva… use @ para marcar alguém"></textarea></label>' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><small class="mudo">Quem for marcado recebe um e-mail.</small><button class="btn btn-primario btn-peq" type="submit">Enviar</button></div>' +
+        '<div class="sugestoes" hidden></div></form>' : '');
+  }
+  if (g.aba === 'tarefas') {
+    return (tarefas.length ? '<ul class="lista">' + tarefas.sort(function (a, b) { return (a.status === 'feito') - (b.status === 'feito') || ((a.prazo || '9') < (b.prazo || '9') ? -1 : 1); })
+      .map(function (t) { return '<li>' + linhaTarefa(t) + '</li>'; }).join('') + '</ul>' : '<div class="vazio"><b>Sem tarefas.</b>Crie o próximo passo desta oportunidade.</div>') +
+      (pode('colaborador') ? '<div style="margin-top:16px"><button class="btn btn-peq" data-nova-tarefa>' + icone('mais') + 'Nova tarefa</button></div>' : '');
+  }
+  if (g.aba === 'propostas') {
+    return (propostas.length ? '<ul class="lista">' + propostas.map(function (p) {
+      return '<li data-proposta="' + esc(p.id) + '" style="cursor:pointer"><div class="principal-li"><b>' + esc(p.titulo) + '</b><span><span class="num">' + dinheiro(p.valor) + '</span>' +
+        (p.enviadaEm ? ' · enviada ' + dataBr(p.enviadaEm) : '') + (p.validade ? ' · válida até ' + dataBr(p.validade) : '') + '</span></div>' +
+        (p.url ? '<a class="btn btn-fantasma btn-icone btn-peq" href="' + esc(p.url) + '" target="_blank" rel="noopener" aria-label="Abrir documento" data-link>' + icone('link') + '</a>' : '') +
+        pilulaProposta(p.status) + '</li>';
+    }).join('') + '</ul>' : '<div class="vazio"><b>Nenhuma proposta.</b>Guarde aqui o link do documento enviado ao cliente.</div>') +
+      (pode('colaborador') ? '<div style="margin-top:16px"><button class="btn btn-peq" data-nova-proposta>' + icone('mais') + 'Nova proposta</button></div>' : '');
+  }
+  if (g.aba === 'historico') {
+    if (!g.detalhe) return '<div class="vazio">Carregando…</div>';
+    const h = g.detalhe.historico;
+    return h.length ? '<ul class="linha-tempo">' + h.map(function (x) {
+      return '<li><time>' + quando(x.ts) + '</time><b style="font-weight:500">' + esc(nomeMembro(x.email)) + '</b> ' + frase(x) + '</li>';
+    }).join('') + '</ul>' : '<div class="vazio">Sem registros.</div>';
+  }
+  return '';
+}
+
+function frase(h) {
+  const campo = ROTULO_CAMPO[h.campo] || h.campo;
+  if (h.acao === 'moveu') return 'moveu de <b style="font-weight:500">' + esc(h.de) + '</b> para <b style="font-weight:500">' + esc(h.para) + '</b>';
+  if (h.acao === 'alterou') {
+    let de = h.de, para = h.para;
+    if (h.campo === 'responsavel') { de = nomeMembro(de); para = nomeMembro(para); }
+    if (h.campo === 'clienteId') { de = nomeCliente(de) || de; para = nomeCliente(para) || para; }
+    if (h.campo === 'valor') { de = de ? dinheiro(de) : ''; para = para ? dinheiro(para) : ''; }
+    return 'alterou ' + esc(campo) + (de ? ' de <span class="mudo">' + esc(de) + '</span>' : '') + (para ? ' para <span class="mudo">' + esc(para) + '</span>' : '');
+  }
+  if (h.acao === 'criou') return 'criou a oportunidade';
+  return esc(h.acao) + (h.para ? ': <span class="mudo">' + esc(h.para) + '</span>' : h.de ? ': <span class="mudo">' + esc(h.de) + '</span>' : '');
+}
+
+function realcarMencoes(texto) {
+  let html = esc(texto);
+  S.dados.equipe.slice().sort(function (a, b) { return b.nome.length - a.nome.length; }).forEach(function (m) {
+    const alvo = '@' + esc(m.nome);
+    html = html.split(alvo).join('<span class="mencao">' + alvo + '</span>');
+  });
+  return html;
+}
+
+function montarAba(g, o, el) {
+  const arq = el.querySelector('[data-arquivar]');
+  if (arq) arq.onclick = async function () {
+    const r = await gravar('arquivarOportunidade', [o.id, !o.arquivado], o.arquivado ? 'Desarquivada.' : 'Arquivada.');
+    if (r) { trocar('oportunidades', r); desenhar(); desenharGaveta(); }
+  };
+  el.querySelectorAll('[data-apagar-com]').forEach(function (b) {
+    b.onclick = async function () {
+      if (!(await confirmar('Apagar comentário?', 'Ele some para todo mundo.', 'Apagar', true))) return;
+      if (await gravar('removerComentario', [b.dataset.apagarCom], 'Comentário apagado.') != null) {
+        g.detalhe.comentarios = g.detalhe.comentarios.filter(function (c) { return c.id !== b.dataset.apagarCom; });
+        S.dados.comentarios[o.id] = Math.max(0, (S.dados.comentarios[o.id] || 1) - 1);
+        desenharGaveta(); desenhar();
+      }
+    };
+  });
+  const form = el.querySelector('#form-com');
+  if (form) ligarMencoes(form, g, o);
+  const nt = el.querySelector('[data-nova-tarefa]');
+  if (nt) nt.onclick = function () { abrirFormTarefa({ oportunidadeId: o.id }); };
+  const np = el.querySelector('[data-nova-proposta]');
+  if (np) np.onclick = function () { abrirFormProposta({ oportunidadeId: o.id, valor: totalOp(o), titulo: o.titulo }); };
+  el.querySelectorAll('[data-proposta]').forEach(function (li) {
+    li.onclick = function (e) { if (!e.target.closest('[data-link]')) abrirFormProposta(S.dados.propostas.find(function (p) { return p.id === li.dataset.proposta; })); };
+  });
+  const corpo = el.querySelector('.det-corpo');
+  corpo.addEventListener('click', function (e) { tratarCliqueTarefa(e); });
+}
+
+// Comentário com @menções: sugere pessoas da equipe e guarda o e-mail de quem foi escolhido.
+function ligarMencoes(form, g, o) {
+  const ta = form.texto, caixa = form.querySelector('.sugestoes');
+  const escolhidos = {};
+  let ativo = 0, lista = [];
+  function termo() {
+    const antes = ta.value.slice(0, ta.selectionStart);
+    const m = antes.match(/(^|\s)@([^\s@]{0,30})$/);
+    return m ? m[2] : null;
+  }
+  function mostrar() {
+    const t = termo();
+    if (t == null) { caixa.hidden = true; return; }
+    lista = equipeAtiva().filter(function (m) { return m.email !== S.dados.eu.email && normal(m.nome).indexOf(normal(t)) >= 0; }).slice(0, 6);
+    if (!lista.length) { caixa.hidden = true; return; }
+    ativo = Math.min(ativo, lista.length - 1);
+    caixa.innerHTML = lista.map(function (m, i) { return '<button type="button" data-i="' + i + '" class="' + (i === ativo ? 'ativo' : '') + '">' + avatar(m.email) + esc(m.nome) + '</button>'; }).join('');
+    caixa.hidden = false;
+  }
+  function escolher(i) {
+    const m = lista[i], pos = ta.selectionStart, antes = ta.value.slice(0, pos), depois = ta.value.slice(pos);
+    const novo = antes.replace(/@([^\s@]{0,30})$/, '@' + m.nome + ' ');
+    ta.value = novo + depois;
+    ta.selectionStart = ta.selectionEnd = novo.length;
+    escolhidos[m.email] = m.nome;
+    caixa.hidden = true;
+    ta.focus();
+  }
+  ta.addEventListener('input', function () { ativo = 0; mostrar(); });
+  ta.addEventListener('keydown', function (e) {
+    if (!caixa.hidden) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); ativo = (ativo + 1) % lista.length; mostrar(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); ativo = (ativo - 1 + lista.length) % lista.length; mostrar(); }
+      else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); escolher(ativo); }
+      else if (e.key === 'Escape') { e.stopPropagation(); caixa.hidden = true; }
+    } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); form.requestSubmit(); }
+  });
+  caixa.addEventListener('mousedown', function (e) { const b = e.target.closest('[data-i]'); if (b) { e.preventDefault(); escolher(Number(b.dataset.i)); } });
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const texto = ta.value.trim();
+    if (!texto) return;
+    const mencoes = Object.keys(escolhidos).filter(function (em) { return texto.indexOf('@' + escolhidos[em]) >= 0; });
+    const btn = form.querySelector('[type=submit]');
+    await ocupado(btn, async function () {
+      const c = await gravar('comentar', [o.id, texto, mencoes], mencoes.length ? 'Comentário enviado e ' + mencoes.length + ' pessoa(s) avisada(s).' : null);
+      if (!c) return;
+      g.detalhe.comentarios.push(c);
+      S.dados.comentarios[o.id] = (S.dados.comentarios[o.id] || 0) + 1;
+      desenharGaveta();
+      desenhar();
+      const corpo = g.api.el.querySelector('.det-corpo');
+      corpo.scrollTop = corpo.scrollHeight;
+    });
+  });
+}
+</script>

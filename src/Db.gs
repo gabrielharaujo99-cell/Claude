@@ -28,7 +28,57 @@ const SCHEMA = {
   },
   horas: { colunas: ['id', 'email', 'data', 'clienteId', 'oportunidadeId', 'horas', 'descricao', 'criadoEm'], num: ['horas'] },
   historico: { colunas: ['id', 'ts', 'email', 'entidade', 'entidadeId', 'acao', 'campo', 'de', 'para'] },
-  equipe: { colunas: ['email', 'nome', 'papel', 'ativo', 'criadoEm'], chave: 'email', bool: ['ativo'] },
+  equipe: { colunas: ['email', 'nome', 'papel', 'ativo', 'criadoEm', 'cargo', 'financeiro', 'telefone', 'foto', 'tema', 'cvision', 'areas'], chave: 'email', bool: ['ativo', 'financeiro', 'cvision'], json: ['areas'] },
+  // Social media: cada peça de conteúdo, da pauta à publicação.
+  posts: {
+    colunas: ['id', 'clienteId', 'titulo', 'formato', 'rede', 'status', 'data', 'hora', 'responsavel', 'legenda', 'link', 'obs',
+      'criadoPor', 'criadoEm', 'atualizadoEm', 'pilar'],
+  },
+  // Perfil de marca de cada cliente na social media (uma linha por cliente).
+  marcas: {
+    colunas: ['clienteId', 'status', 'fase', 'objetivo', 'persona', 'tomVoz', 'diretrizes', 'cultura', 'publico', 'diferenciais',
+      'palavrasUsar', 'palavrasEvitar', 'referencias', 'concorrentes', 'hashtags', 'aprovador', 'redes', 'linkDrive', 'logoUrl',
+      'corPrimaria', 'corSecundaria', 'frequencia', 'pilares', 'formatosMeta', 'inicio', 'igUltimoPost', 'igPostsMes', 'igSeguidores',
+      'igVerificadoEm', 'igErro', 'atualizadoEm', 'atualizadoPor'],
+    chave: 'clienteId', num: ['frequencia', 'igSeguidores'], json: ['pilares', 'formatosMeta'],
+  },
+  // Pedidos de próximos posts (do cliente ou ideias da equipe) até serem alocados no calendário.
+  pedidos: {
+    colunas: ['id', 'clienteId', 'titulo', 'descricao', 'origem', 'formato', 'pilar', 'prioridade', 'prazo', 'status', 'postId',
+      'criadoPor', 'criadoEm', 'atualizadoEm'],
+  },
+  // Jornada do cliente: feedbacks, ajustes no perfil de marca, overdelivering, reuniões e marcos.
+  jornada: {
+    colunas: ['id', 'clienteId', 'data', 'tipo', 'titulo', 'texto', 'campo', 'de', 'para', 'sentimento', 'refId', 'autor', 'criadoEm'],
+  },
+  // Reports mensais do Instagram (números do PDF + análise para a reunião).
+  reports: {
+    colunas: ['id', 'clienteId', 'mes', 'seguidores', 'novosSeguidores', 'alcance', 'impressoes', 'interacoes', 'engajamento',
+      'visitasPerfil', 'cliquesLink', 'postsPublicados', 'destaques', 'resultados', 'ajustes', 'proximosPassos', 'arquivoUrl', 'arquivoNome',
+      'criadoPor', 'criadoEm', 'atualizadoEm'],
+    num: ['seguidores', 'novosSeguidores', 'alcance', 'impressoes', 'interacoes', 'engajamento', 'visitasPerfil', 'cliquesLink', 'postsPublicados'],
+  },
+  // Tráfego pago: campanhas e os resultados lançados por período (semana, quinzena, mês).
+  campanhas: {
+    colunas: ['id', 'clienteId', 'nome', 'plataforma', 'objetivo', 'status', 'verba', 'inicio', 'fim', 'responsavel', 'obs',
+      'criadoPor', 'criadoEm', 'atualizadoEm'],
+    num: ['verba'],
+  },
+  resultados: {
+    colunas: ['id', 'campanhaId', 'data', 'investimento', 'impressoes', 'cliques', 'leads', 'vendas', 'receita', 'criadoPor', 'criadoEm'],
+    num: ['investimento', 'impressoes', 'cliques', 'leads', 'vendas', 'receita'],
+  },
+  // Contratos com clientes (tela Financeiro). Fee: valor mensal por "meses" (0 = sem prazo). Projeto: valor único.
+  contratos: {
+    colunas: ['id', 'clienteId', 'oportunidadeId', 'titulo', 'servico', 'tipo', 'valor', 'inicio', 'meses', 'status',
+      'encerradoEm', 'obs', 'criadoPor', 'criadoEm', 'atualizadoEm', 'fase'],
+    num: ['valor', 'meses'],
+  },
+  // Mudanças no contrato: reajuste (novo valor mensal a partir da data) ou serviço adicional (mensal ou avulso).
+  ajustes: {
+    colunas: ['id', 'contratoId', 'tipo', 'data', 'valor', 'recorrente', 'descricao', 'criadoPor', 'criadoEm'],
+    num: ['valor'], bool: ['recorrente'],
+  },
   config: { colunas: ['chave', 'valor'], chave: 'chave' },
 };
 
@@ -41,11 +91,21 @@ function esquema_(nome) {
   return s;
 }
 
+// Abas da planilha por nome, lidas uma vez por execução.
+function abas_() {
+  if (!MEMO_.__abas) {
+    MEMO_.__abas = {};
+    SpreadsheetApp.getActiveSpreadsheet().getSheets().forEach(function (sh) { MEMO_.__abas[sh.getName()] = sh; });
+  }
+  return MEMO_.__abas;
+}
+
 function aba_(nome) {
   const s = esquema_(nome), ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sh = ss.getSheetByName(nome);
+  let sh = abas_()[nome];
   if (!sh) {
     sh = ss.insertSheet(nome);
+    abas_()[nome] = sh;
     sh.getRange(1, 1, 1, s.colunas.length).setValues([s.colunas]).setFontWeight('bold');
     sh.setFrozenRows(1);
     return sh;
@@ -61,10 +121,29 @@ function cabecalho_(sh) {
   return n ? sh.getRange(1, 1, 1, n).getValues()[0].map(function (v) { return String(v).trim(); }) : [];
 }
 
+// Lê a aba inteira numa chamada só (cabeçalho + linhas). Colunas novas do esquema entram no fim do cabeçalho.
 function tabela_(nome) {
   if (!MEMO_[nome]) {
-    const sh = aba_(nome), cab = cabecalho_(sh), n = sh.getLastRow();
-    const vals = n > 1 ? sh.getRange(2, 1, n - 1, cab.length).getValues() : [];
+    const s = esquema_(nome);
+    let sh = abas_()[nome];
+    if (!sh) {
+      sh = aba_(nome);
+      MEMO_[nome] = { sh: sh, cab: s.colunas.slice(), vals: [] };
+      return MEMO_[nome];
+    }
+    const tudo = sh.getDataRange().getValues();
+    let cab = (tudo[0] || []).map(function (v) { return String(v).trim(); });
+    while (cab.length && !cab[cab.length - 1]) cab.pop();
+    const faltam = s.colunas.filter(function (c) { return cab.indexOf(c) < 0; });
+    if (faltam.length) {
+      sh.getRange(1, cab.length + 1, 1, faltam.length).setValues([faltam]).setFontWeight('bold');
+      cab = cab.concat(faltam);
+    }
+    const vals = tudo.slice(1).map(function (r) {
+      const l = r.slice(0, cab.length);
+      while (l.length < cab.length) l.push('');
+      return l;
+    });
     MEMO_[nome] = { sh: sh, cab: cab, vals: vals };
   }
   return MEMO_[nome];

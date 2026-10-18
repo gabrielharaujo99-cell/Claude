@@ -1,0 +1,12 @@
+/**
+// Opcional: perfil da agência desta instalação (vale como padrão; o Admin continua mandando).
+// const CONFIG_AGENCIA = { empresa: 'Nome da agência', dominio: 'agencia.com.br', marca: { logoUrl: 'https://...' }, segmentos: ['...'] };
+ * Modelo da equipe inicial. Copie para src/EquipeSeok.gs (fora do Git) com as pessoas reais.
+ * papel: leitor | colaborador | gestor | admin. financeiro: true libera a tela Financeiro.
+ * atividades: tarefas típicas da função, usadas só nos dados de exemplo.
+ */
+const EQUIPE_INICIAL = [
+  { nome: 'Fulana de Tal', email: 'fulana@suaagencia.com', cargo: 'Financeiro', papel: 'gestor', financeiro: true,
+    atividades: ['Emitir notas fiscais', 'Conferir reajustes'] },
+  { nome: 'Beltrano Souza', email: 'beltrano@suaagencia.com', cargo: 'Designer', papel: 'colaborador' },
+];

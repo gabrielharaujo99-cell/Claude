@@ -3,18 +3,23 @@
  * Fica numa linha da aba "config" (chave "app") como JSON. O webhook de chat fica nas
  * propriedades do script, porque a configuração vai para a tela de todo mundo.
  */
+// Padrão neutro do Flowloop, para qualquer agência. Tudo é editável no Admin.
+// O perfil de uma agência específica (nome, logo, listas) pode vir em CONFIG_AGENCIA, num arquivo fora do Git
+// privado da instalação: vale como padrão daquela instalação, e o que for salvo no Admin continua por cima.
+const PRODUTO = 'Flowloop';
 const CONFIG_PADRAO = {
-  empresa: 'Sua Agência',
-  produto: 'Flow CRM',
+  empresa: 'Sua agência',
+  produto: PRODUTO,
   marca: {
     logoUrl: '',
-    primaria: '#5F6F52',
-    destaque: '#C08B5C',
-    fundo: '#F7F4EE',
-    superficie: '#FFFFFF',
-    texto: '#2B2A26',
-    fonteTitulos: 'Cormorant Garamond',
-    fonteTexto: 'Inter',
+    logoParticulas: '', // logo embutido (data:image/...) que as partículas desenham; vazio = iniciais da agência
+    primaria: '#141A0F',
+    destaque: '#A9511F',
+    fundo: '#F7F3EC',
+    superficie: '#FCFAF6',
+    texto: '#20211C',
+    fonteTitulos: 'Archivo',
+    fonteTexto: 'Archivo',
     raio: 14,
   },
   moeda: 'BRL',
@@ -23,18 +28,27 @@ const CONFIG_PADRAO = {
   dominio: '',
   entradaAutomatica: false,
   etapas: [
-    { id: 'lead', nome: 'Lead', tipo: 'aberta', prob: 10, cor: '#A3A89B' },
-    { id: 'briefing', nome: 'Briefing', tipo: 'aberta', prob: 25, cor: '#8FA7B3' },
-    { id: 'proposta', nome: 'Proposta enviada', tipo: 'aberta', prob: 50, cor: '#B49FCC' },
-    { id: 'negociacao', nome: 'Negociação', tipo: 'aberta', prob: 75, cor: '#D9A75F' },
-    { id: 'ganho', nome: 'Fechado', tipo: 'ganho', prob: 100, cor: '#6E9F6A' },
-    { id: 'perdido', nome: 'Perdido', tipo: 'perdido', prob: 0, cor: '#C77A6E' },
+    { id: 'lead', nome: 'Lead', tipo: 'aberta', prob: 10, cor: '#A39E8F' },
+    { id: 'diagnostico', nome: 'Diagnóstico', tipo: 'aberta', prob: 25, cor: '#8C9A7E' },
+    { id: 'proposta', nome: 'Proposta enviada', tipo: 'aberta', prob: 50, cor: '#C9A27A' },
+    { id: 'negociacao', nome: 'Negociação', tipo: 'aberta', prob: 75, cor: '#D08A4E' },
+    { id: 'ganho', nome: 'Fechado', tipo: 'ganho', prob: 100, cor: '#5E7A4A' },
+    { id: 'perdido', nome: 'Perdido', tipo: 'perdido', prob: 0, cor: '#B5654A' },
   ],
-  servicos: ['Social media', 'Branding', 'Identidade visual', 'Site / Landing page', 'Campanha', 'Conteúdo', 'Tráfego pago', 'Consultoria'],
-  origens: ['Indicação', 'Instagram', 'Site', 'LinkedIn', 'Prospecção ativa', 'Evento'],
-  motivosPerda: ['Preço', 'Escolheu concorrente', 'Sem orçamento', 'Sem resposta', 'Momento errado'],
-  segmentos: ['Wellness', 'Saúde', 'Beleza', 'Moda', 'Alimentação', 'Educação', 'Varejo', 'Serviços'],
+  servicos: ['Assessoria completa', 'Social media', 'Tráfego pago', 'Branding', 'Site / Landing page', 'Produção de vídeo', 'Consultoria'],
+  origens: ['Indicação', 'Instagram', 'Site', 'Tráfego pago', 'Prospecção ativa', 'Evento', 'LinkedIn'],
+  motivosPerda: ['Preço', 'Escolheu concorrente', 'Fora do perfil', 'Sem resposta', 'Momento errado'],
+  segmentos: ['Saúde', 'Varejo', 'Serviços', 'Alimentação', 'Educação', 'Imobiliário', 'Indústria'],
 };
+
+// Padrão desta instalação: o neutro, com o perfil da agência (CONFIG_AGENCIA) por cima, se existir.
+function padraoConfig_() {
+  const c = copia_(CONFIG_PADRAO);
+  const ag = typeof CONFIG_AGENCIA !== 'undefined' && CONFIG_AGENCIA ? CONFIG_AGENCIA : {};
+  Object.keys(ag).forEach(function (k) { if (k !== 'marca' && k in c) c[k] = copia_(ag[k]); });
+  c.marca = Object.assign(c.marca, ag.marca || {});
+  return c;
+}
 
 const TIPOS_ETAPA = ['aberta', 'ganho', 'perdido'];
 
@@ -45,7 +59,7 @@ function config_() {
   const r = ler_('config').filter(function (x) { return x.chave === 'app'; })[0];
   let salvo = {};
   try { salvo = r ? JSON.parse(r.valor) : {}; } catch (e) { salvo = {}; }
-  const c = copia_(CONFIG_PADRAO);
+  const c = padraoConfig_();
   Object.keys(salvo || {}).forEach(function (k) { if (k in c && k !== 'marca') c[k] = salvo[k]; });
   c.marca = Object.assign(c.marca, salvo && salvo.marca || {});
   MEMO_.__config = c;
@@ -69,12 +83,13 @@ function slug_(s) {
 }
 
 function validarConfig_(d, atual) {
-  const p = CONFIG_PADRAO.marca, m = d.marca || {};
+  const p = padraoConfig_().marca, m = d.marca || {};
   const c = {
     empresa: texto_(d.empresa, 60) || atual.empresa,
     produto: texto_(d.produto, 40) || atual.produto,
     marca: {
-      logoUrl: url_(m.logoUrl),
+      logoUrl: url_(m.logoUrl) || (/^data:image\/(png|webp|jpeg|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(String(m.logoUrl || '')) && String(m.logoUrl).length < 300000 ? String(m.logoUrl) : ''),
+      logoParticulas: /^data:image\/(png|webp|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(String(m.logoParticulas || '')) && String(m.logoParticulas).length < 20000 ? String(m.logoParticulas) : (atual.marca.logoParticulas || ''),
       primaria: cor_(m.primaria, p.primaria),
       destaque: cor_(m.destaque, p.destaque),
       fundo: cor_(m.fundo, p.fundo),

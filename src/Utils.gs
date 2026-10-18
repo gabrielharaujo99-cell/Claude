@@ -1,8 +1,10 @@
 /**
- * Flow CRM — utilitários compartilhados pelo servidor.
+ * Flowloop — utilitários compartilhados pelo servidor.
  * Funções terminadas em _ são internas: o Apps Script não deixa a tela chamá-las.
  */
 const VERSAO = '0.1.0';
+// Carimbo da publicação: o empacotador troca 'dev' pela data e hora. A tela compara com o dela para avisar de versão nova.
+const BUILD = 'dev';
 
 function agora_() { return new Date().toISOString(); }
 
