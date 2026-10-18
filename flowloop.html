@@ -1,0 +1,1286 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Flowloop</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Flowloop: CRM para agências dentro do Google Workspace, com a sua marca. Funil, entregas com aprovação do cliente, report mensal e renovação de contratos.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='5 5 90 90'%3E%3Cg fill='none' stroke-width='16' stroke-linecap='round'%3E%3Cpath d='M55.9 16.5A34 34 0 0 1 83.5 44.1' stroke='%231E3A8A'/%3E%3Cpath d='M83.5 55.9A34 34 0 0 1 55.9 83.5' stroke='%232457F5'/%3E%3Cpath d='M44.1 83.5A34 34 0 0 1 16.5 55.9' stroke='%236B8CFF'/%3E%3Cpath d='M16.5 44.1A34 34 0 0 1 44.1 16.5' stroke='%23FFB020'/%3E%3C/g%3E%3C/svg%3E">
+<style>
+/* Layout: uma coluna de 1180px; o anel de 4 tempos é o fio da página (hero → ciclo → marca → planos → contato). */
+:root{
+  /* marca (guia v1.0) */
+  --capta:#1E3A8A; --entrega:#2457F5; --mostra:#6B8CFF; --renova:#FFB020;
+  --pri:#2457F5; --pri-forte:#1E3A8A; --pri-tx:#1E3A8A; --nevoa:#E8EEFF; --ambar-tx:#8F5300; --ambar-bg:#FFF6E3; --bolha:#E2F5E7;
+  /* neutros tema claro */
+  --bg:#F5F6FA; --surf:#FFFFFF; --surf2:#EEF0F6; --line:#E6E8F0; --tx:#14142B; --tx2:#4A4D63; --tx3:#8A8DA3;
+  --ok:#15803D; --warn:#B45309; --err:#DC2626;
+  --vidro:rgba(255,255,255,.72); --sombra:0 1px 2px rgba(20,20,43,.05),0 12px 32px -12px rgba(30,58,138,.18);
+  --ponto:rgba(36,87,245,.16);
+  --on-pri:#FFFFFF;
+  /* tipo */
+  --f-tit:'Plus Jakarta Sans',Inter,system-ui,sans-serif;
+  --f-txt:Inter,system-ui,-apple-system,'Segoe UI',sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --capta:#3D5BC0; --entrega:#4A73FF; --mostra:#8EA8FF; --renova:#FFB020;
+  --pri:#6B8CFF; --pri-forte:#8EA8FF; --pri-tx:#B5C6FF; --nevoa:#1E2550; --ambar-tx:#FFC24D; --ambar-bg:#2A2214; --bolha:#163324;
+  --bg:#0F1020; --surf:#1A1C33; --surf2:#14152A; --line:#2C2F4A; --tx:#F3F4FA; --tx2:#A9ADC4; --tx3:#7D819C;
+  --ok:#4ADE80; --warn:#FBBF24; --err:#F87171;
+  --vidro:rgba(26,28,51,.72); --sombra:0 1px 2px rgba(0,0,0,.3),0 16px 40px -16px rgba(0,0,0,.6);
+  --ponto:rgba(107,140,255,.14); --on-pri:#0F1020; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --capta:#3D5BC0; --entrega:#4A73FF; --mostra:#8EA8FF; --renova:#FFB020;
+  --pri:#6B8CFF; --pri-forte:#8EA8FF; --pri-tx:#B5C6FF; --nevoa:#1E2550; --ambar-tx:#FFC24D; --ambar-bg:#2A2214; --bolha:#163324;
+  --bg:#0F1020; --surf:#1A1C33; --surf2:#14152A; --line:#2C2F4A; --tx:#F3F4FA; --tx2:#A9ADC4; --tx3:#7D819C;
+  --ok:#4ADE80; --warn:#FBBF24; --err:#F87171;
+  --vidro:rgba(26,28,51,.72); --sombra:0 1px 2px rgba(0,0,0,.3),0 16px 40px -16px rgba(0,0,0,.6);
+  --ponto:rgba(107,140,255,.14); --on-pri:#0F1020; color-scheme:dark}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--tx);font:16px/1.65 var(--f-txt);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+h1,h2,h3,h4{font-family:var(--f-tit);letter-spacing:-.025em;line-height:1.1;margin:0;text-wrap:balance}
+p{margin:0}
+a{color:var(--pri)}
+:focus-visible{outline:2px solid var(--pri);outline-offset:3px;border-radius:6px}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+.eb{font:600 12px/1 var(--f-txt);letter-spacing:.14em;text-transform:uppercase;color:var(--pri)}
+.sec{padding-block:104px}
+.sec-head{display:grid;gap:14px;max-width:720px;margin-bottom:48px}
+.sec-head h2{font-size:clamp(32px,4.4vw,48px);font-weight:800}
+.sec-head p{font-size:18px;color:var(--tx2);max-width:60ch}
+.ponto-ambar{color:var(--renova)}
+
+/* botões */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 22px;border-radius:12px;font:600 15px/1.2 var(--f-txt);text-decoration:none;border:1px solid transparent;cursor:pointer;transition:background .2s,border-color .2s,transform .2s}
+.btn:active{transform:translateY(1px)}
+.btn-p{background:var(--pri);color:var(--on-pri)}
+.btn-p:hover{background:var(--pri-forte)}
+.btn-s{background:var(--surf);color:var(--tx);border-color:var(--line)}
+.btn-s:hover{border-color:var(--pri)}
+.btn svg{flex:none}
+
+/* header */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:var(--vidro);backdrop-filter:saturate(1.4) blur(14px);-webkit-backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid transparent;transition:border-color .2s}
+.top.rolou{border-bottom-color:var(--line)}
+.top .wrap{display:flex;align-items:center;gap:28px;min-height:72px}
+.logo{display:block;color:var(--tx);flex:none}
+.logo svg{display:block;height:30px;width:auto}
+.top nav{display:flex;gap:4px;margin-left:auto}
+.top nav a{color:var(--tx2);text-decoration:none;font-weight:500;font-size:15px;padding:8px 12px;border-radius:8px}
+.top nav a:hover{color:var(--tx);background:var(--surf2)}
+.top .btn{min-height:42px;padding:0 18px}
+.tema{width:42px;height:42px;display:grid;place-items:center;border-radius:10px;border:1px solid var(--line);background:var(--surf);color:var(--tx2);cursor:pointer;flex:none}
+.tema:hover{color:var(--tx)}
+
+/* hero */
+.hero{position:relative;padding-block:72px 96px;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--ponto) 1.2px,transparent 1.4px);background-size:22px 22px;-webkit-mask-image:radial-gradient(ellipse 70% 80% at 75% 30%,#000 20%,transparent 75%);mask-image:radial-gradient(ellipse 70% 80% at 75% 30%,#000 20%,transparent 75%);pointer-events:none}
+.hero .wrap{position:relative;display:grid;grid-template-columns:minmax(0,.82fr) minmax(0,1.18fr);gap:48px;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:10px;font-size:14px;font-weight:500;color:var(--pri-tx);background:var(--nevoa);padding:6px 14px 6px 6px;border-radius:999px}
+.pill b{background:var(--renova);color:#14142B;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600}
+.hero h1{font-size:clamp(46px,6vw,76px);font-weight:800;letter-spacing:-.04em;line-height:1;margin:26px 0 24px}
+.hero h1 em{font-style:normal;color:var(--pri)}
+.hero .lead{font-size:clamp(17px,1.6vw,19px);color:var(--tx2);max-width:34em}
+.ctas{display:flex;flex-wrap:wrap;gap:12px;margin:34px 0 16px}
+.nota{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--tx2)}
+.nota svg{color:var(--ok);flex:none}
+
+/* mock do app */
+.palco{position:relative;display:grid}
+.app{background:var(--surf);border:1px solid var(--line);border-radius:18px;box-shadow:var(--sombra);overflow:hidden}
+.app-bar{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.ag{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font:700 12px var(--f-tit);color:#fff;background:var(--ag,#C2410C);flex:none}
+.app-bar strong{font:700 14px var(--f-tit)}
+.app-bar span{font-size:13px;color:var(--tx2)}
+.app-bar .chip{margin-left:auto}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--surf2);color:var(--tx2);white-space:nowrap}
+.app-bar strong{margin-right:4px}
+.busca{display:flex;align-items:center;gap:7px;flex:1 1 120px;max-width:220px;border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:12px;color:var(--tx3);background:var(--bg)}
+.busca svg{flex:none}
+.avs{display:flex;margin-left:auto;padding-left:6px}
+.av{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font:600 9px var(--f-txt);color:#fff;background:var(--c,#4A4D63);border:2px solid var(--surf);margin-left:-6px;flex:none}
+.app-bar .avs+.chip{margin-left:0}
+.app-corpo{display:grid;grid-template-columns:48px minmax(0,1fr)}
+.trilho-nav{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 0;border-right:1px solid var(--line);color:var(--tx3)}
+.trilho-nav span{width:32px;height:32px;display:grid;place-items:center;border-radius:8px}
+.trilho-nav span.on{background:var(--nevoa);color:var(--pri)}
+.app-main{min-width:0;background:var(--surf2)}
+.app-sub{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px 14px 0}
+.app-sub b{font:700 14px var(--f-tit)}
+.filtro{font-size:12px;border:1px solid var(--line);border-radius:8px;padding:3px 8px;color:var(--tx2);background:var(--surf)}
+.app-sub .tot{margin-left:auto;font-size:12px;color:var(--tx2)}
+.app-sub .tot strong{color:var(--tx);font-variant-numeric:tabular-nums}
+.col-tot{font-size:11px;font-weight:500;color:var(--tx3);margin:-8px 2px 0;font-variant-numeric:tabular-nums}
+.card .pe{display:flex;align-items:center;gap:6px;margin-top:4px;padding-top:6px;border-top:1px solid var(--line)}
+.card .pe .v{font-size:12px;font-weight:600;color:var(--tx);font-variant-numeric:tabular-nums}
+.card .pe .av{width:20px;height:20px;font-size:8px;border:0;margin:0 0 0 auto}
+.kanban{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:14px;background:var(--surf2)}
+.col{display:flex;flex-direction:column;gap:8px;min-width:0}
+.col h4{display:flex;align-items:center;gap:8px;font:700 12px/1 var(--f-txt);letter-spacing:.06em;text-transform:uppercase;color:var(--tx2);padding:4px 2px 6px}
+.col h4 i{width:18px;height:4px;border-radius:2px;background:var(--c)}
+.col h4 small{margin-left:auto;font-weight:500;letter-spacing:0;color:var(--tx3)}
+.card{background:var(--surf);border:1px solid var(--line);border-radius:10px;padding:10px 11px;display:grid;gap:4px;min-width:0}
+.card b{font-size:13px;font-weight:600;line-height:1.3}
+.card span{font-size:12px;color:var(--tx2);line-height:1.35}
+.card .tag{justify-self:start;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--nevoa);color:var(--pri-tx);margin-top:2px}
+.card.alerta{border-color:var(--renova);box-shadow:0 0 0 3px rgba(255,176,32,.16)}
+.card.alerta .tag{background:rgba(255,176,32,.2);color:var(--ambar-tx)}
+.card .barra{height:4px;border-radius:2px;background:var(--surf2);overflow:hidden;margin-top:4px}
+.card .barra i{display:block;height:100%;width:var(--p);background:var(--ok);border-radius:2px}
+
+.balao{display:flex;align-items:flex-end;gap:10px;max-width:min(400px,100%);margin:16px 0 0 auto}
+.balao .fala{background:var(--surf);border:1px solid var(--line);border-radius:16px 16px 4px 16px;padding:12px 14px;box-shadow:var(--sombra);font-size:14px;line-height:1.45}
+.balao .fala b{display:block;font:700 13px var(--f-tit);color:var(--pri-tx);margin-bottom:2px}
+.balao .fala a{font-weight:600;text-decoration:none}
+.balao .lupe{width:84px;height:84px;flex:none}
+
+/* Lupe (mascote) */
+.lupe{display:block;overflow:visible}
+.lupe .olhos{transition:transform .5s cubic-bezier(.3,.7,.3,1);transform:translate(var(--lx,0px),var(--ly,0px))}
+.lupe .olho{transform-box:fill-box;transform-origin:center;animation:piscar 5.2s infinite}
+.lupe .olho+.olho{animation-delay:.04s}
+.lupe .ex{opacity:0;transition:opacity .22s}
+.lupe:not([data-humor]) .ex-base,.lupe[data-humor="atenta"] .ex-atenta,.lupe[data-humor="focada"] .ex-focada,.lupe[data-humor="orgulhosa"] .ex-orgulhosa,.lupe[data-humor="feliz"] .ex-feliz,.lupe[data-humor="pensativa"] .ex-pensativa{opacity:1}
+.lupe .brilhos{opacity:0;transition:opacity .3s}
+.lupe[data-humor="orgulhosa"] .brilhos,.lupe[data-humor="feliz"] .brilhos{opacity:1}
+.lupe .brilho{transform-box:fill-box;transform-origin:center;animation:cintila 1.6s ease-in-out infinite}
+.lupe .brilho+.brilho{animation-delay:.55s}
+.lupe .bochecha{transform-box:fill-box;transform-origin:center;transition:transform .3s}
+.lupe[data-humor="feliz"] .bochecha,.lupe[data-humor="orgulhosa"] .bochecha{transform:scale(1.35)}
+.lupe .rosto.pulo{animation:pulo .5s cubic-bezier(.3,.7,.3,1)}
+@keyframes cintila{0%,100%{transform:scale(.55)}50%{transform:scale(1.1)}}
+@keyframes pulo{0%,100%{transform:translateY(0)}35%{transform:translateY(-2.5px)}}
+.lupe .anel{transform-origin:50px 50px;transition:transform 1.1s cubic-bezier(.3,.7,.2,1)}
+.lupe .arco{transition:opacity .35s,stroke-width .35s}
+.lupe .braco{transform-box:fill-box;transform-origin:0% 100%;opacity:0;transition:opacity .3s}
+.lupe[data-acena] .braco{opacity:1;animation:acenar 1.2s ease-in-out infinite}
+@keyframes piscar{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+@keyframes acenar{0%,100%{transform:rotate(0)}50%{transform:rotate(-18deg)}}
+@keyframes boia{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.balao .lupe{animation:boia 4s ease-in-out infinite}
+
+/* ciclo */
+.ciclo{background:var(--surf);border-block:1px solid var(--line)}
+.ciclo-grid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:64px;align-items:center}
+.roda{position:relative;max-width:480px;width:100%;margin:0 auto;aspect-ratio:1}
+.roda .lupe{position:absolute;inset:5%;width:90%;height:90%}
+.roda .trilho{position:absolute;inset:0;width:100%;height:100%}
+.tempo-btn{position:absolute;display:flex;align-items:center;gap:8px;font:600 15px var(--f-txt);color:var(--tx2);background:var(--surf);border:1px solid var(--line);border-radius:999px;padding:8px 14px 8px 10px;cursor:pointer;transition:color .2s,border-color .2s,background .2s,box-shadow .2s;white-space:nowrap}
+.tempo-btn i{width:10px;height:10px;border-radius:50%;background:var(--c)}
+.tempo-btn:hover{color:var(--tx);border-color:var(--c)}
+.tempo-btn[aria-selected="true"]{color:var(--tx);border-color:var(--c);box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 18%,transparent)}
+.t-capta{top:4%;right:0}.t-entrega{bottom:4%;right:0}.t-mostra{bottom:4%;left:0}.t-renova{top:4%;left:0}
+.painel{display:grid;gap:22px;min-width:0}
+.painel .eb{color:var(--c);display:flex;align-items:center;gap:10px}
+.painel[data-t="renova"] .eb{color:var(--ambar-tx)}
+.painel .eb i{width:28px;height:5px;border-radius:3px;background:var(--c)}
+.painel h3{font-size:clamp(28px,3.4vw,38px);font-weight:800}
+.painel > p{font-size:18px;color:var(--tx2);max-width:52ch}
+.lista{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.lista li{display:grid;grid-template-columns:24px minmax(0,1fr);gap:12px;align-items:start;font-size:16px}
+.lista li svg{margin-top:2px;color:var(--c)}
+.painel[data-t="renova"] .lista li svg{color:var(--ambar-tx)}
+.amostra{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;background:var(--surf2);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
+.amostra .ic{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;background:var(--surf);border:1px solid var(--line);color:var(--c);flex:none}
+.painel[data-t="renova"] .amostra .ic{color:var(--ambar-tx)}
+.amostra div{display:grid;gap:2px;min-width:0;flex:1 1 200px}
+.amostra b{font-size:15px}
+.amostra span{font-size:14px;color:var(--tx2)}
+.amostra .chip{background:var(--surf)}
+.painel .anima{animation:entra .45s cubic-bezier(.3,.7,.3,1)}
+@keyframes entra{from{opacity:.001;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* google */
+.recursos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+.rec{background:var(--surf);padding:30px 28px;display:grid;gap:10px;align-content:start}
+.rec{position:relative}
+.rec-ic{width:56px;height:56px;display:grid;place-items:center;border-radius:14px;background:var(--nevoa);margin-bottom:8px;transition:transform .25s}
+.rec:hover .rec-ic{transform:translateY(-2px)}
+.rec-dados .lupe{position:absolute;top:18px;right:18px;width:64px;height:64px;transform:scaleX(-1);--lx:2.2px;--ly:1.6px}
+.lupe[data-aponta] .braco{opacity:1}
+/* fluxo: equipe → Flowloop ↔ Planilha */
+.fluxo{display:grid;grid-template-columns:minmax(0,1fr) minmax(48px,.45fr) minmax(0,1fr) minmax(48px,.45fr) minmax(0,1fr);background:var(--surf);border:1px solid var(--line);border-radius:18px;padding:30px 26px 28px;margin-bottom:20px}
+.no{display:grid;justify-items:center;align-content:start;text-align:center;gap:3px;min-width:0}
+.no-vis{width:100%;max-width:230px;height:124px;border-radius:12px;background:var(--surf2);border:1px solid var(--line);display:grid;place-items:center;align-content:center;gap:12px;padding:14px;margin-bottom:12px}
+.no b{font:700 16px var(--f-tit)}
+.no > span{font-size:13px;color:var(--tx2)}
+.avs.grandes{margin:0;padding:0}
+.avs.grandes .av{width:38px;height:38px;font-size:12px;border-width:3px;border-color:var(--surf2);margin-left:-9px}
+.avs.grandes .av:first-child{margin-left:0}
+.conta{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--tx2);background:var(--surf);border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+.conta svg{color:var(--ok)}
+.m-app{width:100%;height:94px;background:var(--surf);border:1px solid var(--line);border-radius:8px;display:grid;grid-template-rows:auto 1fr;overflow:hidden}
+.m-top{display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--line)}
+.m-top .ag{width:16px;height:16px;font-size:7px;border-radius:4px}
+.m-top i{height:5px;width:40%;border-radius:3px;background:var(--surf2)}
+.m-cols{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:7px}
+.m-cols i{border-top:3px solid var(--c);border-radius:2px;background:linear-gradient(var(--surf2),var(--surf2)) 0 6px/100% 15px no-repeat,linear-gradient(var(--surf2),var(--surf2)) 0 26px/100% 15px no-repeat}
+.m-cols i.um{background:linear-gradient(var(--ambar-bg),var(--ambar-bg)) 0 6px/100% 15px no-repeat}
+.m-plan{width:100%;height:94px}
+.fio{position:relative;align-self:start;margin:62px 8px 0;height:2px;background:var(--line);border-radius:1px}
+.fio small{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:500;color:var(--tx3);white-space:nowrap}
+.fio i{position:absolute;top:-3px;left:0;width:8px;height:8px;border-radius:50%;background:var(--pri);animation:corre 2.6s linear infinite}
+.fio.duplo i+i{background:var(--renova);animation-name:volta;animation-delay:1.3s}
+@keyframes corre{0%{left:0;opacity:0}15%,85%{opacity:1}100%{left:calc(100% - 8px);opacity:0}}
+@keyframes volta{0%{left:calc(100% - 8px);opacity:0}15%,85%{opacity:1}100%{left:0;opacity:0}}
+@keyframes corre-v{0%{top:0;opacity:0}15%,85%{opacity:1}100%{top:calc(100% - 8px);opacity:0}}
+@keyframes volta-v{0%{top:calc(100% - 8px);opacity:0}15%,85%{opacity:1}100%{top:0;opacity:0}}
+@media (max-width:860px){
+  .fluxo{grid-template-columns:minmax(0,1fr);padding:24px 18px}
+  .fio{margin:6px auto 18px;width:2px;height:48px}
+  .fio small{bottom:auto;top:50%;left:14px;transform:translateY(-50%)}
+  .fio i{top:0;left:-3px;animation-name:corre-v}
+  .fio.duplo i+i{animation-name:volta-v}
+}
+.rec h3{font-size:19px;font-weight:700}
+.rec p{color:var(--tx2);font-size:15px}
+
+/* marca da agência */
+.marca-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:56px;align-items:center}
+.marca-grid .sec-head{margin-bottom:28px}
+.temas{display:flex;flex-wrap:wrap;gap:10px}
+.tema-op{display:flex;align-items:center;gap:10px;padding:10px 16px 10px 10px;border-radius:12px;border:1px solid var(--line);background:var(--surf);color:var(--tx);font:600 15px var(--f-txt);cursor:pointer}
+.tema-op .ag{width:26px;height:26px;font-size:11px}
+.tema-op[aria-pressed="true"]{border-color:var(--pri);box-shadow:0 0 0 3px color-mix(in srgb,var(--pri) 18%,transparent)}
+.marca-nota{margin-top:20px;font-size:14px;color:var(--tx2);display:flex;gap:10px;align-items:flex-start}
+.marca-nota svg{flex:none;color:var(--pri);margin-top:2px}
+/* teste com a sua marca */
+.testar{margin-top:26px;padding-top:22px;border-top:1px solid var(--line);display:grid;gap:16px}
+.testar-tit{font:700 16px var(--f-tit);color:var(--tx)}
+.cores{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.cor{width:30px;height:30px;border-radius:50%;border:2px solid var(--surf);background:var(--c);box-shadow:0 0 0 1px var(--line);cursor:pointer;padding:0;transition:box-shadow .2s}
+.cor[aria-checked="true"]{box-shadow:0 0 0 2px var(--surf),0 0 0 4px var(--tx)}
+.cor-outra{position:relative;display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--tx2);cursor:pointer;white-space:nowrap;margin-left:4px}
+.campo .cor-outra input{width:30px;height:30px;flex:none;border:1px solid var(--line);border-radius:50%;padding:0;background:none;cursor:pointer}
+.cor-outra input::-webkit-color-swatch-wrapper{padding:2px}
+.cor-outra input::-webkit-color-swatch{border:0;border-radius:50%}
+.cor-outra input::-moz-color-swatch{border:0;border-radius:50%}
+/* mini tela com a marca da agência */
+.mini{--a:#C2410C;--a-on:#FFFFFF;--a2:color-mix(in srgb,var(--a) 13%,var(--surf));--a-tx:color-mix(in srgb,var(--a) 72%,var(--tx));background:var(--surf);border:1px solid var(--line);border-radius:18px;box-shadow:var(--sombra);overflow:hidden}
+.mini-top{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.mini-top .ag{background:var(--a);color:var(--a-on);transition:background .4s,color .4s}
+.mini-top strong{font:700 15px var(--f-tit);min-width:0;overflow-wrap:anywhere}
+.mini-corpo{display:grid;grid-template-columns:52px minmax(0,1fr)}
+.mini-rail{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 0;border-right:1px solid var(--line);color:var(--tx3)}
+.mini-rail span{width:34px;height:34px;display:grid;place-items:center;border-radius:9px}
+.mini-rail span.on{background:var(--a2);color:var(--a-tx);transition:background .4s,color .4s}
+.mini-body{padding:20px 18px;display:grid;gap:14px;min-width:0;background:var(--surf2)}
+.mini-body h4{font-size:19px;font-weight:700}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.kpi{border:1px solid var(--line);border-radius:12px;padding:11px 13px;display:grid;gap:2px;background:var(--surf)}
+.kpi span{font-size:12px;color:var(--tx2)}
+.kpi b{font:700 19px var(--f-tit);font-variant-numeric:tabular-nums}
+.kpi.dest{background:var(--a2);border-color:transparent;transition:background .4s}
+.kpi.dest b,.kpi.dest span{color:var(--a-tx);transition:color .4s}
+.graf{background:var(--surf);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.graf-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px}
+.graf-top b{font-size:13px;font-weight:600}
+.graf-top span{font-size:12px;color:var(--tx3)}
+.barras{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;border-bottom:1px solid var(--line)}
+.barras > div{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:96px}
+.barras span{font-size:11px;font-weight:600;color:var(--tx2);font-variant-numeric:tabular-nums;margin-bottom:3px}
+.barras i{display:block;width:100%;max-width:30px;height:var(--h);border-radius:6px 6px 2px 2px;background:var(--a2);transition:background .4s}
+.barras .ult i{background:var(--a)}
+.barras .ult span{color:var(--a-tx)}
+.meses{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-top:5px;font-size:11px;color:var(--tx3);text-align:center}
+.mini-lupe{display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--surf);border:1px solid var(--line);border-radius:12px;flex-wrap:wrap}
+.mini-lupe .lupe{width:46px;height:46px;flex:none;--capta:color-mix(in srgb,var(--a) 62%,#000);--entrega:var(--a);--mostra:color-mix(in srgb,var(--a) 55%,#fff);--renova:color-mix(in srgb,var(--a) 32%,#fff)}
+.mini-lupe div{flex:1 1 170px;min-width:0;display:grid}
+.mini-lupe b{font-size:13px;color:var(--a-tx);transition:color .4s}
+.mini-lupe span{font-size:13px;color:var(--tx2);line-height:1.4}
+.mini-lupe button{background:var(--a);color:var(--a-on);border:0;border-radius:9px;padding:9px 14px;font:600 13px var(--f-txt);transition:background .4s,color .4s;cursor:default}
+
+/* passos */
+.trilha{position:relative}
+.trilha-linha,.trilha-fill{position:absolute;display:block;border-radius:2px;pointer-events:none}
+.trilha-linha{background:var(--line)}
+.trilha-fill{background:linear-gradient(90deg,var(--capta),var(--entrega),var(--mostra),var(--renova))}
+.trilha.vertical .trilha-fill{background:linear-gradient(180deg,var(--capta),var(--entrega),var(--mostra),var(--renova))}
+.trilha-lupe{position:absolute;left:0;top:0;width:64px;height:64px;z-index:2;transform:translate(var(--x,-200px),var(--y,0px)) translate(-50%,-50%);transition:transform .15s linear;pointer-events:none}
+.trilha-lupe .lupe{width:100%;height:100%}
+.passos{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));list-style:none;padding:0;margin:0}
+.passos li{display:grid;justify-items:center;text-align:center;align-content:start;gap:10px;padding:0 14px;min-width:0}
+.marco{position:relative;z-index:1;width:36px;height:36px;margin:14px 0 18px;border-radius:50%;display:grid;place-items:center;font:800 15px var(--f-tit);background:var(--surf);color:var(--tx2);border:2px solid var(--line);transition:background .3s,color .3s,border-color .3s}
+.marco.on{background:var(--pri);border-color:var(--pri);color:var(--on-pri)}
+.passos li:last-child .marco.on{background:var(--renova);border-color:var(--renova);color:#14142B}
+.passo-ilu{width:100%;max-width:240px;aspect-ratio:200/110;border-radius:14px;background:var(--surf);border:1px solid var(--line);overflow:hidden;margin-bottom:6px}
+.passo-ilu svg{display:block;width:100%;height:100%}
+.passos h3{font-size:19px;font-weight:700}
+.passos p{color:var(--tx2);font-size:15px;max-width:30ch}
+@media (max-width:760px){
+  .passos{grid-template-columns:minmax(0,1fr);gap:36px}
+  .passos li{grid-template-columns:44px minmax(0,1fr);justify-items:start;text-align:left;column-gap:16px;padding:0}
+  .passos li > *{grid-column:2}
+  .passos li > .marco{grid-column:1;grid-row:1 / span 3;margin:0}
+  .trilha-lupe{width:52px;height:52px}
+}
+
+/* planos */
+.planos-sec{background:var(--surf);border-block:1px solid var(--line)}
+.planos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;align-items:stretch}
+.plano{display:flex;flex-direction:column;gap:18px;border:1px solid var(--line);border-radius:18px;padding:30px 26px;background:var(--bg)}
+.plano.dest{background:var(--surf);border-color:var(--pri);box-shadow:var(--sombra);position:relative}
+.plano .selo{position:absolute;top:-13px;left:24px;background:var(--renova);color:#14142B;font:600 12px var(--f-txt);padding:4px 12px;border-radius:999px}
+.plano h3{font-size:24px;font-weight:800}
+.plano .pra{font-size:15px;color:var(--tx2);margin-top:6px}
+.plano .preco{font:700 18px var(--f-tit);color:var(--pri-tx);padding-block:14px;border-block:1px solid var(--line)}
+.plano .preco small{display:block;font:400 13px var(--f-txt);color:var(--tx2);margin-top:2px}
+.plano .lista li{font-size:15px}
+.plano .lista li svg{color:var(--pri)}
+.plano .btn{margin-top:auto}
+.plano-ilu{height:104px;border-radius:12px;background:var(--surf2);overflow:hidden}
+.plano.dest .plano-ilu{background:var(--nevoa)}
+.plano-ilu svg{display:block;width:100%;height:100%}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* comparativo */
+.compara{margin-top:56px}
+.compara-tit{font-size:22px;font-weight:800;margin-bottom:16px}
+.compara-tab{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--bg)}
+.compara table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:15px}
+.compara col,.compara th,.compara td{min-width:0}
+.compara thead th{font:700 15px var(--f-tit);text-align:center;padding:16px 10px;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.compara thead th:first-child{text-align:left;width:46%;color:var(--tx2);font:600 13px var(--f-txt)}
+.compara tbody th{text-align:left;font-weight:500;padding:12px 16px;overflow-wrap:anywhere}
+.compara td{text-align:center;padding:12px 8px;font-size:14px;color:var(--tx2)}
+.compara tbody tr+tr{border-top:1px solid var(--line)}
+.compara .grupo th{font:600 12px var(--f-txt);letter-spacing:.1em;text-transform:uppercase;color:var(--pri);background:var(--surf);padding:16px 16px 8px}
+.compara .dest{background:color-mix(in srgb,var(--nevoa) 60%,transparent)}
+.compara thead .dest{color:var(--pri-tx)}
+.compara td.s,.compara td.n{font-size:0}
+.compara td.s::before{content:"";display:inline-block;width:20px;height:20px;border-radius:50%;background:var(--pri) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6.5 12.5l3.6 3.6 7.4-7.6' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/16px no-repeat}
+.compara td.op{font-size:13px;font-weight:600;color:var(--ambar-tx)}
+.tag-op{font-size:12px;font-weight:600;color:var(--ambar-tx);background:var(--ambar-bg);border-radius:999px;padding:3px 10px}
+.compara td.n::before{content:"";display:inline-block;width:12px;height:2px;border-radius:1px;background:var(--tx3);vertical-align:middle}
+/* sustentação */
+.sust{margin-top:24px;display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:28px 48px;background:var(--bg);border:1px solid var(--line);border-radius:18px;padding:32px}
+.sust-cab{display:grid;gap:10px;align-content:start;justify-items:start}
+.sust-selo{font-size:12px;font-weight:600;color:var(--ambar-tx);background:var(--ambar-bg);border-radius:999px;padding:4px 12px}
+.sust-cab h3{font-size:28px;font-weight:800}
+.sust-cab p{color:var(--tx2);max-width:42ch}
+.sust-itens{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.sust-itens li{display:grid;gap:3px;align-content:start;background:var(--surf);border:1px solid var(--line);border-radius:12px;padding:14px 16px 14px 44px;position:relative}
+.sust-itens li::before{content:"";position:absolute;left:14px;top:15px;width:20px;height:20px;border-radius:50%;background:var(--renova) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6.5 12.5l3.6 3.6 7.4-7.6' fill='none' stroke='%2314142B' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/16px no-repeat}
+.sust-itens b{font-size:15px}
+.sust-itens span{font-size:14px;color:var(--tx2)}
+@media (max-width:1020px){.sust{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:640px){
+  .sust{padding:22px 18px}
+  .sust-itens{grid-template-columns:minmax(0,1fr)}
+  .compara thead th:first-child{width:40%}
+  .compara thead th{font-size:13px;padding:12px 4px}
+  .compara tbody th{padding:10px 10px;font-size:14px}
+  .compara td{padding:10px 4px}
+}
+
+/* faq */
+.faq-grid{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:56px;align-items:start}
+.faq-grid .sec-head{position:sticky;top:110px}
+.faq-lupe-box{display:flex;align-items:center;gap:16px;margin-top:20px}
+.faq-lupe{width:120px;height:120px;flex:none}
+.faq-fala{position:relative;background:var(--surf);border:1px solid var(--line);border-radius:14px;padding:10px 14px;font-size:15px;font-weight:500;color:var(--tx);box-shadow:var(--sombra)}
+.faq-fala::before{content:"";position:absolute;left:-7px;top:50%;width:12px;height:12px;background:var(--surf);border-left:1px solid var(--line);border-bottom:1px solid var(--line);transform:translateY(-50%) rotate(45deg)}
+.faq-fala.troca{animation:entra .35s cubic-bezier(.3,.7,.3,1)}
+.faq-lista{display:grid;gap:12px}
+details{background:var(--surf);border:1px solid var(--line);border-radius:16px;transition:border-color .25s,box-shadow .25s}
+details:hover{border-color:color-mix(in srgb,var(--pri) 35%,var(--line))}
+details[open]{border-color:var(--pri);box-shadow:0 0 0 3px color-mix(in srgb,var(--pri) 12%,transparent)}
+summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:14px;padding:16px 18px;font:600 17px/1.35 var(--f-tit);letter-spacing:-.01em;border-radius:16px}
+summary::-webkit-details-marker{display:none}
+.faq-ic{flex:none;width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:var(--nevoa);color:var(--pri);transition:background .25s,color .25s}
+details[open] .faq-ic{background:var(--pri);color:var(--on-pri)}
+.faq-q{flex:1;min-width:0}
+summary .mais{flex:none;width:28px;height:28px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;color:var(--pri);transition:transform .25s}
+details[open] summary .mais{transform:rotate(45deg)}
+details p{padding:0 22px 20px 72px;color:var(--tx2);max-width:68ch}
+details[open] p{animation:abre .35s cubic-bezier(.3,.7,.3,1)}
+@keyframes abre{from{opacity:.001;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@media (max-width:640px){details p{padding:0 18px 18px}.faq-lupe{width:84px;height:84px}}
+
+/* contato */
+.contato .wrap{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:56px;align-items:start}
+.contato-info{display:grid;gap:22px}
+.contato-info h2{font-size:clamp(32px,4.4vw,48px);font-weight:800}
+.contato-info > p{font-size:18px;color:var(--tx2)}
+.contato-info .lista li svg{color:var(--pri)}
+.form{background:var(--surf);border:1px solid var(--line);border-radius:20px;padding:30px;box-shadow:var(--sombra);display:grid;gap:18px}
+.linha2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.campo{display:grid;gap:6px;min-width:0}
+.campo label{font-size:14px;font-weight:600}
+.campo label small{font-weight:400;color:var(--tx2)}
+.campo input,.campo select,.campo textarea{font:inherit;font-size:16px;color:var(--tx);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px;width:100%;min-width:0}
+.campo textarea{min-height:96px;resize:vertical}
+.campo input:focus,.campo select:focus,.campo textarea:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px color-mix(in srgb,var(--pri) 20%,transparent)}
+.campo .erro{font-size:13px;color:var(--err)}
+.campo[data-invalido] input{border-color:var(--err)}
+.form .btn{width:100%}
+.form-nota{font-size:13px;color:var(--tx2);text-align:center}
+.pronto{display:grid;gap:16px;justify-items:center;text-align:center;padding:10px 0}
+
+.pronto h3{font-size:24px;font-weight:800}
+.pronto p{color:var(--tx2);max-width:44ch}
+.pronto pre{width:100%;text-align:left;white-space:pre-wrap;word-break:break-word;font:14px/1.55 var(--f-txt);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:0;color:var(--tx)}
+.pronto .acoes{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;width:100%}
+.pronto .acoes .btn{flex:1 1 200px}
+.voltar{background:none;border:0;color:var(--pri);font:600 14px var(--f-txt);cursor:pointer;padding:6px}
+.whats-num{font-size:12px;color:var(--tx2)}
+.whats-num b{color:var(--tx2);font-weight:500;user-select:all;white-space:nowrap}
+/* contato: anel de fundo, Lupe no formulário, prévia do WhatsApp */
+.contato{position:relative;overflow:hidden}
+.contato .wrap{position:relative}
+.contato-anel{position:absolute;width:760px;height:760px;right:-220px;top:50%;transform:translateY(-50%);pointer-events:none;opacity:.9}
+.form{position:relative;padding-top:38px;box-shadow:0 1px 2px rgba(20,20,43,.05),0 30px 60px -24px rgba(30,58,138,.28)}
+.form::before{content:"";position:absolute;inset:0 0 auto;height:4px;border-radius:20px 20px 0 0;background:linear-gradient(90deg,var(--capta) 0 25%,var(--entrega) 25% 50%,var(--mostra) 50% 75%,var(--renova) 75%)}
+.form-lupe .lupe,.form .lupe{position:absolute;top:-46px;right:26px;width:84px;height:84px;z-index:2}
+.campo input,.campo select,.campo textarea{transition:border-color .2s,box-shadow .2s,background .2s}
+.campo input:focus,.campo select:focus,.campo textarea:focus{background:var(--surf)}
+.chat{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--surf);box-shadow:var(--sombra);max-width:440px}
+.chat-top{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.chat-av{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--nevoa);flex:none}
+.chat-top > div{display:grid;min-width:0}
+.chat-top b{font-size:14px}
+.chat-tag{margin-left:auto;font-size:11px;font-weight:600;color:var(--tx2);background:var(--surf2);border-radius:999px;padding:3px 9px}
+.chat-corpo{padding:18px 14px;background:var(--surf2);background-image:radial-gradient(color-mix(in srgb,var(--tx3) 18%,transparent) 1px,transparent 1.2px);background-size:16px 16px;display:flex;justify-content:flex-end}
+.bolha{position:relative;max-width:92%;background:var(--bolha);border-radius:12px 12px 4px 12px;padding:10px 12px 6px;box-shadow:0 1px 1px rgba(20,20,43,.08)}
+.bolha p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.5;color:var(--tx)}
+.bolha p i{font-style:normal;color:var(--tx3)}
+.bolha .hora{display:flex;justify-content:flex-end;align-items:center;gap:4px;font-size:11px;color:var(--tx3);margin-top:2px}
+.bolha.pisca{animation:entra .3s cubic-bezier(.3,.7,.3,1)}
+@media (max-width:1020px){.contato-anel{width:560px;height:560px;right:-200px;top:auto;bottom:-120px;transform:none}.chat{max-width:none}}
+@media (max-width:640px){.form-lupe .lupe,.form .lupe{width:68px;height:68px;top:-38px;right:16px}}
+
+/* rodapé */
+footer{border-top:1px solid var(--line);padding-block:40px}
+footer .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:20px 32px}
+footer .logo svg{height:26px}
+footer nav{display:flex;flex-wrap:wrap;gap:6px 20px}
+footer nav a{color:var(--tx2);text-decoration:none;font-size:14px}
+footer nav a:hover{color:var(--tx)}
+footer small{margin-left:auto;color:var(--tx2);font-size:13px}
+
+/* responsivo */
+@media (max-width:1020px){
+  .hero .wrap,.ciclo-grid,.marca-grid,.faq-grid,.contato .wrap{grid-template-columns:minmax(0,1fr);gap:48px}
+  .faq-grid .sec-head{position:static}
+  .recursos,.planos{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .planos .plano:last-child{grid-column:1/-1}
+  .top nav{display:none}
+  .top .tema{margin-left:auto}
+  .roda{max-width:400px}
+}
+@media (max-width:640px){
+  .mini-corpo{grid-template-columns:minmax(0,1fr)}
+  .mini-rail{display:none}
+  .mini-top .avs{display:none}
+  .sec{padding-block:72px}
+  .hero{padding-block:40px 64px}
+  .kanban{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .app-corpo{grid-template-columns:minmax(0,1fr)}
+  .trilho-nav,.busca{display:none}
+  .app-sub .tot{margin-left:0;width:100%}
+  .recursos,.planos,.passos,.linha2{grid-template-columns:minmax(0,1fr)}
+  .planos .plano:last-child{grid-column:auto}
+  .kpis{grid-template-columns:minmax(0,1fr)}
+
+
+  .top .btn{display:none}
+  .form{padding:22px}
+  .tempo-btn{font-size:14px;padding:7px 12px 7px 9px}
+  footer small{margin-left:0;width:100%}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}
+</style>
+
+<!-- desenhos reutilizados -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-seta" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-whats" viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0-7.8 13.5L3 21l4.6-1.2A9 9 0 1 0 12 3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 8.5c0 3.5 3 6.5 6.5 6.5l1-1.6-2-1-1 .9a4.5 4.5 0 0 1-2.3-2.3l.9-1-1-2z" fill="currentColor"/></symbol>
+  </defs>
+</svg>
+
+<header class="top" id="topo">
+  <div class="wrap">
+    <a class="logo" href="#inicio" aria-label="Flowloop, início">
+      <svg viewBox="6 6 492 112" role="img" aria-label="Flowloop"><g fill="none" stroke-width="13" stroke-linecap="round"><path d="M55.9 16.5A34 34 0 0 1 83.5 44.1" stroke="var(--capta)"/><path d="M83.5 55.9A34 34 0 0 1 55.9 83.5" stroke="var(--entrega)"/><path d="M44.1 83.5A34 34 0 0 1 16.5 55.9" stroke="var(--mostra)"/><path d="M16.5 44.1A34 34 0 0 1 44.1 16.5" stroke="var(--renova)"/></g><g transform="translate(126 2)"><g fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"><path d="M12 80V34a18 18 0 0 1 18-18h4M0 44H30"/><path d="M49 16V80"/><circle cx="88" cy="60" r="20"/><path d="M122 40L134 80L146 48L158 80L170 40"/><path d="M189 16V80"/><circle cx="228" cy="60" r="20"/><path d="M294 42.7A20 20 0 1 1 274 42.7" stroke="var(--entrega)"/><path d="M320 40V104"/><circle cx="340" cy="60" r="20"/></g><circle cx="284" cy="40" r="3.5" fill="var(--renova)"/></g></svg>
+    </a>
+    <nav aria-label="Seções">
+      <a href="#ciclo">Como funciona</a>
+      <a href="#marca">Com a sua marca</a>
+      <a href="#planos">Planos</a>
+      <a href="#perguntas">Perguntas</a>
+    </nav>
+    <button class="tema" id="tema" type="button" aria-label="Alternar tema claro ou escuro">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>
+    </button>
+    <a class="btn btn-p" href="#contato">Agendar demonstração</a>
+  </div>
+</header>
+
+<main id="inicio">
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <span class="pill"><b>Novo</b> Para agências de 5 a 30 pessoas</span>
+        <h1>Sua agência no <em>loop</em><span class="ponto-ambar">.</span></h1>
+        <p class="lead">Funil de vendas, entregas com aprovação do cliente, report mensal e renovação de contratos num só lugar. Roda dentro do Google da sua agência e aparece com a sua marca.</p>
+        <div class="ctas">
+          <a class="btn btn-p" href="#contato">Agendar demonstração <svg width="18" height="18"><use href="#i-seta"/></svg></a>
+          <a class="btn btn-s" href="#ciclo">Ver como funciona</a>
+        </div>
+        <p class="nota"><svg width="18" height="18"><use href="#i-check"/></svg> Sem instalar nada. Seus dados ficam no seu Google Drive.</p>
+      </div>
+
+      <div class="palco">
+        <div class="app" aria-label="Exemplo da tela do Flowloop com o funil de uma agência">
+          <div class="app-bar">
+            <span class="ag" style="--ag:#C2410C">LV</span>
+            <strong>Lume Vermelho</strong>
+            <div class="busca"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/></svg>Buscar cliente</div>
+            <div class="avs" aria-label="Equipe online"><span class="av" style="--c:#2457F5">MS</span><span class="av" style="--c:#0F766E">RT</span><span class="av" style="--c:#8F5300">DF</span></div>
+            <span class="chip">Exemplo</span>
+          </div>
+          <div class="app-corpo">
+            <div class="trilho-nav" aria-hidden="true">
+              <span><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg></span>
+              <span class="on"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="4" width="4.5" height="16" rx="1"/><rect x="10" y="4" width="4.5" height="10" rx="1"/><rect x="16" y="4" width="4" height="13" rx="1"/></svg></span>
+              <span><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span>
+              <span><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 19h16M7 16v-5M12 16V7M17 16v-8"/></svg></span>
+              <span><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></svg></span>
+            </div>
+            <div class="app-main">
+              <div class="app-sub">
+                <b>Funil de outubro</b>
+                <span class="filtro">Todos os serviços ▾</span>
+                <span class="tot">Em aberto <strong>R$ 48.300</strong></span>
+              </div>
+              <div class="kanban">
+                <div class="col" style="--c:var(--capta)">
+                  <h4><i></i>Capta <small>3</small></h4>
+                  <p class="col-tot">R$ 21.400</p>
+                  <div class="card"><b>Padaria Trigo Bom</b><span>Social + tráfego</span><span class="tag">Proposta enviada</span><div class="pe"><span class="v">R$ 6.800</span><span class="av" style="--c:#2457F5">MS</span></div></div>
+                  <div class="card"><b>Ótica Visão Clara</b><span>Ligar amanhã, 10h</span><div class="pe"><span class="v">R$ 9.200</span><span class="av" style="--c:#0F766E">RT</span></div></div>
+                </div>
+                <div class="col" style="--c:var(--entrega)">
+                  <h4><i></i>Entrega <small>2</small></h4>
+                  <p class="col-tot">R$ 14.500</p>
+                  <div class="card"><b>Clínica Sorriso Leve</b><span>9 de 12 posts aprovados</span><div class="barra" style="--p:75%"><i></i></div><div class="pe"><span class="v">R$ 8.500</span><span class="av" style="--c:#8F5300">DF</span></div></div>
+                  <div class="card"><b>Studio Bambu</b><span>Campanha no ar</span><div class="pe"><span class="v">R$ 6.000</span><span class="av" style="--c:#2457F5">MS</span></div></div>
+                </div>
+                <div class="col" style="--c:var(--mostra)">
+                  <h4><i></i>Mostra <small>1</small></h4>
+                  <p class="col-tot">R$ 5.200</p>
+                  <div class="card"><b>Pet Amigo</b><span>Report de setembro, 14 slides</span><span class="tag">Pronto</span><div class="pe"><span class="v">R$ 5.200</span><span class="av" style="--c:#0F766E">RT</span></div></div>
+                </div>
+                <div class="col" style="--c:var(--renova)">
+                  <h4><i></i>Renova <small>1</small></h4>
+                  <p class="col-tot">R$ 7.200</p>
+                  <div class="card alerta"><b>Café Serra Alta</b><span>Contrato vence em 15 dias</span><span class="tag">Renovar</span><div class="pe"><span class="v">R$ 7.200</span><span class="av" style="--c:#8F5300">DF</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="balao">
+          <div class="fala"><b>Lupe</b>O contrato do Café Serra Alta vence em 15 dias. O report de setembro já está pronto para a reunião. <a href="#ciclo">Ver o ciclo</a></div>
+          <div data-lupe="hero"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec ciclo" id="ciclo">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eb">Como funciona</span>
+        <h2>Uma agência vive em ciclo. O Flowloop faz ele girar.</h2>
+        <p>Você capta o cliente, entrega o trabalho, mostra o resultado e renova o contrato. Cada tempo tem sua tela, e o próximo passo aparece antes de alguém precisar lembrar.</p>
+      </div>
+      <div class="ciclo-grid">
+        <div class="roda" role="tablist" aria-label="Os quatro tempos do ciclo">
+          <svg class="trilho" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="47" fill="none" stroke="var(--line)" stroke-width=".4" stroke-dasharray=".6 2.2"/></svg>
+          <div data-lupe="roda"></div>
+          <button class="tempo-btn t-capta" role="tab" data-tempo="capta" style="--c:var(--capta)"><i></i>Capta</button>
+          <button class="tempo-btn t-entrega" role="tab" data-tempo="entrega" style="--c:var(--entrega)"><i></i>Entrega</button>
+          <button class="tempo-btn t-mostra" role="tab" data-tempo="mostra" style="--c:var(--mostra)"><i></i>Mostra</button>
+          <button class="tempo-btn t-renova" role="tab" data-tempo="renova" style="--c:var(--renova)"><i></i>Renova</button>
+        </div>
+        <div class="painel" id="painel" role="tabpanel" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="google">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eb">Dentro do seu Google</span>
+        <h2>Nada de mais um sistema para o time aprender a abrir.</h2>
+        <p>O Flowloop roda no Google Workspace que a sua agência já usa. Entra com a conta Google, guarda tudo numa Planilha sua e funciona no celular.</p>
+      </div>
+      <div class="fluxo" aria-label="Como o Flowloop funciona dentro do Google da agência">
+        <div class="no">
+          <div class="no-vis">
+            <div class="avs grandes"><span class="av" style="--c:#2457F5">MS</span><span class="av" style="--c:#0F766E">RT</span><span class="av" style="--c:#8F5300">DF</span><span class="av" style="--c:#4A4D63">+7</span></div>
+            <span class="conta"><svg width="12" height="12"><use href="#i-check"/></svg>@lumevermelho.com.br</span>
+          </div>
+          <b>Sua equipe</b><span>Entra com a conta Google que já usa</span>
+        </div>
+        <div class="fio" aria-hidden="true"><small>abre o link</small><i></i></div>
+        <div class="no">
+          <div class="no-vis">
+            <div class="m-app">
+              <div class="m-top"><span class="ag" style="--ag:#C2410C">LV</span><i></i></div>
+              <div class="m-cols"><i style="--c:var(--capta)"></i><i style="--c:var(--entrega)"></i><i style="--c:var(--mostra)"></i><i class="um" style="--c:var(--renova)"></i></div>
+            </div>
+          </div>
+          <b>Flowloop com a sua marca</b><span>Roda no Google Apps Script</span>
+        </div>
+        <div class="fio duplo" aria-hidden="true"><small>salva e lê</small><i></i><i></i></div>
+        <div class="no">
+          <div class="no-vis">
+            <svg class="m-plan" viewBox="0 0 132 84" aria-hidden="true">
+              <rect x="1" y="1" width="130" height="82" rx="7" fill="var(--surf)" stroke="var(--line)"/>
+              <path d="M1 15V8a7 7 0 0 1 7-7h116a7 7 0 0 1 7 7v7z" fill="var(--nevoa)"/>
+              <rect x="1" y="43" width="130" height="14" fill="var(--renova)" opacity=".16"/>
+              <path d="M1 15h130M1 29h130M1 43h130M1 57h130M1 71h130M36 1v82M76 1v82M106 1v82" stroke="var(--line)" fill="none"/>
+              <g fill="var(--tx3)" opacity=".55"><rect x="7" y="20" width="22" height="4" rx="2"/><rect x="42" y="20" width="26" height="4" rx="2"/><rect x="82" y="20" width="18" height="4" rx="2"/><rect x="7" y="34" width="18" height="4" rx="2"/><rect x="42" y="34" width="22" height="4" rx="2"/><rect x="82" y="34" width="16" height="4" rx="2"/><rect x="7" y="62" width="24" height="4" rx="2"/><rect x="42" y="62" width="20" height="4" rx="2"/><rect x="82" y="62" width="18" height="4" rx="2"/></g>
+              <g fill="var(--ambar-tx)"><rect x="7" y="48" width="20" height="4" rx="2"/><rect x="42" y="48" width="28" height="4" rx="2"/><rect x="82" y="48" width="18" height="4" rx="2"/></g>
+              <g fill="var(--pri-tx)"><rect x="7" y="6" width="16" height="4" rx="2"/><rect x="42" y="6" width="14" height="4" rx="2"/><rect x="82" y="6" width="12" height="4" rx="2"/></g>
+            </svg>
+          </div>
+          <b>Planilha no seu Drive</b><span>Os dados ficam com a agência</span>
+        </div>
+      </div>
+      <div class="recursos">
+        <div class="rec rec-dados">
+          <span class="rec-ic"><svg width="44" height="44" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="10" width="30" height="28" rx="4" fill="var(--surf)" stroke="var(--entrega)" stroke-width="2"/><path d="M10 17V14a3 3 0 0 1 3-3h22a3 3 0 0 1 3 3v3z" fill="var(--mostra)" opacity=".4"/><path d="M9 18h30" stroke="var(--entrega)" stroke-width="2"/><path d="M19 18v20M29 18v20M9 28h30" stroke="var(--entrega)" stroke-width="1.4" opacity=".5"/><circle cx="37" cy="36" r="6.5" fill="var(--renova)"/><path d="M34.3 36l1.9 1.9 3.6-3.8" stroke="#14142B" stroke-width="1.8"/></svg></span>
+          <div data-lupe="dados"></div>
+          <h3>Os dados são seus</h3>
+          <p>Tudo fica numa Planilha Google no Drive da agência. Se um dia você sair, leva tudo junto.</p>
+        </div>
+        <div class="rec">
+          <span class="rec-ic"><svg width="44" height="44" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="23" cy="18" r="7" fill="var(--mostra)" opacity=".4"/><circle cx="23" cy="18" r="7" stroke="var(--entrega)" stroke-width="2"/><path d="M11 38a12 12 0 0 1 24 0" stroke="var(--entrega)" stroke-width="2"/><circle cx="36" cy="34" r="6.5" fill="var(--renova)"/><path d="M33 34h5.5M36 31.3l2.7 2.7-2.7 2.7" stroke="#14142B" stroke-width="1.8"/></svg></span>
+          <h3>Entra com a conta Google</h3>
+          <p>Sem senha nova. Quem é da equipe abre o link e já está dentro.</p>
+        </div>
+        <div class="rec">
+          <span class="rec-ic"><svg width="44" height="44" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="8" width="24" height="31" rx="4" fill="var(--surf)" stroke="var(--entrega)" stroke-width="2"/><path d="M14 16h14M14 22h10M14 28h12" stroke="var(--mostra)" stroke-width="2.4" opacity=".6"/><path d="M31.5 31v-2.5a3.5 3.5 0 0 1 7 0V31" stroke="var(--renova)" stroke-width="2.2"/><rect x="28.5" y="30.5" width="13" height="10" rx="2.5" fill="var(--renova)"/><circle cx="35" cy="35.5" r="1.5" fill="#14142B"/></svg></span>
+          <h3>Cada um vê o que precisa</h3>
+          <p>O financeiro aparece só para quem você marcar, pessoa por pessoa.</p>
+        </div>
+        <div class="rec">
+          <span class="rec-ic"><svg width="44" height="44" viewBox="0 0 48 48" fill="none" stroke-linecap="round"><path d="M10 15h28M10 24h28M10 33h28" stroke="var(--mostra)" stroke-width="2.6" opacity=".45"/><circle cx="18" cy="15" r="4.5" fill="var(--capta)" stroke="var(--surf)" stroke-width="2"/><circle cx="31" cy="24" r="4.5" fill="var(--entrega)" stroke="var(--surf)" stroke-width="2"/><circle cx="22" cy="33" r="4.5" fill="var(--renova)" stroke="var(--surf)" stroke-width="2"/></svg></span>
+          <h3>Do seu jeito</h3>
+          <p>Etapas do funil, tipos de serviço e equipe se ajustam numa tela de configuração.</p>
+        </div>
+        <div class="rec">
+          <span class="rec-ic"><svg width="44" height="44" viewBox="0 0 48 48" fill="none" stroke-linecap="round"><rect x="14" y="6" width="20" height="36" rx="4.5" fill="var(--surf)" stroke="var(--entrega)" stroke-width="2"/><rect x="18" y="12" width="2.6" height="14" rx="1.3" fill="var(--capta)"/><rect x="21.8" y="12" width="2.6" height="10" rx="1.3" fill="var(--entrega)"/><rect x="25.6" y="12" width="2.6" height="12" rx="1.3" fill="var(--mostra)"/><rect x="29.4" y="12" width="2.6" height="7" rx="1.3" fill="var(--renova)"/><path d="M21 37.5h6" stroke="var(--entrega)" stroke-width="2"/></svg></span>
+          <h3>Funciona no celular</h3>
+          <p>Mover um card, aprovar uma entrega ou ver um contrato pelo telefone, no meio da reunião.</p>
+        </div>
+        <div class="rec">
+          <span class="rec-ic"><svg width="44" height="44" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 36h20a7.5 7.5 0 0 0 1-14.9A11 11 0 0 0 15 20.2 8 8 0 0 0 14.5 36z" fill="var(--surf)" stroke="var(--entrega)" stroke-width="2"/><g stroke-width="2.4"><path d="M25.87 23.07A5 5 0 0 1 29.93 27.13" stroke="var(--capta)"/><path d="M29.93 28.87A5 5 0 0 1 25.87 32.93" stroke="var(--entrega)"/><path d="M24.13 32.93A5 5 0 0 1 20.07 28.87" stroke="var(--mostra)"/><path d="M20.07 27.13A5 5 0 0 1 24.13 23.07" stroke="var(--renova)"/></g></svg></span>
+          <h3>Sem servidor para manter</h3>
+          <p>Não há hospedagem extra nem atualização para instalar. Tudo roda na infraestrutura do Google que a agência já tem.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="marca" style="padding-top:0">
+    <div class="wrap marca-grid">
+      <div>
+        <div class="sec-head">
+          <span class="eb">Com a sua marca</span>
+          <h2>O cliente vê a sua agência, não a nossa.</h2>
+          <p>Logo, cores e nome do sistema são da agência. Escolha um exemplo ou teste com a sua e veja a tela mudar.</p>
+        </div>
+        <div class="temas" id="temas">
+          <button class="tema-op" type="button" aria-pressed="true" data-a="#C2410C" data-n="Lume Vermelho"><span class="ag" style="--ag:#C2410C">LV</span>Lume Vermelho</button>
+          <button class="tema-op" type="button" aria-pressed="false" data-a="#0F766E" data-n="Maré Digital"><span class="ag" style="--ag:#0F766E">MD</span>Maré Digital</button>
+          <button class="tema-op" type="button" aria-pressed="false" data-a="#7C3AED" data-n="Ateliê Nove"><span class="ag" style="--ag:#7C3AED">AN</span>Ateliê Nove</button>
+        </div>
+        <div class="testar">
+          <p class="testar-tit">Ou teste com a sua agência</p>
+          <div class="campo"><label for="m-nome">Nome da agência</label><input id="m-nome" maxlength="28" autocomplete="organization" placeholder="Ex.: Studio Aurora"></div>
+          <div class="campo"><span class="lbl" id="m-cor-lbl" style="font-size:14px;font-weight:600">Cor da marca</span>
+            <div class="cores" role="radiogroup" aria-labelledby="m-cor-lbl">
+              <button class="cor" type="button" role="radio" aria-checked="false" aria-label="Rosa" style="--c:#E11D48" data-c="#E11D48"></button>
+              <button class="cor" type="button" role="radio" aria-checked="false" aria-label="Laranja" style="--c:#EA580C" data-c="#EA580C"></button>
+              <button class="cor" type="button" role="radio" aria-checked="false" aria-label="Mostarda" style="--c:#CA8A04" data-c="#CA8A04"></button>
+              <button class="cor" type="button" role="radio" aria-checked="false" aria-label="Verde" style="--c:#16A34A" data-c="#16A34A"></button>
+              <button class="cor" type="button" role="radio" aria-checked="false" aria-label="Azul" style="--c:#2563EB" data-c="#2563EB"></button>
+              <button class="cor" type="button" role="radio" aria-checked="false" aria-label="Preto" style="--c:#1F2937" data-c="#1F2937"></button>
+              <label class="cor-outra" for="m-cor"><input type="color" id="m-cor" value="#2457F5">Outra cor</label>
+            </div>
+          </div>
+        </div>
+        <p class="marca-nota"><svg width="18" height="18"><use href="#i-check"/></svg> Na instalação colocamos o logo e as cores reais da sua agência.</p>
+      </div>
+      <div class="mini" id="mini" aria-label="Exemplo da tela com a marca de uma agência">
+        <div class="mini-top">
+          <span class="ag" id="mini-ag">LV</span>
+          <strong id="mini-nome">Lume Vermelho</strong>
+          <div class="avs" aria-hidden="true"><span class="av" style="--c:#2457F5">MS</span><span class="av" style="--c:#0F766E">RT</span><span class="av" style="--c:#8F5300">DF</span></div>
+        </div>
+        <div class="mini-corpo">
+          <div class="mini-rail" aria-hidden="true">
+            <span class="on"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg></span>
+            <span><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="4" width="4.5" height="16" rx="1"/><rect x="10" y="4" width="4.5" height="10" rx="1"/><rect x="16" y="4" width="4" height="13" rx="1"/></svg></span>
+            <span><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span>
+            <span><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 19h16M7 16v-5M12 16V7M17 16v-8"/></svg></span>
+            <span><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></svg></span>
+          </div>
+          <div class="mini-body">
+            <h4>Bom dia, Marina</h4>
+            <div class="kpis">
+              <div class="kpi dest"><span>Em negociação</span><b>R$ 48.300</b></div>
+              <div class="kpi"><span>Posts para aprovar</span><b>7</b></div>
+              <div class="kpi"><span>Renovações no mês</span><b>3</b></div>
+            </div>
+            <div class="graf">
+              <div class="graf-top"><b>Faturamento mensal</b><span>R$ mil · exemplo</span></div>
+              <div class="barras">
+                <div><span>32</span><i style="--h:56%"></i></div>
+                <div><span>35</span><i style="--h:61%"></i></div>
+                <div><span>34</span><i style="--h:60%"></i></div>
+                <div><span>39</span><i style="--h:68%"></i></div>
+                <div><span>42</span><i style="--h:74%"></i></div>
+                <div class="ult"><span>46</span><i style="--h:81%"></i></div>
+              </div>
+              <div class="meses"><span>mai</span><span>jun</span><span>jul</span><span>ago</span><span>set</span><span>out</span></div>
+            </div>
+            <div class="mini-lupe">
+              <div data-lupe="marca"></div>
+              <div><b>Lupe</b><span>O report da Pet Amigo está pronto. Quer marcar a reunião?</span></div>
+              <button type="button" tabindex="-1">Abrir apresentação</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eb">Como começar</span>
+        <h2>Da conversa ao time usando, sem projeto de TI.</h2>
+      </div>
+      <div class="trilha" id="trilha">
+        <i class="trilha-linha" aria-hidden="true"></i><i class="trilha-fill" aria-hidden="true"></i>
+        <div class="trilha-lupe" aria-hidden="true"><div data-lupe="trilha"></div></div>
+        <ol class="passos">
+          <li>
+            <span class="marco">1</span>
+            <div class="passo-ilu"><svg viewBox="0 0 200 110" aria-hidden="true">
+              <rect x="12" y="10" width="176" height="90" rx="10" fill="var(--surf2)"/>
+              <rect x="20" y="18" width="112" height="66" rx="6" fill="var(--surf)" stroke="var(--line)"/>
+              <rect x="26" y="25" width="21" height="3" rx="1.5" fill="var(--capta)"/><rect x="52.5" y="25" width="21" height="3" rx="1.5" fill="var(--entrega)"/><rect x="79" y="25" width="21" height="3" rx="1.5" fill="var(--mostra)"/><rect x="105.5" y="25" width="21" height="3" rx="1.5" fill="var(--renova)"/>
+              <g fill="var(--surf2)"><rect x="26" y="32" width="21" height="12" rx="3"/><rect x="26" y="47" width="21" height="12" rx="3"/><rect x="52.5" y="32" width="21" height="12" rx="3"/><rect x="52.5" y="47" width="21" height="12" rx="3"/><rect x="79" y="32" width="21" height="12" rx="3"/></g>
+              <rect x="105.5" y="32" width="21" height="12" rx="3" fill="var(--ambar-bg)" stroke="var(--renova)" stroke-width=".8"/>
+              <rect x="138" y="18" width="42" height="31" rx="6" fill="var(--nevoa)"/><circle cx="159" cy="29" r="6" fill="#C2410C"/><path d="M149 45a10 7 0 0 1 20 0" fill="#C2410C" opacity=".7"/>
+              <rect x="138" y="53" width="42" height="31" rx="6" fill="var(--nevoa)"/><circle cx="159" cy="64" r="6" fill="var(--entrega)"/><path d="M149 80a10 7 0 0 1 20 0" fill="var(--entrega)" opacity=".7"/>
+              <circle cx="62" cy="92" r="3.5" fill="var(--tx3)"/><circle cx="74" cy="92" r="3.5" fill="var(--tx3)"/><rect x="82" y="88.5" width="14" height="7" rx="3.5" fill="var(--err)"/>
+              <rect x="138" y="87" width="42" height="11" rx="5.5" fill="var(--renova)"/><text x="159" y="94.8" text-anchor="middle" font-family="Inter,sans-serif" font-size="7" font-weight="700" fill="#14142B">30 min</text>
+            </svg></div>
+            <h3>Demonstração de 30 minutos</h3><p>Mostramos o Flowloop com um funil parecido com o seu e entendemos como a agência trabalha hoje.</p>
+          </li>
+          <li>
+            <span class="marco">2</span>
+            <div class="passo-ilu"><svg viewBox="0 0 200 110" aria-hidden="true">
+              <rect x="14" y="20" width="62" height="70" rx="7" fill="var(--surf)" stroke="var(--line)"/>
+              <path d="M14 27a7 7 0 0 1 7-7h48a7 7 0 0 1 7 7v4H14z" fill="var(--nevoa)"/>
+              <path d="M14 31h62M14 43h62M14 55h62M14 67h62M14 79h62M35 20v70M56 20v70" stroke="var(--line)" fill="none"/>
+              <g fill="var(--tx3)" opacity=".55"><rect x="18" y="35" width="13" height="4" rx="2"/><rect x="39" y="35" width="13" height="4" rx="2"/><rect x="60" y="35" width="11" height="4" rx="2"/><rect x="18" y="47" width="11" height="4" rx="2"/><rect x="39" y="47" width="14" height="4" rx="2"/><rect x="60" y="47" width="9" height="4" rx="2"/><rect x="18" y="59" width="14" height="4" rx="2"/><rect x="39" y="59" width="10" height="4" rx="2"/><rect x="60" y="59" width="12" height="4" rx="2"/><rect x="18" y="71" width="10" height="4" rx="2"/><rect x="39" y="71" width="13" height="4" rx="2"/></g>
+              <path d="M85 55h24M102 48l7 7-7 7" stroke="var(--pri)" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              <rect x="118" y="14" width="70" height="82" rx="8" fill="var(--surf)" stroke="var(--line)"/>
+              <rect x="124" y="20" width="12" height="12" rx="3" fill="#C2410C"/><rect x="140" y="24" width="30" height="4" rx="2" fill="var(--surf2)"/>
+              <path d="M118 38h70" stroke="var(--line)"/>
+              <rect x="124" y="44" width="12" height="3" rx="1.5" fill="var(--capta)"/><rect x="140" y="44" width="12" height="3" rx="1.5" fill="var(--entrega)"/><rect x="156" y="44" width="12" height="3" rx="1.5" fill="var(--mostra)"/><rect x="172" y="44" width="12" height="3" rx="1.5" fill="var(--renova)"/>
+              <g fill="var(--surf2)"><rect x="124" y="51" width="12" height="11" rx="2.5"/><rect x="124" y="65" width="12" height="11" rx="2.5"/><rect x="140" y="51" width="12" height="11" rx="2.5"/><rect x="156" y="51" width="12" height="11" rx="2.5"/><rect x="156" y="65" width="12" height="11" rx="2.5"/><rect x="172" y="51" width="12" height="11" rx="2.5"/></g>
+              <circle cx="184" cy="92" r="9" fill="var(--renova)"/><circle cx="184" cy="92" r="3" fill="none" stroke="#14142B" stroke-width="1.6"/><path d="M184 85.6v2.2M184 96.2v2.2M177.6 92h2.2M188.2 92h2.2" stroke="#14142B" stroke-width="1.6" stroke-linecap="round"/>
+            </svg></div>
+            <h3>Instalamos no seu Google</h3><p>Configuramos marca, etapas, serviços e equipe. Se você já tem uma planilha de clientes, trazemos os dados.</p>
+          </li>
+          <li>
+            <span class="marco">3</span>
+            <div class="passo-ilu"><svg viewBox="0 0 200 110" aria-hidden="true">
+              <rect x="50" y="8" width="100" height="56" rx="7" fill="var(--surf)" stroke="var(--line)"/>
+              <g fill="none" stroke-width="5" stroke-linecap="round"><path d="M102.25 23.2A13 13 0 0 1 112.8 33.75" stroke="var(--capta)"/><path d="M112.8 38.25A13 13 0 0 1 102.25 48.8" stroke="var(--entrega)"/><path d="M97.75 48.8A13 13 0 0 1 87.2 38.25" stroke="var(--mostra)"/><path d="M87.2 33.75A13 13 0 0 1 97.75 23.2" stroke="var(--renova)"/></g>
+              <circle cx="96.2" cy="35" r="1.7" fill="var(--tx)"/><circle cx="103.8" cy="35" r="1.7" fill="var(--tx)"/><path d="M97.2 39.4q2.8 2.2 5.6 0" fill="none" stroke="var(--tx)" stroke-width="1.3" stroke-linecap="round"/>
+              <path d="M100 64v7M88 72h24" stroke="var(--line)" stroke-width="2.5" stroke-linecap="round"/>
+              <circle cx="46" cy="84" r="7" fill="var(--capta)"/><path d="M35 104a11 9 0 0 1 22 0" fill="var(--capta)" opacity=".7"/>
+              <circle cx="82" cy="84" r="7" fill="var(--entrega)"/><path d="M71 104a11 9 0 0 1 22 0" fill="var(--entrega)" opacity=".7"/>
+              <circle cx="118" cy="84" r="7" fill="var(--mostra)"/><path d="M107 104a11 9 0 0 1 22 0" fill="var(--mostra)" opacity=".7"/>
+              <circle cx="154" cy="84" r="7" fill="#0F766E"/><path d="M143 104a11 9 0 0 1 22 0" fill="#0F766E" opacity=".7"/>
+              <rect x="160" y="60" width="30" height="15" rx="7.5" fill="var(--nevoa)"/><g fill="var(--pri)"><circle cx="168" cy="67.5" r="1.8"/><circle cx="175" cy="67.5" r="1.8"/><circle cx="182" cy="67.5" r="1.8"/></g>
+            </svg></div>
+            <h3>Treinamos o time</h3><p>Uma sessão com a equipe, com o sistema já configurado e com os dados de vocês dentro.</p>
+          </li>
+          <li>
+            <span class="marco">4</span>
+            <div class="passo-ilu"><svg viewBox="0 0 200 110" aria-hidden="true">
+              <defs><pattern id="dias-cal" width="13.5" height="14" patternUnits="userSpaceOnUse" x="37" y="37"><rect width="8" height="8" rx="2" fill="var(--surf2)"/></pattern></defs>
+              <rect x="30" y="12" width="104" height="86" rx="9" fill="var(--surf)" stroke="var(--line)"/>
+              <path d="M30 21a9 9 0 0 1 9-9h86a9 9 0 0 1 9 9v9H30z" fill="var(--renova)"/>
+              <text x="82" y="24.5" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" font-weight="700" fill="#14142B">todo mês</text>
+              <rect x="37" y="37" width="94.5" height="56" fill="url(#dias-cal)"/>
+              <g fill="var(--renova)"><circle cx="54.5" cy="41" r="5.5"/><circle cx="95" cy="55" r="5.5"/><circle cx="68" cy="69" r="5.5"/><circle cx="122" cy="83" r="5.5"/></g>
+              <path d="M52 41l1.8 1.8 3.4-3.6M92.5 55l1.8 1.8 3.4-3.6M65.5 69l1.8 1.8 3.4-3.6M119.5 83l1.8 1.8 3.4-3.6" fill="none" stroke="#14142B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <g fill="none" stroke-width="5.5" stroke-linecap="round"><path d="M161.12 30.27A18 18 0 0 1 175.73 44.88" stroke="var(--capta)"/><path d="M175.73 51.12A18 18 0 0 1 161.12 65.73" stroke="var(--entrega)"/><path d="M154.88 65.73A18 18 0 0 1 140.27 51.12" stroke="var(--mostra)"/><path d="M140.27 44.88A18 18 0 0 1 154.88 30.27" stroke="var(--renova)"/></g>
+              <rect x="140" y="80" width="46" height="18" rx="9" fill="var(--nevoa)"/><text x="163" y="91.8" text-anchor="middle" font-family="Inter,sans-serif" font-size="7.5" font-weight="600" fill="var(--pri-tx)">suporte</text>
+            </svg></div>
+            <h3>Sustentação mensal</h3><span class="tag-op">Opcional</span><p>Se quiser, contrate suporte, correções e ajustes todo mês. O sistema acompanha a agência enquanto ela cresce.</p>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec planos-sec" id="planos">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eb">Planos</span>
+        <h2>Um plano para cada tamanho de agência.</h2>
+        <p>O valor depende do tamanho do time e do que vamos configurar. Conte como é a sua agência e mandamos a proposta.</p>
+      </div>
+      <div class="planos">
+        <div class="plano">
+          <div class="plano-ilu" aria-hidden="true"><svg viewBox="0 0 240 96"><rect x="26" y="16" width="90" height="64" rx="7" fill="var(--surf)" stroke="var(--line)"/><rect x="34.0" y="25" width="16.3" height="2.5" rx="1.2" fill="var(--capta)"/><rect x="34.0" y="31" width="16.3" height="9" rx="2" fill="var(--surf2)"/><rect x="34.0" y="43" width="16.3" height="9" rx="2" fill="var(--surf2)"/><rect x="53.3" y="25" width="16.3" height="2.5" rx="1.2" fill="var(--entrega)"/><rect x="53.3" y="31" width="16.3" height="9" rx="2" fill="var(--surf2)"/><rect x="53.3" y="43" width="16.3" height="9" rx="2" fill="var(--surf2)"/><rect x="72.5" y="25" width="16.3" height="2.5" rx="1.2" fill="var(--mostra)"/><rect x="72.5" y="31" width="16.3" height="9" rx="2" fill="var(--surf2)"/><rect x="91.8" y="25" width="16.3" height="2.5" rx="1.2" fill="var(--renova)"/><rect x="91.8" y="31" width="16.3" height="9" rx="2" fill="var(--ambar-bg)"/><circle cx="150" cy="36" r="6" fill="var(--capta)"/><path d="M140 54a10 8 0 0 1 20 0" fill="var(--capta)" opacity=".7"/><circle cx="176" cy="36" r="6" fill="var(--entrega)"/><path d="M166 54a10 8 0 0 1 20 0" fill="var(--entrega)" opacity=".7"/><circle cx="202" cy="36" r="6" fill="#0F766E"/><path d="M192 54a10 8 0 0 1 20 0" fill="#0F766E" opacity=".7"/></svg></div><div><h3>Essencial</h3><p class="pra">Para agências de até 10 pessoas.</p></div>
+          <p class="preco">Sob consulta<small>Instalação, configuração e treinamento</small></p>
+          <ul class="lista">
+            <li><svg width="20" height="20"><use href="#i-check"/></svg>Funil de vendas em quadro</li>
+            <li><svg width="20" height="20"><use href="#i-check"/></svg>Tarefas, comentários e histórico por cliente</li>
+            <li><svg width="20" height="20"><use href="#i-check"/></svg>Logo e cores da agência</li>
+            <li><svg width="20" height="20"><use href="#i-check"/></svg>Uso no celular</li>
+          </ul>
+          <a class="btn btn-s" href="#contato" data-plano="Essencial">Pedir proposta</a>
+        </div>
+        <div class="plano dest">
+          <span class="selo">Mais escolhido</span>
+          <div class="plano-ilu" aria-hidden="true"><svg viewBox="0 0 240 96"><rect x="18" y="14" width="96" height="68" rx="7" fill="var(--surf)" stroke="var(--line)"/><rect x="26.0" y="23" width="17.8" height="2.5" rx="1.2" fill="var(--capta)"/><rect x="26.0" y="29" width="17.8" height="9" rx="2" fill="var(--surf2)"/><rect x="26.0" y="41" width="17.8" height="9" rx="2" fill="var(--surf2)"/><rect x="46.8" y="23" width="17.8" height="2.5" rx="1.2" fill="var(--entrega)"/><rect x="46.8" y="29" width="17.8" height="9" rx="2" fill="var(--surf2)"/><rect x="46.8" y="41" width="17.8" height="9" rx="2" fill="var(--surf2)"/><rect x="67.5" y="23" width="17.8" height="2.5" rx="1.2" fill="var(--mostra)"/><rect x="67.5" y="29" width="17.8" height="9" rx="2" fill="var(--surf2)"/><rect x="88.3" y="23" width="17.8" height="2.5" rx="1.2" fill="var(--renova)"/><rect x="88.3" y="29" width="17.8" height="9" rx="2" fill="var(--ambar-bg)"/><circle cx="110" cy="74" r="12" fill="var(--renova)"/><text x="110" y="77.5" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-weight="700" fill="#14142B">R$</text><circle cx="146" cy="24" r="6" fill="var(--capta)"/><path d="M136 42a10 8 0 0 1 20 0" fill="var(--capta)" opacity=".7"/><circle cx="172" cy="24" r="6" fill="var(--entrega)"/><path d="M162 42a10 8 0 0 1 20 0" fill="var(--entrega)" opacity=".7"/><circle cx="198" cy="24" r="6" fill="var(--mostra)"/><path d="M188 42a10 8 0 0 1 20 0" fill="var(--mostra)" opacity=".7"/><circle cx="146" cy="52" r="6" fill="#0F766E"/><path d="M136 70a10 8 0 0 1 20 0" fill="#0F766E" opacity=".7"/><circle cx="172" cy="52" r="6" fill="#8F5300"/><path d="M162 70a10 8 0 0 1 20 0" fill="#8F5300" opacity=".7"/><circle cx="198" cy="52" r="6" fill="#7C3AED"/><path d="M188 70a10 8 0 0 1 20 0" fill="#7C3AED" opacity=".7"/></svg></div><div><h3>Agência</h3><p class="pra">Para agências de 10 a 30 pessoas.</p></div>
+          <p class="preco">Sob consulta<small>Instalação, configuração e treinamento</small></p>
+          <ul class="lista">
+            <li><svg width="20" height="20"><use href="#i-check"/></svg>Tudo do Essencial</li>
+            <li><svg width="20" height="20"><use href="#i-check"/></svg>Financeiro: contratos, reajustes e serviços extras</li>
+            <li><svg width="20" height="20"><use href="#i-check"/></svg>Aviso de contratos perto de vencer</li>
+            <li><svg width="20" height="20"><use href="#i-check"/></svg>Acesso ao financeiro por pessoa</li>
+            <li><svg width="20" height="20"><use href="#i-check"/></svg>Importação da sua planilha atual</li>
+          </ul>
+          <a class="btn btn-p" href="#contato" data-plano="Agência">Pedir proposta</a>
+        </div>
+        <div class="plano">
+          <div class="plano-ilu" aria-hidden="true"><svg viewBox="0 0 240 96"><rect x="14" y="10" width="78" height="52" rx="7" fill="var(--surf)" stroke="var(--line)"/><rect x="20" y="16" width="9" height="9" rx="2.5" fill="#C2410C"/><rect x="22.0" y="30" width="13.3" height="2.5" rx="1.2" fill="var(--capta)"/><rect x="22.0" y="36" width="13.3" height="9" rx="2" fill="var(--surf2)"/><rect x="22.0" y="48" width="13.3" height="9" rx="2" fill="var(--surf2)"/><rect x="38.3" y="30" width="13.3" height="2.5" rx="1.2" fill="var(--entrega)"/><rect x="38.3" y="36" width="13.3" height="9" rx="2" fill="var(--surf2)"/><rect x="38.3" y="48" width="13.3" height="9" rx="2" fill="var(--surf2)"/><rect x="54.5" y="30" width="13.3" height="2.5" rx="1.2" fill="var(--mostra)"/><rect x="54.5" y="36" width="13.3" height="9" rx="2" fill="var(--surf2)"/><rect x="70.8" y="30" width="13.3" height="2.5" rx="1.2" fill="var(--renova)"/><rect x="70.8" y="36" width="13.3" height="9" rx="2" fill="var(--ambar-bg)"/><rect x="44" y="32" width="78" height="54" rx="7" fill="var(--surf)" stroke="var(--line)"/><rect x="50" y="38" width="9" height="9" rx="2.5" fill="#0F766E"/><rect x="52.0" y="52" width="13.3" height="2.5" rx="1.2" fill="var(--capta)"/><rect x="52.0" y="58" width="13.3" height="9" rx="2" fill="var(--surf2)"/><rect x="52.0" y="70" width="13.3" height="9" rx="2" fill="var(--surf2)"/><rect x="68.3" y="52" width="13.3" height="2.5" rx="1.2" fill="var(--entrega)"/><rect x="68.3" y="58" width="13.3" height="9" rx="2" fill="var(--surf2)"/><rect x="68.3" y="70" width="13.3" height="9" rx="2" fill="var(--surf2)"/><rect x="84.5" y="52" width="13.3" height="2.5" rx="1.2" fill="var(--mostra)"/><rect x="84.5" y="58" width="13.3" height="9" rx="2" fill="var(--surf2)"/><rect x="100.8" y="52" width="13.3" height="2.5" rx="1.2" fill="var(--renova)"/><rect x="100.8" y="58" width="13.3" height="9" rx="2" fill="var(--ambar-bg)"/><path d="M126 59h22" stroke="var(--tx3)" stroke-width="2" stroke-dasharray="3 3" stroke-linecap="round"/><path d="M168 28L204 28M168 28L186 66M204 28L186 66" stroke="var(--line)" stroke-width="2"/><circle cx="168" cy="28" r="9" fill="var(--entrega)"/><circle cx="204" cy="28" r="9" fill="var(--mostra)"/><circle cx="186" cy="66" r="9" fill="var(--renova)"/><circle cx="156" cy="59" r="6" fill="var(--surf)" stroke="var(--tx3)" stroke-width="2"/></svg></div><div><h3>Sob medida</h3><p class="pra">Para quem precisa de telas próprias.</p></div>
+          <p class="preco">Sob consulta<small>Escopo definido com você</small></p>
+          <ul class="lista">
+            <li><svg width="20" height="20"><use href="#i-check"/></svg>Tudo do Agência</li>
+            <li><svg width="20" height="20"><use href="#i-check"/></svg>Telas e relatórios exclusivos</li>
+            <li><svg width="20" height="20"><use href="#i-check"/></svg>Integrações com outras ferramentas</li>
+            <li><svg width="20" height="20"><use href="#i-check"/></svg>Mais de uma unidade ou marca</li>
+          </ul>
+          <a class="btn btn-s" href="#contato" data-plano="Sob medida">Conversar sobre o projeto</a>
+        </div>
+      </div>
+
+      <div class="compara">
+        <h3 class="compara-tit">Compare os planos</h3>
+        <div class="compara-tab"><table>
+          <caption class="sr">O que cada plano inclui</caption>
+          <thead><tr><th scope="col">Recurso</th><th scope="col">Essencial</th><th scope="col" class="dest">Agência</th><th scope="col">Sob medida</th></tr></thead>
+          <tbody>
+            <tr class="grupo"><th colspan="4" scope="colgroup">Time</th></tr>
+            <tr><th scope="row">Tamanho da agência</th><td>até 10</td><td class="dest">10 a 30</td><td>qualquer</td></tr>
+            <tr class="grupo"><th colspan="4" scope="colgroup">Funil e clientes</th></tr>
+            <tr><th scope="row">Funil de vendas em quadro</th><td class="s">Sim</td><td class="s dest">Sim</td><td class="s">Sim</td></tr>
+            <tr><th scope="row">Tarefas, comentários e histórico por cliente</th><td class="s">Sim</td><td class="s dest">Sim</td><td class="s">Sim</td></tr>
+            <tr><th scope="row">Logo e cores da agência</th><td class="s">Sim</td><td class="s dest">Sim</td><td class="s">Sim</td></tr>
+            <tr><th scope="row">Uso no celular</th><td class="s">Sim</td><td class="s dest">Sim</td><td class="s">Sim</td></tr>
+            <tr class="grupo"><th colspan="4" scope="colgroup">Financeiro e contratos</th></tr>
+            <tr><th scope="row">Contratos, reajustes e serviços extras</th><td class="n">Não</td><td class="s dest">Sim</td><td class="s">Sim</td></tr>
+            <tr><th scope="row">Aviso de contratos perto de vencer</th><td class="n">Não</td><td class="s dest">Sim</td><td class="s">Sim</td></tr>
+            <tr><th scope="row">Acesso ao financeiro por pessoa</th><td class="n">Não</td><td class="s dest">Sim</td><td class="s">Sim</td></tr>
+            <tr class="grupo"><th colspan="4" scope="colgroup">Implantação</th></tr>
+            <tr><th scope="row">Instalação e configuração</th><td class="s">Sim</td><td class="s dest">Sim</td><td class="s">Sim</td></tr>
+            <tr><th scope="row">Treinamento do time</th><td class="s">Sim</td><td class="s dest">Sim</td><td class="s">Sim</td></tr>
+            <tr><th scope="row">Importação da sua planilha atual</th><td class="n">Não</td><td class="s dest">Sim</td><td class="s">Sim</td></tr>
+            <tr class="grupo"><th colspan="4" scope="colgroup">Projeto sob medida</th></tr>
+            <tr><th scope="row">Telas e relatórios exclusivos</th><td class="n">Não</td><td class="n dest">Não</td><td class="s">Sim</td></tr>
+            <tr><th scope="row">Integrações com outras ferramentas</th><td class="n">Não</td><td class="n dest">Não</td><td class="s">Sim</td></tr>
+            <tr><th scope="row">Mais de uma unidade ou marca</th><td class="n">Não</td><td class="n dest">Não</td><td class="s">Sim</td></tr>
+            <tr class="grupo"><th colspan="4" scope="colgroup">Depois da instalação</th></tr>
+            <tr><th scope="row">Sustentação mensal</th><td class="op">Opcional</td><td class="op dest">Opcional</td><td class="op">Opcional</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+
+      <div class="sust" id="sustentacao">
+        <div class="sust-cab">
+          <svg width="44" height="44" viewBox="5 5 90 90" aria-hidden="true"><g fill="none" stroke-width="13" stroke-linecap="round"><path d="M55.9 16.5A34 34 0 0 1 83.5 44.1" stroke="var(--capta)"/><path d="M83.5 55.9A34 34 0 0 1 55.9 83.5" stroke="var(--entrega)"/><path d="M44.1 83.5A34 34 0 0 1 16.5 55.9" stroke="var(--mostra)"/><path d="M16.5 44.1A34 34 0 0 1 44.1 16.5" stroke="var(--renova)"/></g></svg>
+          <span class="sust-selo">Opcional · contratada à parte</span>
+          <h3>Sustentação mensal</h3>
+          <p>Depois da instalação, a agência pode contratar a sustentação mensal para o Flowloop continuar sob os nossos cuidados. Vale para qualquer plano.</p>
+        </div>
+        <ul class="sust-itens">
+          <li><b>Suporte pelo WhatsApp</b><span>Dúvidas do time respondidas por quem instalou.</span></li>
+          <li><b>Correções</b><span>Se algo parar de funcionar, corrigimos sem custo extra.</span></li>
+          <li><b>Mudanças do Google</b><span>Quando o Google muda algo, adaptamos o sistema.</span></li>
+          <li><b>Ajustes de configuração</b><span>Nova etapa no funil, novo serviço, gente entrando ou saindo do time.</span></li>
+          <li><b>Novidades do Flowloop</b><span>Melhorias novas liberadas para a sua agência.</span></li>
+          <li><b>Cuidado com os dados</b><span>Conferimos permissões e cópias de segurança da planilha.</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="perguntas">
+    <div class="wrap faq-grid">
+      <div class="sec-head">
+        <span class="eb">Perguntas</span>
+        <h2>O que as agências perguntam antes de começar.</h2>
+        <div class="faq-lupe-box"><div data-lupe="faq"></div><p class="faq-fala" id="faq-fala" aria-live="polite">Pergunte à vontade.</p></div>
+      </div>
+      <div class="faq-lista">
+        <details open><summary><span class="faq-ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="11" rx="2"/><path d="M9 20h6M12 16v4"/></svg></span><span class="faq-q">Preciso instalar alguma coisa?</span><span class="mais" aria-hidden="true">+</span></summary><p>Não. O Flowloop é um app do Google Apps Script. A equipe abre um link no navegador ou no celular e entra com a conta Google.</p></details>
+        <details><summary><span class="faq-ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 9.5h16M10 9.5V20"/></svg></span><span class="faq-q">Onde ficam os dados dos meus clientes?</span><span class="mais" aria-hidden="true">+</span></summary><p>Numa Planilha Google no Drive da sua agência. Nós não guardamos cópia em servidor próprio, e você pode abrir, exportar ou fazer backup da planilha quando quiser.</p></details>
+        <details><summary><span class="faq-ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.5 2.7 2.5 13.3 0 16M12 4c-2.5 2.7-2.5 13.3 0 16"/></svg></span><span class="faq-q">Funciona sem Google Workspace?</span><span class="mais" aria-hidden="true">+</span></summary><p>O ideal é o Google Workspace da agência, porque o acesso fica restrito ao seu domínio. Na demonstração vemos se a sua conta atual atende.</p></details>
+        <details><summary><span class="faq-ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4.5l3 2"/></svg></span><span class="faq-q">Quanto tempo leva para começar a usar?</span><span class="mais" aria-hidden="true">+</span></summary><p>Depende do quanto vamos configurar e de quantos dados vamos importar. Na demonstração já combinamos a data de entrega.</p></details>
+        <details><summary><span class="faq-ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M5 12h14M5 17h14"/><circle cx="9" cy="7" r="1.8" fill="currentColor"/><circle cx="15" cy="12" r="1.8" fill="currentColor"/><circle cx="11" cy="17" r="1.8" fill="currentColor"/></svg></span><span class="faq-q">Posso mudar as etapas do funil depois?</span><span class="mais" aria-hidden="true">+</span></summary><p>Pode. Etapas, tipos de serviço e equipe ficam numa tela de configuração, sem mexer em código.</p></details>
+        <details><summary><span class="faq-ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5V5a1 1 0 0 1 1-1h7.5L20 11.5 12.5 19z"/><circle cx="8.5" cy="8.5" r="1.5"/></svg></span><span class="faq-q">A marca Flowloop aparece para os meus clientes?</span><span class="mais" aria-hidden="true">+</span></summary><p>Não. A tela usa o nome, o logo e as cores da sua agência.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec contato planos-sec" id="contato">
+    <svg class="contato-anel" viewBox="0 0 100 100" aria-hidden="true"><g fill="none" stroke-width=".5" stroke-linecap="round"><path d="M55.9 16.5A34 34 0 0 1 83.5 44.1" stroke="var(--capta)"/><path d="M83.5 55.9A34 34 0 0 1 55.9 83.5" stroke="var(--entrega)"/><path d="M44.1 83.5A34 34 0 0 1 16.5 55.9" stroke="var(--mostra)"/><path d="M16.5 44.1A34 34 0 0 1 44.1 16.5" stroke="var(--renova)"/></g><g fill="none" stroke="var(--line)" stroke-width=".25"><circle cx="50" cy="50" r="42"/><circle cx="50" cy="50" r="26" stroke-dasharray=".6 1.6"/></g></svg>
+    <div class="wrap">
+      <div class="contato-info">
+        <span class="eb">Agendar demonstração</span>
+        <h2>Vamos ver o Flowloop com o funil da sua agência.</h2>
+        <p>Preencha e a mensagem vai pronta para o nosso WhatsApp. A resposta chega por lá.</p>
+        <ul class="lista">
+          <li><svg width="20" height="20"><use href="#i-check"/></svg>30 minutos, por vídeo</li>
+          <li><svg width="20" height="20"><use href="#i-check"/></svg>Sem compromisso e sem cartão</li>
+          <li><svg width="20" height="20"><use href="#i-check"/></svg>Você sai com a proposta para o seu tamanho de time</li>
+        </ul>
+        <div class="chat" aria-label="Prévia da mensagem que vai para o WhatsApp">
+          <div class="chat-top">
+            <span class="chat-av"><svg width="22" height="22" viewBox="5 5 90 90" aria-hidden="true"><g fill="none" stroke-width="14" stroke-linecap="round"><path d="M55.9 16.5A34 34 0 0 1 83.5 44.1" stroke="var(--capta)"/><path d="M83.5 55.9A34 34 0 0 1 55.9 83.5" stroke="var(--entrega)"/><path d="M44.1 83.5A34 34 0 0 1 16.5 55.9" stroke="var(--mostra)"/><path d="M16.5 44.1A34 34 0 0 1 44.1 16.5" stroke="var(--renova)"/></g></svg></span>
+            <div><b>Flowloop</b><span class="whats-num" id="whats-num" hidden>WhatsApp <b id="whats-txt"></b></span></div>
+            <span class="chat-tag">Prévia</span>
+          </div>
+          <div class="chat-corpo">
+            <div class="bolha"><p id="chat-msg"></p><span class="hora">agora <svg width="16" height="10" viewBox="0 0 16 10" aria-hidden="true"><path d="M1 5.5l2.5 2.5L9 2.5M6.5 8l.5.5L13 2.5" fill="none" stroke="var(--pri)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+          </div>
+        </div>
+      </div>
+
+      <form class="form" id="form" novalidate>
+        <div class="form-lupe" data-lupe="pronto"></div>
+        <div id="form-campos" style="display:grid;gap:18px">
+          <div class="linha2">
+            <div class="campo"><label for="f-nome">Seu nome</label><input id="f-nome" name="nome" autocomplete="name" required placeholder="Marina Souza"><span class="erro" hidden>Escreva seu nome.</span></div>
+            <div class="campo"><label for="f-agencia">Agência</label><input id="f-agencia" name="agencia" autocomplete="organization" required placeholder="Lume Vermelho"><span class="erro" hidden>Escreva o nome da agência.</span></div>
+          </div>
+          <div class="linha2">
+            <div class="campo"><label for="f-time">Tamanho do time</label>
+              <select id="f-time" name="time"><option>Até 5 pessoas</option><option selected>6 a 10 pessoas</option><option>11 a 20 pessoas</option><option>21 a 30 pessoas</option><option>Mais de 30 pessoas</option></select></div>
+            <div class="campo"><label for="f-plano">Plano de interesse</label>
+              <select id="f-plano" name="plano"><option>Ainda não sei</option><option>Essencial</option><option>Agência</option><option>Sob medida</option></select></div>
+          </div>
+          <div class="campo"><label for="f-uso">Como vocês organizam os clientes hoje? <small>(opcional)</small></label><textarea id="f-uso" name="uso" placeholder="Planilha, Trello, outro CRM..."></textarea></div>
+          <button class="btn btn-p" type="submit"><svg width="20" height="20"><use href="#i-whats"/></svg> Preparar mensagem no WhatsApp</button>
+          <p class="form-nota">Nada é enviado sem você confirmar no WhatsApp.</p>
+        </div>
+        <div class="pronto" id="pronto" hidden>
+          <h3>Mensagem pronta</h3>
+          <p>Toque em abrir no WhatsApp e envie. Se preferir, copie o texto.</p>
+          <pre id="msg"></pre>
+          <div class="acoes">
+            <a class="btn btn-p" id="abrir-wpp" href="#" target="_blank" rel="noopener"><svg width="20" height="20"><use href="#i-whats"/></svg> Abrir no WhatsApp</a>
+            <button class="btn btn-s" type="button" id="copiar">Copiar mensagem</button>
+          </div>
+          <button class="voltar" type="button" id="voltar">Editar os dados</button>
+        </div>
+      </form>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a class="logo" href="#inicio" aria-label="Flowloop, voltar ao início"></a>
+    <nav aria-label="Rodapé"><a href="#ciclo">Como funciona</a><a href="#marca">Com a sua marca</a><a href="#planos">Planos</a><a href="#perguntas">Perguntas</a><a href="#contato">Contato</a></nav>
+    <small>© 2026 Flowloop. CRM para agências.</small>
+  </div>
+</footer>
+
+<script>
+/* ===== Configuração: número do WhatsApp com DDI e DDD, só dígitos (ex.: 5511999998888) ===== */
+const WHATSAPP = '5511992827482';
+
+/* ---------- Lupe ---------- */
+function lupe(id){
+  return `<svg class="lupe" id="lupe-${id}" viewBox="0 0 100 100" role="img" aria-label="Lupe, a mascote do Flowloop">
+  <g class="braco" fill="none" stroke="var(--mostra)" stroke-width="4.5" stroke-linecap="round"><path d="M86 52 L97 40"/></g>
+  <g class="anel" fill="none" stroke-width="13" stroke-linecap="round">
+    <path class="arco a-capta" d="M55.9 16.5A34 34 0 0 1 83.5 44.1" stroke="var(--capta)"/>
+    <path class="arco a-entrega" d="M83.5 55.9A34 34 0 0 1 55.9 83.5" stroke="var(--entrega)"/>
+    <path class="arco a-mostra" d="M44.1 83.5A34 34 0 0 1 16.5 55.9" stroke="var(--mostra)"/>
+    <path class="arco a-renova" d="M16.5 44.1A34 34 0 0 1 44.1 16.5" stroke="var(--renova)"/>
+  </g>
+  <g class="brilhos" fill="var(--renova)">
+    <path class="brilho" d="M6 40l1.3 3.7 3.7 1.3-3.7 1.3L6 50l-1.3-3.7L1 45l3.7-1.3z"/>
+    <path class="brilho" d="M13 28l.9 2.5 2.5.9-2.5.9-.9 2.5-.9-2.5-2.5-.9 2.5-.9z"/>
+  </g>
+  <g class="olhos"><g class="rosto" fill="none" stroke="var(--tx)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+    <g class="ex ex-base">
+      <ellipse class="olho" cx="41.5" cy="47" rx="3.4" ry="4.6" fill="var(--tx)" stroke="none"/>
+      <ellipse class="olho" cx="58.5" cy="47" rx="3.4" ry="4.6" fill="var(--tx)" stroke="none"/>
+      <path d="M45.5 56.5q4.5 4 9 0"/>
+    </g>
+    <g class="ex ex-atenta">
+      <ellipse class="olho" cx="41.5" cy="46.5" rx="3.9" ry="5.4" fill="var(--tx)" stroke="none"/>
+      <ellipse class="olho" cx="58.5" cy="46.5" rx="3.9" ry="5.4" fill="var(--tx)" stroke="none"/>
+      <circle cx="42.8" cy="44.4" r="1.2" fill="var(--surf)" stroke="none"/><circle cx="59.8" cy="44.4" r="1.2" fill="var(--surf)" stroke="none"/>
+      <path d="M37.5 38q4-2.8 8 0M54.5 38q4-2.8 8 0" stroke-width="2.2"/>
+      <ellipse cx="50" cy="58.5" rx="2.2" ry="2.7" stroke-width="2.3"/>
+    </g>
+    <g class="ex ex-focada">
+      <ellipse class="olho" cx="41.5" cy="48" rx="3.4" ry="2.9" fill="var(--tx)" stroke="none"/>
+      <ellipse class="olho" cx="58.5" cy="48" rx="3.4" ry="2.9" fill="var(--tx)" stroke="none"/>
+      <path d="M38 40.8q3.8-.6 7.2 1M62 40.8q-3.8-.6-7.2 1" stroke-width="2.2"/>
+      <path d="M46 57.6q4 2 8-.6"/>
+    </g>
+    <g class="ex ex-orgulhosa">
+      <path d="M38 46.5q3.5 3.4 7 0M55 46.5q3.5 3.4 7 0"/>
+      <path d="M43.5 55.2q6.5 6.2 13 0"/>
+    </g>
+    <g class="ex ex-pensativa">
+      <ellipse class="olho" cx="42.5" cy="44.5" rx="3.2" ry="4.2" fill="var(--tx)" stroke="none"/>
+      <ellipse class="olho" cx="59.5" cy="44.5" rx="3.2" ry="4.2" fill="var(--tx)" stroke="none"/>
+      <path d="M54.5 36.5q4-2.6 8-.6" stroke-width="2.2"/>
+      <path d="M46 58.5q4-1.8 8 .6"/>
+    </g>
+    <g class="ex ex-feliz">
+      <path d="M38 48.5q3.5-5 7 0M55 48.5q3.5-5 7 0"/>
+      <path d="M44 55h12q0 7.5-6 7.5T44 55z" fill="var(--tx)"/>
+    </g>
+    <circle class="bochecha" cx="35.5" cy="55" r="2.2" fill="var(--renova)" stroke="none" opacity=".85"/>
+    <circle class="bochecha" cx="64.5" cy="55" r="2.2" fill="var(--renova)" stroke="none" opacity=".85"/>
+  </g></g>
+</svg>`;
+}
+document.querySelectorAll('[data-lupe]').forEach(el=>{el.outerHTML=lupe(el.dataset.lupe)});
+const lHero=document.getElementById('lupe-hero'), lRoda=document.getElementById('lupe-roda'), lFaq=document.getElementById('lupe-faq'), lPronto=document.getElementById('lupe-pronto');
+lFaq.classList.add('faq-lupe');
+const lDados=document.getElementById('lupe-dados'), cDados=document.querySelector('.rec-dados');
+lDados.dataset.aponta='';
+cDados.addEventListener('pointerenter',()=>lDados.dataset.humor='feliz');
+cDados.addEventListener('pointerleave',()=>delete lDados.dataset.humor);
+lHero.dataset.acena='';
+setTimeout(()=>{delete lHero.dataset.acena;lHero.dataset.humor='feliz';setTimeout(()=>delete lHero.dataset.humor,1600)},3600);
+
+/* olhos seguem o mouse perto da Lupe do FAQ e do hero */
+function olhar(svg,x,y){
+  const r=svg.getBoundingClientRect(); const cx=r.left+r.width/2, cy=r.top+r.height/2;
+  const dx=x-cx, dy=y-cy, d=Math.hypot(dx,dy)||1, k=Math.min(1,d/300)*3.2;
+  svg.style.setProperty('--lx',(dx/d*k).toFixed(2)+'px'); svg.style.setProperty('--ly',(dy/d*k).toFixed(2)+'px');
+}
+addEventListener('pointermove',e=>{[lHero,lFaq].forEach(s=>olhar(s,e.clientX,e.clientY))},{passive:true});
+
+/* ---------- Ciclo ---------- */
+const TEMPOS={
+  capta:{nome:'Capta',tit:'Nenhum lead esquecido no WhatsApp de alguém.',txt:'Todo contato vira um card no funil, com etapa, valor e próximo passo. O time vê quem precisa de retorno hoje.',itens:['Funil em quadro, com etapas que você define','Lembretes de retorno e prazo de decisão','Propostas e histórico de conversa no card do cliente'],am:{b:'Ótica Visão Clara',s:'Proposta enviada há 3 dias · retorno amanhã, 10h',c:'Capta'},ic:'<path d="M4 6h16l-6 7v5l-4 2v-7z"/>'},
+  entrega:{nome:'Entrega',tit:'O cliente aprova sem precisar de 14 mensagens.',txt:'Posts, campanhas e tarefas ficam numa lista por cliente, com responsável e prazo. Dá para ver o que está parado antes do cliente reclamar.',itens:['Tarefas por cliente, com responsável e prazo','Status de aprovação de cada entrega','Aviso quando algo fica parado há dias'],am:{b:'Clínica Sorriso Leve',s:'9 de 12 posts aprovados · 3 aguardando o cliente',c:'Entrega'},ic:'<path d="M5 12.5l4.2 4.2L19 7"/>'},
+  mostra:{nome:'Mostra',tit:'O resultado chega antes da pergunta "e aí, deu certo?".',txt:'O que foi entregue no mês vira um resumo pronto para a reunião com o cliente. Menos print colado em slide na véspera.',itens:['Resumo do mês por cliente','Números de entrega e de investimento num lugar só','Painel da agência para o dono acompanhar'],am:{b:'Pet Amigo · report de setembro',s:'14 slides, pronto para apresentar',c:'Mostra'},ic:'<path d="M4 19h16M7 16v-5M12 16V7M17 16v-8"/>'},
+  renova:{nome:'Renova',tit:'O contrato renova antes de virar susto.',txt:'Cada cliente tem contrato, valor, data de reajuste e serviços extras. O Flowloop avisa com antecedência, e a conversa de renovação começa com o report na mão.',itens:['Contratos, reajustes e serviços adicionais','Aviso de contratos perto de vencer','Financeiro visível só para quem você escolher'],am:{b:'Café Serra Alta',s:'Contrato vence em 15 dias · reajuste em novembro',c:'Renovar'},ic:'<path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v4h-4"/>'}
+};
+const ORDEM=['capta','entrega','mostra','renova'];
+const OLHAR={capta:[2.6,-2.2],entrega:[2.6,2.4],mostra:[-2.6,2.4],renova:[-2.6,-2.2]};
+const HUMOR={capta:['atenta','atenta a um novo cliente'],entrega:['focada','focada na entrega'],mostra:['orgulhosa','orgulhosa do resultado'],renova:['feliz','feliz com a renovação']};
+const painel=document.getElementById('painel');
+const botoes=[...document.querySelectorAll('.tempo-btn')];
+let atual=null, auto=true, timer;
+function mostrar(t,foco){
+  atual=t; const d=TEMPOS[t];
+  botoes.forEach(b=>{const on=b.dataset.tempo===t;b.setAttribute('aria-selected',on);b.tabIndex=on?0:-1;if(on&&foco)b.focus()});
+  painel.dataset.t=t; painel.style.setProperty('--c',`var(--${t})`);
+  painel.innerHTML=`<div class="anima" style="display:grid;gap:22px">
+    <span class="eb"><i></i>${d.nome}</span>
+    <h3>${d.tit}</h3><p style="font-size:18px;color:var(--tx2);max-width:52ch">${d.txt}</p>
+    <ul class="lista">${d.itens.map(i=>`<li><svg width="20" height="20"><use href="#i-check"/></svg>${i}</li>`).join('')}</ul>
+    <div class="amostra"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d.ic}</svg></span><div><b>${d.am.b}</b><span>${d.am.s}</span></div><span class="chip">Exemplo</span></div></div>`;
+  lRoda.querySelectorAll('.arco').forEach(a=>{const on=a.classList.contains('a-'+t);a.style.opacity=on?1:.28;a.style.strokeWidth=on?15:12});
+  const [x,y]=OLHAR[t]; lRoda.style.setProperty('--lx',x+'px'); lRoda.style.setProperty('--ly',y+'px');
+  lRoda.dataset.humor=HUMOR[t][0]; lRoda.setAttribute('aria-label','Lupe, '+HUMOR[t][1]);
+  const rosto=lRoda.querySelector('.rosto'); rosto.classList.remove('pulo'); void rosto.getBoundingClientRect(); rosto.classList.add('pulo');
+}
+botoes.forEach((b,i)=>{
+  b.addEventListener('click',()=>{auto=false;clearInterval(timer);mostrar(b.dataset.tempo)});
+  b.addEventListener('keydown',e=>{const k={ArrowRight:1,ArrowDown:1,ArrowLeft:-1,ArrowUp:-1}[e.key];if(!k)return;e.preventDefault();auto=false;clearInterval(timer);mostrar(ORDEM[(i+k+4)%4],true)});
+});
+mostrar('capta');
+const calmo=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let voltas=0;
+if(!calmo){
+  timer=setInterval(()=>{
+    if(!auto)return;
+    const i=ORDEM.indexOf(atual);
+    if(i===3){voltas++;lRoda.querySelector('.anel').style.transform=`rotate(${voltas*360}deg)`}
+    mostrar(ORDEM[(i+1)%4]);
+  },5200);
+}
+
+/* ---------- Marca da agência ---------- */
+const mini=document.getElementById('mini'), mNome=document.getElementById('m-nome'), mCor=document.getElementById('m-cor');
+const presets=[...document.querySelectorAll('.tema-op')], cores=[...document.querySelectorAll('.cor')];
+const lMarca=document.getElementById('lupe-marca');
+let corAtual='#C2410C', nomeAtual='Lume Vermelho', tAlegre;
+function claro(hex){const n=parseInt(hex.slice(1),16),c=[n>>16&255,n>>8&255,n&255].map(v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)});return .2126*c[0]+.7152*c[1]+.0722*c[2]>.45}
+function siglas(n){const p=n.trim().split(/\s+/).filter(Boolean);if(!p.length)return '?';return (p.length>1?p[0][0]+p[1][0]:p[0].slice(0,2)).toUpperCase()}
+function aplicarMarca(alegrar){
+  mini.style.setProperty('--a',corAtual); mini.style.setProperty('--a-on',claro(corAtual)?'#14142B':'#FFFFFF');
+  document.getElementById('mini-nome').textContent=nomeAtual; document.getElementById('mini-ag').textContent=siglas(nomeAtual);
+  if(alegrar){clearTimeout(tAlegre);lMarca.dataset.humor='feliz';const r=lMarca.querySelector('.rosto');r.classList.remove('pulo');void r.getBoundingClientRect();r.classList.add('pulo');tAlegre=setTimeout(()=>delete lMarca.dataset.humor,1400)}
+}
+function marcarCor(c){cores.forEach(x=>x.setAttribute('aria-checked',x.dataset.c===c))}
+presets.forEach(b=>b.addEventListener('click',()=>{
+  presets.forEach(x=>x.setAttribute('aria-pressed',x===b)); marcarCor(null); mNome.value='';
+  corAtual=b.dataset.a; nomeAtual=b.dataset.n; aplicarMarca(true);
+}));
+cores.forEach(b=>b.addEventListener('click',()=>{
+  presets.forEach(x=>x.setAttribute('aria-pressed','false')); marcarCor(b.dataset.c);
+  corAtual=b.dataset.c; if(mNome.value.trim())nomeAtual=mNome.value.trim(); aplicarMarca(true);
+}));
+mCor.addEventListener('input',()=>{
+  presets.forEach(x=>x.setAttribute('aria-pressed','false')); marcarCor(null);
+  corAtual=mCor.value; aplicarMarca(false);
+});
+mCor.addEventListener('change',()=>aplicarMarca(true));
+mNome.addEventListener('input',()=>{
+  presets.forEach(x=>x.setAttribute('aria-pressed','false'));
+  nomeAtual=mNome.value.trim()||'Sua agência'; aplicarMarca(false);
+});
+mNome.addEventListener('change',()=>aplicarMarca(true));
+aplicarMarca(false);
+
+/* ---------- Como começar: Lupe anda pela trilha conforme a rolagem ---------- */
+const trilha=document.getElementById('trilha'), tLinha=trilha.querySelector('.trilha-linha'), tFill=trilha.querySelector('.trilha-fill'), tLupe=trilha.querySelector('.trilha-lupe');
+const marcos=[...trilha.querySelectorAll('.marco')], lTrilha=document.getElementById('lupe-trilha');
+let C=[], vert=false;
+function linha(el,a,b){Object.assign(el.style,vert?{left:(a.x-1)+'px',top:a.y+'px',width:'2px',height:Math.max(0,b.y-a.y)+'px'}:{left:a.x+'px',top:(a.y-1)+'px',height:'2px',width:Math.max(0,b.x-a.x)+'px'})}
+function medirTrilha(){
+  const b=trilha.getBoundingClientRect();
+  C=marcos.map(m=>{const r=m.getBoundingClientRect();return {x:r.left-b.left+r.width/2,y:r.top-b.top+r.height/2}});
+  vert=Math.abs(C[C.length-1].x-C[0].x)<10; trilha.classList.toggle('vertical',vert);
+  linha(tLinha,C[0],C[C.length-1]); rolarTrilha();
+}
+function rolarTrilha(){
+  if(!C.length)return;
+  const r=trilha.getBoundingClientRect(), vh=innerHeight, n=C.length;
+  let p=vert?(vh*.55-r.top-C[0].y)/(C[n-1].y-C[0].y):(vh*.85-r.top)/(vh*.5);
+  p=Math.max(0,Math.min(1,p));
+  const t=p*(n-1), i=Math.min(n-2,Math.floor(t)), f=t-i;
+  const pos={x:C[i].x+(C[i+1].x-C[i].x)*f, y:C[i].y+(C[i+1].y-C[i].y)*f};
+  tLupe.style.setProperty('--x',pos.x+'px'); tLupe.style.setProperty('--y',pos.y+'px');
+  linha(tFill,C[0],pos);
+  marcos.forEach((m,k)=>m.classList.toggle('on',t>=k-.05));
+  const h=p>=.98?'feliz':p<=.02?'atenta':'focada';
+  if(lTrilha.dataset.humor!==h)lTrilha.dataset.humor=h;
+  lTrilha.style.setProperty('--lx',vert?'0px':'2.6px'); lTrilha.style.setProperty('--ly',vert?'2.4px':'0px');
+}
+addEventListener('scroll',rolarTrilha,{passive:true});
+addEventListener('resize',medirTrilha);
+medirTrilha();
+if(document.fonts)document.fonts.ready.then(medirTrilha);
+
+/* ---------- Perguntas: a Lupe pensa e responde ---------- */
+const faqFala=document.getElementById('faq-fala');
+let tFaq1,tFaq2,faqPronto=false; setTimeout(()=>faqPronto=true,600);
+function falar(t){faqFala.textContent=t;faqFala.classList.remove('troca');void faqFala.offsetWidth;faqFala.classList.add('troca')}
+document.querySelectorAll('.faq-lista details').forEach(d=>d.addEventListener('toggle',()=>{
+  if(!d.open||!faqPronto)return;
+  document.querySelectorAll('.faq-lista details').forEach(o=>{if(o!==d&&o.open)o.open=false});
+  const r=d.querySelector('summary').getBoundingClientRect(); olhar(lFaq,r.left+r.width/2,r.top+r.height/2);
+  clearTimeout(tFaq1);clearTimeout(tFaq2);
+  lFaq.dataset.humor='pensativa'; falar('Hmm, boa pergunta…');
+  tFaq1=setTimeout(()=>{lFaq.dataset.humor='feliz';falar('Achei! A resposta está aí.');const ro=lFaq.querySelector('.rosto');ro.classList.remove('pulo');void ro.getBoundingClientRect();ro.classList.add('pulo')},900);
+  tFaq2=setTimeout(()=>{delete lFaq.dataset.humor;falar('Pergunte à vontade.')},3600);
+}));
+
+/* ---------- Planos → formulário ---------- */
+document.querySelectorAll('[data-plano]').forEach(a=>a.addEventListener('click',()=>{document.getElementById('f-plano').value=a.dataset.plano}));
+
+/* ---------- Formulário → WhatsApp ---------- */
+const form=document.getElementById('form'), campos=document.getElementById('form-campos'), pronto=document.getElementById('pronto');
+if(WHATSAPP){const n=WHATSAPP.replace(/\D/g,'');document.getElementById('whats-num').hidden=false;document.getElementById('whats-txt').textContent=n.length>=12?`+${n.slice(0,2)} (${n.slice(2,4)}) ${n.slice(4,-4)}-${n.slice(-4)}`:n}
+function valida(id){const c=document.getElementById(id), w=c.closest('.campo'), ok=c.value.trim().length>1;w.toggleAttribute('data-invalido',!ok);w.querySelector('.erro').hidden=ok;return ok}
+['f-nome','f-agencia'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{if(document.getElementById(id).closest('[data-invalido]'))valida(id)}));
+const vf=id=>document.getElementById(id).value.trim();
+function montarMsg(){
+  let m=`Olá! Quero agendar uma demonstração do Flowloop.\n\nNome: ${vf('f-nome')}\nAgência: ${vf('f-agencia')}\nTamanho do time: ${vf('f-time')}\nPlano de interesse: ${vf('f-plano')}`;
+  if(vf('f-uso'))m+=`\nHoje organizamos assim: ${vf('f-uso')}`;
+  return m;
+}
+/* prévia ao vivo: campos vazios aparecem como "…" em cinza */
+const chatMsg=document.getElementById('chat-msg'), bolha=chatMsg.parentElement;
+function linhaChat(rot,val){const l=document.createDocumentFragment();l.append(rot+': ');if(val){l.append(val)}else{const i=document.createElement('i');i.textContent='…';l.append(i)}l.append('\n');return l}
+function atualizarChat(){
+  chatMsg.textContent='Olá! Quero agendar uma demonstração do Flowloop.\n\n';
+  chatMsg.append(linhaChat('Nome',vf('f-nome')),linhaChat('Agência',vf('f-agencia')),linhaChat('Tamanho do time',vf('f-time')),linhaChat('Plano de interesse',vf('f-plano')));
+  if(vf('f-uso'))chatMsg.append('Hoje organizamos assim: '+vf('f-uso'));
+  else chatMsg.lastChild.textContent=chatMsg.lastChild.textContent.replace(/\n$/,'');
+}
+form.addEventListener('input',atualizarChat); form.addEventListener('change',atualizarChat); atualizarChat();
+/* a Lupe acompanha o preenchimento */
+let tDigita, comemorou=false;
+form.querySelectorAll('input,select,textarea').forEach(c=>{
+  c.addEventListener('focus',()=>{const r=c.getBoundingClientRect();olhar(lPronto,r.left+r.width/2,r.top+r.height/2);if(!lPronto.dataset.acena)lPronto.dataset.humor='atenta'});
+  c.addEventListener('input',()=>{
+    if(lPronto.dataset.acena)return;
+    lPronto.dataset.humor='focada'; clearTimeout(tDigita);
+    tDigita=setTimeout(()=>{
+      if(!comemorou&&vf('f-nome').length>1&&vf('f-agencia').length>1){comemorou=true;lPronto.dataset.humor='feliz';bolha.classList.remove('pisca');void bolha.offsetWidth;bolha.classList.add('pisca');setTimeout(()=>{if(!lPronto.dataset.acena)lPronto.dataset.humor='atenta'},1500)}
+      else lPronto.dataset.humor='atenta';
+    },700);
+  });
+  c.addEventListener('blur',()=>{setTimeout(()=>{if(!form.contains(document.activeElement)&&!lPronto.dataset.acena)delete lPronto.dataset.humor},50)});
+});
+form.addEventListener('submit',e=>{
+  e.preventDefault();
+  const ok=[valida('f-nome'),valida('f-agencia')];
+  if(ok.includes(false)){lPronto.dataset.humor='pensativa';document.querySelector('[data-invalido] input').focus();return}
+  const msg=montarMsg();
+  document.getElementById('msg').textContent=msg;
+  const num=WHATSAPP.replace(/\D/g,'');
+  document.getElementById('abrir-wpp').href=num?`https://wa.me/${num}?text=${encodeURIComponent(msg)}`:`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+  campos.style.display='none'; pronto.hidden=false;
+  lPronto.dataset.acena='';lPronto.dataset.humor='feliz';
+  pronto.scrollIntoView({block:'nearest'});
+});
+document.getElementById('voltar').addEventListener('click',()=>{pronto.hidden=true;campos.style.display='grid';delete lPronto.dataset.acena;delete lPronto.dataset.humor});
+document.getElementById('copiar').addEventListener('click',async e=>{
+  const b=e.currentTarget, t=document.getElementById('msg').textContent;
+  try{await navigator.clipboard.writeText(t);b.textContent='Copiada'}catch{const r=document.createRange();r.selectNodeContents(document.getElementById('msg'));const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Texto selecionado'}
+  setTimeout(()=>b.textContent='Copiar mensagem',2200);
+});
+
+/* ---------- Header e tema ---------- */
+document.querySelector('footer .logo').innerHTML=document.querySelector('.top .logo').innerHTML;
+const top_=document.getElementById('topo');
+addEventListener('scroll',()=>top_.classList.toggle('rolou',scrollY>8),{passive:true});
+document.getElementById('tema').addEventListener('click',()=>{
+  const r=document.documentElement, escuro=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
+  r.dataset.theme=escuro?'light':'dark';
+  try{localStorage.setItem('fl-tema',r.dataset.theme)}catch{}
+});
+try{const t=localStorage.getItem('fl-tema');if(t)document.documentElement.dataset.theme=t}catch{}
+</script>
+
+</body></html>
