@@ -1,0 +1,139 @@
+<style>
+/* Área "Equipe" do Social e do Tráfego: quem é da área, o que cada um está fazendo e um quadro (Trello) por pessoa. */
+.eq { display: grid; gap: 22px; }
+.eq-pessoas { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.eq-p { all: unset; box-sizing: border-box; cursor: pointer; display: grid; gap: 14px; padding: 20px 20px 18px; border-radius: 18px; background: var(--superficie); border: 1px solid var(--linha);
+  box-shadow: var(--sombra); transition: transform .2s, border-color .2s, box-shadow .2s; position: relative; overflow: hidden; }
+.eq-p:hover { transform: translateY(-2px); border-color: var(--linha-forte); }
+.eq-p:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.eq-p[aria-pressed="true"] { border-color: color-mix(in srgb, var(--acento) 55%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento) 14%, transparent), var(--sombra); }
+.eq-p[aria-pressed="true"]::before { content: ''; position: absolute; left: 0; top: 18px; bottom: 18px; width: 3px; border-radius: 0 3px 3px 0; background: var(--acento); }
+:root[data-tema="escuro"] .eq-p, :root[data-tema="floresta"] .eq-p { background: linear-gradient(180deg, rgba(247, 243, 236, .05), rgba(247, 243, 236, .02)); }
+.eq-topo { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.eq-topo .avatar { width: 42px; height: 42px; font-size: 13px; }
+.eq-topo b { display: block; font: 450 17px/1.2 var(--fonte-t), Georgia, serif; letter-spacing: -.01em; }
+.eq-topo > span:not(.avatar) span { display: block; font-size: 12px; color: var(--suave); margin-top: 2px; }
+.eq-nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.eq-nums div { padding: 10px 10px 9px; border-radius: 12px; background: var(--afundado); }
+.eq-nums b { display: block; font: 600 20px/1 var(--fonte); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.eq-nums small { display: block; margin-top: 5px; font-size: 10.5px; line-height: 1.3; color: var(--suave); }
+.eq-nums .al b { color: var(--acento); }
+.eq-agora { font-size: 12.5px; color: var(--suave); line-height: 1.45; }
+.eq-agora b { color: var(--texto); font-weight: 600; }
+.eq-quadro-cab { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.eq-quadro-cab .avatar { width: 38px; height: 38px; }
+.eq-quadro-cab h2 { font: 400 24px/1.15 var(--fonte-t), Georgia, serif; letter-spacing: -.015em; margin-right: auto; }
+.eq-quadro-cab h2 em { font-style: italic; color: var(--acento); }
+.eq-corpo { display: grid; grid-template-columns: minmax(0, 3fr) minmax(260px, 1fr); gap: 18px; align-items: start; }
+.eq-corpo .tarefas-quadro { margin: 0; }
+.eq-lado .lista > li { align-items: flex-start; }
+@media (max-width: 1200px) { .eq-corpo { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 820px) { .eq-corpo .tarefas-quadro { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<script>
+/** Área Equipe (Social media e Tráfego): cartões por pessoa e o quadro de tarefas de quem estiver selecionado. */
+S.equipeSel = {};
+
+function equipeDaArea(area) {
+  return equipeAtiva().filter(function (m) { return (m.areas || []).indexOf(area) >= 0; })
+    .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+}
+
+// O que cada pessoa tem em andamento na área (conteúdos ou campanhas), para o cartão e a lista lateral.
+function andamentoDe(area, email) {
+  const d = S.dados, hoje = d.hoje;
+  if (area === 'social') {
+    const ps = (d.posts || []).filter(function (p) { return p.responsavel === email && p.status !== 'publicado'; })
+      .sort(function (a, b) { return (a.data || '9999') < (b.data || '9999') ? -1 : 1; });
+    return {
+      itens: ps, n1: ps.filter(function (p) { return p.status === 'producao' || p.status === 'pauta'; }).length, l1: 'em produção',
+      n2: ps.filter(function (p) { return p.status === 'aprovacao'; }).length, l2: 'com o cliente',
+      atrasados: ps.filter(function (p) { return p.data && p.data < hoje; }).length,
+      linha: function (p) {
+        const atr = p.data && p.data < hoje;
+        return '<li><div class="principal-li"><b>' + esc(p.titulo) + '</b><span>' + esc(nomeCliente(p.clienteId)) + ' · ' + esc(p.formato || '') + '</span></div>' +
+          '<span class="pilula' + (atr ? ' alerta' : '') + '">' + (p.data ? dataCurta(p.data) : 'sem data') + '</span></li>';
+      },
+    };
+  }
+  const cs = (d.campanhas || []).filter(function (c) { return c.responsavel === email && c.status !== 'encerrada'; });
+  return {
+    itens: cs, n1: cs.filter(function (c) { return c.status === 'ativa'; }).length, l1: 'campanhas ativas',
+    n2: Math.round(cs.filter(function (c) { return c.status === 'ativa'; }).reduce(function (s, c) { return s + (Number(c.verba) || 0); }, 0) / 1000), l2: 'mil de verba/mês',
+    atrasados: cs.filter(function (c) { return c.status === 'pausada'; }).length,
+    linha: function (c) {
+      return '<li><div class="principal-li"><b>' + esc(c.nome) + '</b><span>' + esc(nomeCliente(c.clienteId)) + ' · ' + esc(c.plataforma) + '</span></div>' +
+        '<span class="pilula' + (c.status === 'ativa' ? ' ok' : '') + '">' + esc(c.status === 'ativa' ? 'Ativa' : 'Pausada') + '</span></li>';
+    },
+  };
+}
+
+function areaEquipe(area) {
+  const pessoas = equipeDaArea(area), d = S.dados, hoje = d.hoje;
+  if (!pessoas.length) return '<div class="cartao"><div class="vazio"><b>Ninguém marcado nesta área.</b>Em Admin › Equipe, marque quem faz parte de ' + (area === 'social' ? 'Social media' : 'Tráfego') + '.</div></div>';
+  const sel = pessoas.some(function (m) { return m.email === S.equipeSel[area]; }) ? S.equipeSel[area] : pessoas[0].email;
+  const cartoes = pessoas.map(function (m) {
+    const a = andamentoDe(area, m.email);
+    const abertas = d.tarefas.filter(function (t) { return t.responsavel === m.email && t.status !== 'feito'; });
+    const atrT = abertas.filter(function (t) { return t.prazo && t.prazo < hoje; }).length;
+    const prox = a.itens[0];
+    return '<button type="button" class="eq-p" data-eq-p="' + esc(m.email) + '" data-eq-area="' + area + '" aria-pressed="' + (m.email === sel) + '">' +
+      '<span class="eq-topo">' + avatar(m.email) + '<span><b>' + esc(m.nome) + '</b><span>' + esc(m.cargo || NOME_PAPEL[m.papel] || '') + '</span></span></span>' +
+      '<span class="eq-nums"><div><b>' + a.n1 + '</b><small>' + a.l1 + '</small></div><div><b>' + a.n2 + '</b><small>' + a.l2 + '</small></div>' +
+        '<div' + (atrT || a.atrasados ? ' class="al"' : '') + '><b>' + abertas.length + '</b><small>tarefas' + (atrT ? ' · ' + atrT + ' atrasada(s)' : ' abertas') + '</small></div></span>' +
+      '<span class="eq-agora">' + (prox ? 'Agora: <b>' + esc(prox.titulo || prox.nome) + '</b> · ' + esc(nomeCliente(prox.clienteId)) : 'Nada em andamento na área.') + '</span>' +
+      '</button>';
+  }).join('');
+
+  const m = membro(sel), minhas = d.tarefas.filter(function (t) { return t.responsavel === sel; });
+  const nomes = { afazer: 'A fazer', fazendo: 'Fazendo', feito: 'Feito' };
+  const colunas = ['afazer', 'fazendo', 'feito'].map(function (s) {
+    let ts = minhas.filter(function (t) { return t.status === s; });
+    ts = s === 'feito' ? ts.sort(function (a, b) { return a.concluidoEm < b.concluidoEm ? 1 : -1; }).slice(0, 10)
+      : ts.sort(function (a, b) { return (a.prazo || '9999') < (b.prazo || '9999') ? -1 : 1; });
+    return '<section class="coluna" data-status="' + s + '"><header class="coluna-cab"><div class="t"><b>' + nomes[s] + '</b><span class="n">' + ts.length + '</span>' +
+      (s !== 'feito' && pode('colaborador') ? '<button class="btn btn-fantasma btn-icone btn-peq" data-eq-nova="' + esc(sel) + '" data-eq-status="' + s + '" aria-label="Nova tarefa">' + icone('mais') + '</button>' : '') + '</div></header>' +
+      '<div class="coluna-cards">' + (ts.length ? ts.map(function (t) {
+        return '<div class="op" draggable="' + pode('colaborador') + '" data-t="' + esc(t.id) + '">' + linhaTarefa(t, true) + '</div>';
+      }).join('') : '<div class="vazio" style="padding:18px 8px">Nada aqui.</div>') + '</div></section>';
+  }).join('');
+  const a = andamentoDe(area, sel);
+  const lado = '<div class="cartao eq-lado"><div class="cartao-cab"><h2>' + (area === 'social' ? 'Conteúdos em andamento' : 'Campanhas sob cuidado') + '</h2><span class="pilula">' + a.itens.length + '</span></div>' +
+    '<div class="cartao-corpo">' + (a.itens.length ? '<ul class="lista">' + a.itens.slice(0, 8).map(a.linha).join('') + '</ul>' : '<div class="vazio">Nada em andamento.</div>') + '</div></div>';
+
+  return '<div class="eq" data-eq="' + area + '">' +
+    '<div class="eq-pessoas">' + cartoes + '</div>' +
+    '<div class="eq-quadro-cab">' + avatar(sel) + '<h2>Quadro de <em>' + esc(m ? m.nome.split(' ')[0] : '') + '</em></h2>' +
+      (pode('colaborador') ? '<button class="btn btn-primario" data-eq-nova="' + esc(sel) + '" data-eq-status="afazer">' + icone('mais') + 'Nova tarefa</button>' : '') + '</div>' +
+    '<div class="eq-corpo"><div class="tarefas-quadro eq-trello">' + colunas + '</div>' + lado + '</div></div>';
+}
+
+// Eventos da área Equipe (uma vez só, por delegação): escolher pessoa, criar tarefa, concluir e arrastar.
+(function () {
+  let arr = null;
+  document.addEventListener('click', function (e) {
+    const box = e.target.closest && e.target.closest('.eq');
+    if (!box) return;
+    const p = e.target.closest('[data-eq-p]');
+    if (p) { S.equipeSel[p.dataset.eqArea] = p.dataset.eqP; desenhar(); return; }
+    const n = e.target.closest('[data-eq-nova]');
+    if (n) { abrirFormTarefa({ responsavel: n.dataset.eqNova, status: n.dataset.eqStatus || 'afazer' }); return; }
+    tratarCliqueTarefa(e);
+  });
+  document.addEventListener('dragstart', function (e) {
+    const c = e.target.closest && e.target.closest('.eq-trello [data-t]'); if (!c) return;
+    arr = c.dataset.t; e.dataTransfer.setData('text/plain', arr); requestAnimationFrame(function () { c.classList.add('arrastando'); });
+  });
+  document.addEventListener('dragend', function () { if (!arr) return; arr = null; document.querySelectorAll('.eq-trello .arrastando, .eq-trello .alvo').forEach(function (x) { x.classList.remove('arrastando', 'alvo'); }); });
+  document.addEventListener('dragover', function (e) {
+    if (!arr) return; const col = e.target.closest && e.target.closest('.eq-trello .coluna'); if (!col) return;
+    e.preventDefault(); document.querySelectorAll('.eq-trello .alvo').forEach(function (x) { if (x !== col) x.classList.remove('alvo'); }); col.classList.add('alvo');
+  });
+  document.addEventListener('drop', function (e) {
+    if (!arr) return; const col = e.target.closest && e.target.closest('.eq-trello .coluna'); if (!col) return;
+    e.preventDefault();
+    const t = S.dados.tarefas.find(function (x) { return x.id === arr; });
+    if (t && t.status !== col.dataset.status) moverTarefaPara(t, col.dataset.status, Date.now());
+  });
+})();
+</script>

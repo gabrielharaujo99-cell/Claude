@@ -1,17 +1,17 @@
 <script>
 /** Abertura, estrutura (menu lateral + topo) e a tela Início. */
+// Menu em dois blocos: Operação (o dia a dia da agência) e Comercial. O C-Vision saiu do menu.
 const MENU = [
   { id: 'inicio', nome: 'Início', icone: 'inicio' },
-  { id: 'cvision', nome: 'C-Vision', icone: 'cvision', cvision: true },
-  { id: 'social', nome: 'Social media', icone: 'social', area: 'social' },
-  { id: 'trafego', nome: 'Tráfego', icone: 'trafego', area: 'trafego' },
-  { id: 'funil', nome: 'Funil', icone: 'funil', area: 'comercial' },
-  { id: 'propostas', nome: 'Propostas', icone: 'propostas', area: 'comercial' },
-  { id: 'financeiro', nome: 'Financeiro', icone: 'financeiro', area: 'financeiro' },
-  { id: 'clientes', nome: 'Clientes', icone: 'clientes' },
-  { id: 'tarefas', nome: 'Tarefas', icone: 'tarefas' },
-  { id: 'horas', nome: 'Horas', icone: 'horas' },
-  { id: 'admin', nome: 'Admin', icone: 'admin', papel: 'admin' },
+  { id: 'social', nome: 'Social media', icone: 'social', area: 'social', grupo: 'Operação' },
+  { id: 'trafego', nome: 'Tráfego', icone: 'trafego', area: 'trafego', grupo: 'Operação' },
+  { id: 'tarefas', nome: 'Tarefas', icone: 'tarefas', grupo: 'Operação' },
+  { id: 'horas', nome: 'Horas', icone: 'horas', grupo: 'Operação' },
+  { id: 'financeiro', nome: 'Financeiro', icone: 'financeiro', area: 'financeiro', grupo: 'Comercial' },
+  { id: 'propostas', nome: 'Propostas', icone: 'propostas', area: 'comercial', grupo: 'Comercial' },
+  { id: 'funil', nome: 'Funil', icone: 'funil', area: 'comercial', grupo: 'Comercial' },
+  { id: 'clientes', nome: 'Clientes', icone: 'clientes', grupo: 'Comercial' },
+  { id: 'admin', nome: 'Admin', icone: 'admin', papel: 'admin', grupo: 'Ajustes' },
 ];
 
 // Áreas e C-Vision são por pessoa (marcação na equipe); Admin é por papel.
@@ -85,8 +85,9 @@ function montarShell() {
     '<div class="linha-marca" aria-hidden="true"></div>' +
     '<div class="shell' + (menuRecolhido() ? ' recolhido' : '') + '">' +
       '<nav class="lateral" aria-label="Menu">' +
-        '<div class="menu">' + MENU.filter(podeVer).map(function (m) {
-          return '<button type="button" data-ir="' + m.id + '" data-dica="' + esc(m.nome) + '">' + icone(m.icone) + '<span class="menu-nome">' + m.nome + '</span><span class="contador" data-contador="' + m.id + '" hidden></span></button>';
+        '<div class="menu">' + MENU.filter(podeVer).map(function (m, i, lista) {
+          const cab = m.grupo && (i === 0 || lista[i - 1].grupo !== m.grupo) ? '<span class="menu-grupo">' + esc(m.grupo) + '</span>' : '';
+          return cab + '<button type="button" data-ir="' + m.id + '" data-dica="' + esc(m.nome) + '">' + icone(m.icone) + '<span class="menu-nome">' + m.nome + '</span><span class="contador" data-contador="' + m.id + '" hidden></span></button>';
         }).join('') + '</div>' +
         '<div class="lateral-pe"><span class="rotulo">' + esc(cfg.produto) + ' · v' + esc(d.versao) + '</span></div>' +
       '</nav>' +
@@ -189,9 +190,7 @@ function inicioPorArea(saudacao, primeiroNome, dataHoje) {
   }
   const minhas = d.tarefas.filter(function (t) { return t.status !== 'feito' && t.responsavel === d.eu.email; })
     .sort(function (a, b) { return (a.prazo || '9999') < (b.prazo || '9999') ? -1 : 1; });
-  const tarefas = '<div class="cartao"><div class="cartao-cab"><h2>Minhas tarefas</h2><button class="btn btn-fantasma btn-peq" data-ir-tela="tarefas">Ver todas' + icone('seta') + '</button></div>' +
-    '<div class="cartao-corpo">' + (minhas.length ? '<ul class="lista">' + minhas.slice(0, 8).map(function (t) { return '<li>' + linhaTarefa(t) + '</li>'; }).join('') + '</ul>'
-      : '<div class="vazio"><b>Nada pendente.</b>Suas tarefas aparecem aqui.</div>') + '</div></div>';
+  const tarefas = cartaoMinhasTarefas(8);
   let lado = '';
   if (temArea('social')) {
     const prox = d.posts.filter(function (x) { return x.status !== 'publicado' && x.data >= hoje; }).sort(function (a, b) { return (a.data + a.hora) < (b.data + b.hora) ? -1 : 1; }).slice(0, 6);
@@ -262,7 +261,9 @@ TELAS.inicio = {
     const ponderado = abertas.reduce(function (s, o) { return s + totalOp(o) * (etapa(o.etapa).prob / 100); }, 0);
     const ganhoMes = ganhasMes.reduce(function (s, o) { return s + totalOp(o); }, 0);
     // Fee mensal em vigor: contratos fee ganhos cujo prazo (fechamento + meses) ainda não acabou.
-    const recorrente = ops.filter(function (o) {
+    // Fee mensal: dos contratos do Financeiro (a fonte certa) para quem tem acesso; senão, dos fechamentos do funil.
+    const feeContratos = d.eu.financeiro && (d.contratos || []).length ? (d.contratos || []).filter(function (c) { return c.status === 'ativo' && c.tipo === 'fee'; }).reduce(function (s, c) { return s + (Number(c.valorAtual) || 0); }, 0) : null;
+    const recorrente = feeContratos != null ? feeContratos : ops.filter(function (o) {
       const e = etapa(o.etapa);
       if (!e || e.tipo !== 'ganho' || o.contrato !== 'fee' || !o.fechadoEm) return false;
       const fim = new Date(o.fechadoEm); fim.setMonth(fim.getMonth() + (o.meses || 0));
@@ -330,9 +331,7 @@ TELAS.inicio = {
 
     const minhas = d.tarefas.filter(function (t) { return t.status !== 'feito' && t.responsavel === d.eu.email; })
       .sort(function (a, b) { return (a.prazo || '9999') < (b.prazo || '9999') ? -1 : 1; });
-    const tarefas = '<div class="cartao"><div class="cartao-cab"><h2>Minhas tarefas</h2><button class="btn btn-fantasma btn-peq" data-ir-tela="tarefas">Ver todas' + icone('seta') + '</button></div>' +
-      '<div class="cartao-corpo">' + (minhas.length ? '<ul class="lista">' + minhas.slice(0, 7).map(function (t) { return '<li>' + linhaTarefa(t) + '</li>'; }).join('') + '</ul>'
-        : '<div class="vazio"><b>Nada pendente.</b>Suas tarefas aparecem aqui.</div>') + '</div></div>';
+    const tarefas = cartaoMinhasTarefas(7);
 
     const proximas = abertas.filter(function (o) { return o.previsao; }).sort(function (a, b) { return a.previsao < b.previsao ? -1 : 1; }).slice(0, 5);
     const fechamentos = '<div class="cartao"><div class="cartao-cab"><h2>Próximos fechamentos</h2></div><div class="cartao-corpo">' +

@@ -38,7 +38,7 @@
  * Recursos gerais: busca global (Ctrl+K ou /), atalhos de teclado (? mostra a lista) e exportação para planilha (CSV que abre no Excel).
  * A busca acha telas, ações e registros (clientes, oportunidades, conteúdos, tarefas, propostas, contratos, campanhas).
  */
-const ATALHOS_IR = { i: 'inicio', f: 'funil', s: 'social', r: 'trafego', c: 'clientes', t: 'tarefas', p: 'propostas', e: 'financeiro', h: 'horas', v: 'cvision', a: 'admin' };
+const ATALHOS_IR = { i: 'inicio', f: 'funil', s: 'social', r: 'trafego', c: 'clientes', t: 'tarefas', p: 'propostas', e: 'financeiro', h: 'horas', a: 'admin' };
 
 function digitando(el) { return !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)); }
 function temModalAberto() { return !!document.querySelector('#camada-modal .fundo-modal, .cmd-fundo'); }

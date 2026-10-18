@@ -61,8 +61,8 @@ function listaClientes() {
       const tipo = function (o) { const e = etapa(o.etapa); return e ? e.tipo : ''; };
       const aberto = ops.filter(function (o) { return tipo(o) === 'aberta'; });
       const ganho = ops.filter(function (o) { return tipo(o) === 'ganho'; }).reduce(function (s, o) { return s + totalOp(o); }, 0);
-      return '<tr data-cli="' + esc(c.id) + '"><td><b>' + esc(c.nome) + '</b>' + (c.arquivado ? ' <span class="pilula">arquivado</span>' : '') +
-        (c.contato ? '<br><span class="mudo pequeno">' + esc(c.contato) + '</span>' : '') + '</td>' +
+      return '<tr data-cli="' + esc(c.id) + '"><td><div class="cl-linha">' + logoCliente(c.id) + '<div><b>' + esc(c.nome) + '</b>' + (c.arquivado ? ' <span class="pilula">arquivado</span>' : '') +
+        (c.contato ? '<br><span class="mudo pequeno">' + esc(c.contato) + '</span>' : '') + '</div></div></td>' +
         '<td class="some-cel">' + (c.segmento ? '<span class="pilula">' + esc(c.segmento) + '</span>' : '<span class="mudo">—</span>') + '</td>' +
         '<td class="some-cel">' + (c.instagram ? '<a href="https://instagram.com/' + esc(c.instagram.replace(/^@/, '')) + '" target="_blank" rel="noopener">' + esc(c.instagram) + '</a>' : '<span class="mudo">—</span>') + '</td>' +
         '<td class="d num">' + (aberto.length ? dinheiro(aberto.reduce(function (s, o) { return s + totalOp(o); }, 0)) + '<br><span class="mudo pequeno">' + aberto.length + ' op.</span>' : '<span class="mudo">—</span>') + '</td>' +
@@ -85,6 +85,7 @@ function abrirFormCliente(base) {
       '<label class="campo"><span>Telefone</span><input name="telefone" type="tel" value="' + esc(c.telefone) + '"></label>' +
       '<label class="campo"><span>Instagram</span><input name="instagram" value="' + esc(c.instagram) + '" placeholder="@perfil"></label>' +
       '<label class="campo"><span>Site</span><input name="site" value="' + esc(c.site) + '" placeholder="site.com.br"></label>' +
+      '<label class="campo"><span>Logo (link da imagem)</span><input name="logo" value="' + esc(c.logo) + '" placeholder="https://…/logo.png"></label>' +
       '<label class="campo inteira"><span>Observações</span><textarea name="obs">' + esc(c.obs) + '</textarea></label></fieldset></form>' +
       (ops.length ? '<div style="margin-top:22px"><span class="rotulo">Oportunidades</span><ul class="lista" style="margin-top:6px">' + ops.map(function (o) {
         const e = etapa(o.etapa);
@@ -131,7 +132,55 @@ function linhaTarefa(t, compacto) {
 }
 
 // Clique em tarefa (concluir ou abrir), usado em várias telas. Devolve true se tratou.
+// Cartão "Minhas tarefas" do Início: abas (Hoje, Atrasadas, Abertas, Concluídas) e ações rápidas na linha.
+S.abaTarefas = '';
+function cartaoMinhasTarefas(limite) {
+  const d = S.dados, hoje = d.hoje, eu = d.eu.email;
+  const minhas = d.tarefas.filter(function (t) { return t.responsavel === eu; });
+  const porPrazo = function (a, b) { return (a.prazo || '9999') < (b.prazo || '9999') ? -1 : 1; };
+  const abas = {
+    hoje: minhas.filter(function (t) { return t.status !== 'feito' && t.prazo === hoje; }).sort(porPrazo),
+    atrasadas: minhas.filter(function (t) { return t.status !== 'feito' && t.prazo && t.prazo < hoje; }).sort(porPrazo),
+    abertas: minhas.filter(function (t) { return t.status !== 'feito'; }).sort(porPrazo),
+    feitas: minhas.filter(function (t) { return t.status === 'feito'; }).sort(function (a, b) { return a.concluidoEm < b.concluidoEm ? 1 : -1; }),
+  };
+  const aba = abas[S.abaTarefas] ? S.abaTarefas : abas.atrasadas.length ? 'atrasadas' : abas.hoje.length ? 'hoje' : 'abertas';
+  const nomes = { hoje: 'Hoje', atrasadas: 'Atrasadas', abertas: 'Abertas', feitas: 'Concluídas' };
+  const vazio = { hoje: 'Nada para hoje.', atrasadas: 'Nenhuma atrasada.', abertas: 'Nada pendente.', feitas: 'Nada concluído ainda.' };
+  const lista = abas[aba].slice(0, limite || 7);
+  return '<div class="cartao"><div class="cartao-cab"><h2>Minhas tarefas</h2><button class="btn btn-fantasma btn-peq" data-ir-tela="tarefas">Ver todas' + icone('seta') + '</button>' +
+    '<div class="segmentado t-abas" role="tablist">' + Object.keys(nomes).map(function (k) {
+      return '<button type="button" role="tab" data-aba-t="' + k + '" aria-pressed="' + (k === aba) + '">' + nomes[k] + ' <span class="n">' + abas[k].length + '</span></button>';
+    }).join('') + '</div></div>' +
+    '<div class="cartao-corpo">' + (lista.length ? '<ul class="lista">' + lista.map(function (t) {
+      const atrasada = t.status !== 'feito' && t.prazo && t.prazo <= hoje;
+      return '<li class="t-linha">' + linhaTarefa(t) + '<span class="t-acoes">' +
+        (t.status !== 'feito' ? '<button type="button" class="btn btn-icone btn-peq" data-marcar="' + esc(t.id) + '" title="Concluir" aria-label="Concluir tarefa">' + icone('check') + '</button>' : '') +
+        (atrasada ? '<button type="button" class="btn btn-peq t-adiar" data-adiar="' + esc(t.id) + '" title="Passar o prazo para amanhã">' + icone('calendario') + 'Amanhã</button>' : '') +
+        '</span></li>';
+    }).join('') + '</ul>' : '<div class="vazio"><b>' + vazio[aba] + '</b>Suas tarefas aparecem aqui.</div>') + '</div></div>';
+}
+
+async function adiarTarefa(t) {
+  const antes = Object.assign({}, t);
+  const am = new Date(Date.parse(S.dados.hoje + 'T12:00:00') + 864e5).toISOString().slice(0, 10);
+  t.prazo = am;
+  desenhar();
+  try {
+    trocar('tarefas', await chamar('salvarTarefa', Object.assign({}, t)));
+    toast('Prazo passado para amanhã.', { acao: { texto: 'Desfazer', fn: function () { t.prazo = antes.prazo; chamar('salvarTarefa', Object.assign({}, t)).then(function (r) { trocar('tarefas', r); desenhar(); }); desenhar(); } } });
+  } catch (err) {
+    trocar('tarefas', antes);
+    toast(err.message, { erro: true });
+  }
+  desenhar(); atualizarGaveta();
+}
+
 function tratarCliqueTarefa(e) {
+  const ab = e.target.closest('[data-aba-t]');
+  if (ab) { S.abaTarefas = ab.dataset.abaT; desenhar(); return true; }
+  const ad = e.target.closest('[data-adiar]');
+  if (ad) { const t = S.dados.tarefas.find(function (x) { return x.id === ad.dataset.adiar; }); if (t) adiarTarefa(t); return true; }
   const mk = e.target.closest('[data-marcar]');
   if (mk) { const t = S.dados.tarefas.find(function (x) { return x.id === mk.dataset.marcar; }); if (t) moverTarefaPara(t, t.status === 'feito' ? 'afazer' : 'feito'); return true; }
   const tt = e.target.closest('[data-tarefa]');

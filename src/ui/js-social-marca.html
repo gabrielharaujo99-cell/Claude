@@ -207,7 +207,7 @@ function smGeral(lista) {
   const cards = marcas.length ? '<div class="smg-grade">' + marcas.map(function (m) {
     const c = cliente(m.clienteId), x = smMetricas(m.clienteId), ins = smInsta(c), pct = x.meta ? Math.min(100, Math.round(x.freq * 100 / x.meta)) : 0;
     return '<button type="button" class="smc' + (m.status === 'pausa' ? ' pausa' : '') + '" data-abrir-cli="' + esc(m.clienteId) + '" style="--smc-cor:' + esc(m.corPrimaria || 'var(--destaque)') + '">' +
-      '<span class="smc-topo"><span class="n"><b>' + esc(c.nome) + '</b><span class="mudo">' + esc(ins ? ins.u : 'sem @ cadastrado') + '</span></span>' +
+      '<span class="smc-topo">' + logoCliente(c.id) + '<span class="n"><b>' + esc(c.nome) + '</b><span class="mudo">' + esc(ins ? ins.u : 'sem @ cadastrado') + '</span></span>' +
         '<span class="pilula ' + (m.status === 'pausa' ? '' : 'ok') + '">' + (m.status === 'pausa' ? 'Em pausa' : 'Ativo') + '</span></span>' +
       '<span class="smc-fase">Fase: <b>' + esc(m.fase || '—') + '</b></span>' +
       '<span class="smc-freq"><span class="l"><span>Frequência (30 dias)</span><span><b>' + smNumBr(x.freq, 1) + '</b>/sem' + (x.meta ? ' · meta ' + smNumBr(x.meta, 1) : '') + '</span></span>' +

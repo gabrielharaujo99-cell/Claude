@@ -171,7 +171,7 @@ TELAS.financeiro = {
       lista.map(function (c) {
         const fim = c.status === 'encerrado' || c.status === 'cancelado' ? dataBr(c.encerradoEm)
           : c.semPrazo ? '<span class="mudo">sem prazo</span>' : c.fim ? dataBr(c.fim) + (c.diasParaFim != null && c.diasParaFim <= 60 && c.diasParaFim >= 0 ? '<br><span class="pequeno" style="color:var(--destaque)">renova em ' + c.diasParaFim + ' dias</span>' : '') : '—';
-        return '<tr data-c="' + esc(c.id) + '"><td><b>' + esc(nomeCliente(c.clienteId) || '—') + '</b><br><span class="mudo pequeno">' + esc(c.titulo) + (c.tipo === 'projeto' ? ' · projeto' : '') + '</span></td>' +
+        return '<tr data-c="' + esc(c.id) + '"><td><div class="cl-linha">' + logoCliente(c.clienteId) + '<div><b>' + esc(nomeCliente(c.clienteId) || '—') + '</b><br><span class="mudo pequeno">' + esc(c.titulo) + (c.tipo === 'projeto' ? ' · projeto' : '') + '</span></div></div></td>' +
           '<td class="some-cel">' + esc(tempoAtivo(c.mesesAtivo)) + '<br><span class="mudo pequeno">desde ' + dataBr(c.inicio) + '</span></td>' +
           '<td class="d num"><b>' + dinheiro(c.tipo === 'fee' ? c.valorAtual : c.valor) + '</b>' + (c.tipo === 'fee' ? '<span class="mudo pequeno">/mês</span>' : '') +
             (c.reajustePct ? '<br><span class="pilula ok" style="padding:0 7px">↑ ' + String(c.reajustePct).replace('.', ',') + '%</span>' : '') + '</td>' +

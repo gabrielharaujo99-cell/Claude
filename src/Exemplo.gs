@@ -20,8 +20,10 @@ function popularExemplo() {
     const cfg = config_();
     const dia = function (n) { return new Date(Date.now() - n * 864e5).toISOString(); };
     const data = function (n) { return dia(n).slice(0, 10); };
-    // Só negócios wellness, um pouco de cada força. Clientes e números fictícios, para demonstração.
-    const clientes = [
+    // Clientes do exemplo: a lista do arquivo privado da agência (CLIENTES_EXEMPLO, com logo e fee mensal), se houver;
+    // senão, negócios wellness fictícios, um pouco de cada força.
+    const reais = typeof CLIENTES_EXEMPLO !== 'undefined' && Array.isArray(CLIENTES_EXEMPLO) && CLIENTES_EXEMPLO.length ? CLIENTES_EXEMPLO : null;
+    const clientes = (reais ? reais.map(function (c) { return [c.nome, c.segmento, c.contato || '', c.instagram || '', c.logo || '']; }) : [
       ['Pulso Fit Studio', 'Esporte', 'Ana Ribeiro', '@pulsofitstudio'],
       ['Vitta Longevidade', 'Longevidade', 'Paulo Mendes', '@vittalongevidade'],
       ['Repouso Recovery', 'Recovery', 'Juliana Prado', '@repousorecovery'],
@@ -30,10 +32,10 @@ function popularExemplo() {
       ['Box Atlas Cross', 'Esporte', 'Bruno Lima', '@boxatlascross'],
       ['Leveza Nutrição', 'Saúde', 'Marta Siqueira', '@levezanutricao'],
       ['Academia Horizonte', 'Esporte', 'Lucas Ferraz', '@academiahorizonte'],
-    ].map(function (c, i) {
+    ]).map(function (c, i) {
       return inserir_('clientes', {
-        id: novoId_('cl'), nome: c[0], segmento: c[1], contato: c[2], instagram: c[3],
-        email: 'contato@' + slug_(c[0]).replace(/-/g, '') + '.exemplo', criadoEm: dia(60 - i * 5), atualizadoEm: dia(10), arquivado: false,
+        id: novoId_('cl'), nome: c[0], segmento: c[1], contato: c[2], instagram: c[3], logo: c[4] || '',
+        email: reais ? '' : 'contato@' + slug_(c[0]).replace(/-/g, '') + '.exemplo', criadoEm: dia(60 - i * 5), atualizadoEm: dia(10), arquivado: false,
       });
     });
     const etapa = function (tipo, n) { return cfg.etapas.filter(function (e) { return e.tipo === tipo; })[n || 0] || cfg.etapas[0]; };
@@ -59,7 +61,7 @@ function popularExemplo() {
     const criadas = ops.map(function (o, i) {
       const e = etapaPorId_(cfg, o[6]);
       return inserir_('oportunidades', {
-        id: novoId_('op'), titulo: o[1], clienteId: clientes[o[0]].id, servico: o[2], contrato: o[3], valor: o[4], meses: o[5],
+        id: novoId_('op'), titulo: o[1], clienteId: clientes[o[0]].id, servico: o[2], contrato: o[3], valor: reais ? Math.round(o[4] * 0.4 / 100) * 100 : o[4], meses: o[5],
         etapa: o[6], ordem: i, responsavel: eu.email, prioridade: o[8], origem: o[9], previsao: data(-20 - i * 3),
         motivoPerda: e.tipo === 'perdido' ? cfg.motivosPerda[0] || '' : '', obs: '', tags: [],
         criadoEm: dia(o[7] + 15), criadoPor: eu.email, etapaDesde: dia(o[7]), fechadoEm: e.tipo === 'aberta' ? '' : dia(o[7]),
@@ -122,6 +124,12 @@ function popularExemplo() {
     const ajuste = function (c, tipo, quando, valor, recorrente, descricao) {
       inserir_('ajustes', { id: novoId_('aj'), contratoId: c.id, tipo: tipo, data: quando, valor: valor, recorrente: recorrente, descricao: descricao, criadoPor: eu.email, criadoEm: dia(1) });
     };
+    if (reais) {
+      // Um contrato de fee por cliente da lista, começando em meses diferentes (a receita do Financeiro cresce até o total de hoje).
+      reais.forEach(function (c, i) {
+        if (c.fee) contrato(i, null, c.servico || 'Assessoria completa', c.servico || 'Assessoria completa', 'fee', c.fee, mesesAtras(c.desde || (2 + (i * 3) % 11)), 12);
+      });
+    } else {
     contrato(3, 5, 'Conteúdo mensal', 'Social media', 'fee', 6800, data(30), 6);
     const apice = contrato(7, 12, 'Assessoria completa', 'Assessoria completa', 'fee', 12000, data(50), 12);
     ajuste(apice, 'adicional', data(10), 5600, false, 'Vídeo institucional da nova unidade');
@@ -132,6 +140,7 @@ function popularExemplo() {
     const box = contrato(5, null, 'Tráfego pago', 'Tráfego pago', 'fee', 4200, mesesAtras(9), 0);
     ajuste(box, 'adicional', mesesAtras(4), 1200, true, 'Landing pages mensais');
     contrato(6, null, 'Diagnóstico e posicionamento', 'Diagnóstico', 'fee', 5000, mesesAtras(14), 6, 'encerrado', mesesAtras(9));
+    }
 
     // Quem é de cada área na equipe (para os responsáveis dos conteúdos e campanhas de exemplo).
     const daArea = function (area) {

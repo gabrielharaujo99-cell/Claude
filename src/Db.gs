@@ -11,7 +11,7 @@ const SCHEMA = {
     num: ['valor', 'meses', 'ordem'], json: ['tags'], bool: ['arquivado'],
   },
   clientes: {
-    colunas: ['id', 'nome', 'segmento', 'contato', 'email', 'telefone', 'instagram', 'site', 'obs', 'criadoEm',
+    colunas: ['id', 'nome', 'segmento', 'contato', 'email', 'telefone', 'instagram', 'site', 'logo', 'obs', 'criadoEm',
       'atualizadoEm', 'arquivado'],
     bool: ['arquivado'],
   },

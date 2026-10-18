@@ -52,7 +52,7 @@
 const TF_STATUS = { ativa: 'Ativa', pausada: 'Pausada', encerrada: 'Encerrada' };
 const TF_PERIODOS = [{ v: '30', t: 'Últimos 30 dias' }, { v: 'mes', t: 'Este mês' }, { v: 'anterior', t: 'Mês passado' }, { v: '90', t: 'Últimos 90 dias' }];
 const TF_COR_PLAT = { 'Meta Ads': 'var(--destaque)', 'Google Ads': 'var(--cobre)', 'TikTok Ads': 'var(--texto)', 'LinkedIn Ads': 'var(--apagado)' };
-S.filtrosTf = { periodo: '30', cliente: '', plataforma: '' };
+S.filtrosTf = { periodo: '30', cliente: '', plataforma: '', vista: 'geral' };
 S.gavetaTf = null;
 
 // ---------- números e datas ----------
@@ -301,10 +301,11 @@ TELAS.trafego = {
           itens: semanas.map(function (s, i) { return { l: i % 3 === 0 ? s.ini.slice(8, 10) + '/' + s.ini.slice(5, 7) : '', v: s.t.inv, rot: 'Semana de ' + dataCurta(s.ini) + ': ' + dinheiro(s.t.inv), destaque: !!s.andamento }; }),
           pe: (verbaMes ? '<b>' + Math.round(100 * gastoMes / verbaMes) + '%</b> da verba do mês usada' : 'Sem verba mensal ativa') } : null,
       },
-      acoes: '<select class="entrada filtro" id="tf-per" aria-label="Período">' + opcoes(TF_PERIODOS, f.periodo) + '</select>' +
+      acoes: '<div class="segmentado" role="group" aria-label="Visão" id="tf-vista">' + [['geral', 'Visão geral'], ['equipe', 'Equipe']].map(function (x) { return '<button type="button" data-v="' + x[0] + '" aria-pressed="' + ((f.vista || 'geral') === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>' +
+        '<select class="entrada filtro" id="tf-per" aria-label="Período">' + opcoes(TF_PERIODOS, f.periodo) + '</select>' +
         '<select class="entrada filtro" id="tf-cli" aria-label="Cliente">' + opcoes(clientes, f.cliente, 'Todos os clientes') + '</select>' +
         '<select class="entrada filtro" id="tf-plat" aria-label="Plataforma">' + opcoes(d.listas.plataformas, f.plataforma, 'Todas as plataformas') + '</select>' + botoes,
-      corpo: '<div class="conteudo"><div class="kpis">' +
+      corpo: f.vista === 'equipe' ? '<div class="conteudo">' + areaEquipe('trafego') + '</div>' : '<div class="conteudo"><div class="kpis">' +
         kpi('Investimento', dinheiro(atual.inv, true), (verbaMes ? Math.round(100 * gastoMes / verbaMes) + '% da verba do mês' : 'sem verba mensal ativa') + tfJunta(tfVar(atual.inv, antes.inv)), true) +
         kpi('Leads', tfInt(atual.leads), tfInt(atual.vendas) + (atual.vendas === 1 ? ' venda' : ' vendas') + tfJunta(tfVar(atual.leads, antes.leads))) +
         kpi('CPL', tfCpl(atual.cpl), 'CTR ' + tfPct(atual.ctr) + tfJunta(tfVar(atual.cpl, antes.cpl))) +
@@ -313,6 +314,7 @@ TELAS.trafego = {
         '<div class="tf-baixo"><div><div class="cartao"><div class="cartao-cab"><h2>Campanhas</h2><span class="mudo pequeno">' + linhas.length + ' · por investimento no período</span></div>' + tabela + '</div></div>' +
         '<div>' + cartaoCli + cartaoAlertas + '</div></div></div>',
       montar: function (el, topo) {
+        topo.querySelector('#tf-vista').addEventListener('click', function (e) { const b = e.target.closest('[data-v]'); if (b) { f.vista = b.dataset.v; desenhar(); } });
         [['#tf-per', 'periodo'], ['#tf-cli', 'cliente'], ['#tf-plat', 'plataforma']].forEach(function (x) {
           topo.querySelector(x[0]).addEventListener('change', function (e) { f[x[1]] = e.target.value; desenhar(); });
         });

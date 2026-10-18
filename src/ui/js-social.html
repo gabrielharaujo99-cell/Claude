@@ -174,7 +174,7 @@ TELAS.social = {
     const clientes = S.dados.clientes.filter(function (c) { return comPost.has(c.id) || c.id === f.cliente; })
       .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
     const redes = smLista(Array.from(new Set(((S.dados.listas && S.dados.listas.redes) || []).concat(posts.map(function (p) { return p.rede; })).filter(Boolean))), f.rede);
-    const vistas = [['geral', 'Visão geral'], ['quadro', 'Quadro'], ['calendario', 'Calendário'], ['pedidos', 'Pedidos']];
+    const vistas = [['geral', 'Visão geral'], ['quadro', 'Quadro'], ['calendario', 'Calendário'], ['pedidos', 'Pedidos'], ['equipe', 'Equipe']];
     if (f.pagina && cliente(f.pagina)) return smPaginaCliente(f.pagina);
     const temAlgo = posts.length || smMarcas().length;
     const hojeS = S.dados.hoje, em7S = smSomaDias(hojeS, 7);
@@ -233,6 +233,7 @@ function smCorpo() {
   if (f.vista === 'calendario') return cab + '<div class="conteudo sm-pe">' + smCalendario(lista) + '</div>';
   if (f.vista === 'geral') return cab + '<div class="conteudo sm-pe">' + smGeral(lista) + '</div>';
   if (f.vista === 'pedidos') return cab + '<div class="conteudo sm-pe">' + smPedidosVista() + '</div>';
+  if (f.vista === 'equipe') return '<div class="conteudo">' + areaEquipe('social') + '</div>';
   return cab + smQuadro(lista);
 }
 

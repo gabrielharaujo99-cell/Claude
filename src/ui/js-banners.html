@@ -111,6 +111,10 @@
   backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2); box-shadow: 0 1px 0 rgba(255, 255, 255, .06) inset; }
 .hp-t { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 18px; font: 500 10px/1.3 var(--fonte); letter-spacing: .2em; text-transform: uppercase; color: var(--h-cr3); }
 .hp-t b { font-weight: 300; font-size: 15px; letter-spacing: -.01em; text-transform: none; color: var(--h-cr); font-variant-numeric: tabular-nums; }
+.hp.alerta { border-color: rgba(240, 160, 110, .38); background: linear-gradient(180deg, rgba(224, 121, 90, .14), rgba(13, 17, 8, .3)); box-shadow: 0 1px 0 rgba(255, 255, 255, .06) inset, 0 0 40px -14px rgba(224, 121, 90, .45); }
+.hp-dica { display: flex; gap: 9px; align-items: flex-start; margin: -6px 0 16px; padding: 9px 11px; border-radius: 12px; background: rgba(224, 121, 90, .14); border: 1px solid rgba(240, 160, 110, .25); font-size: 12.5px; line-height: 1.45; color: #F7D8C2; }
+.hp-dica svg { width: 15px; height: 15px; flex: none; margin-top: 1px; color: #F0B472; }
+.hp-dica b { color: #fff; font-weight: 500; }
 .hp-anel { display: grid; grid-template-columns: 108px minmax(0, 1fr); gap: 20px; align-items: center; }
 .hp-anel .anel { position: relative; width: 108px; height: 108px; }
 .hp-anel svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
@@ -219,8 +223,12 @@ function painelHtml(p) {
   };
   if (p.tipo === 'anel') {
     const v = Math.max(0, Math.min(1, Number(p.prog) || 0)), R = 46, C = 2 * Math.PI * R, id = 'hg' + Math.random().toString(36).slice(2, 7);
-    return '<div class="hp">' + tit + '<div class="hp-anel"><div class="anel"><svg viewBox="0 0 108 108" aria-hidden="true"><defs><linearGradient id="' + id + '" x1="0" y1="0" x2="1" y2="1">' +
-      '<stop offset="0" stop-color="#DCEBCB"/><stop offset=".55" stop-color="#C5DBAE"/><stop offset="1" stop-color="#F0B472"/></linearGradient></defs>' +
+    // Abaixo de 50%: o painel entra em alerta e diz qual sinal puxou o número para baixo.
+    const barras = p.barras || [], alerta = p.prog != null && v < .5 && barras.length;
+    const pior = alerta ? barras.slice().sort(function (a, b) { return (a.p || 0) - (b.p || 0); })[0] : null;
+    const dica = pior ? '<div class="hp-dica">' + icone('relogio') + '<span>Atenção: <b>' + esc(pior.l.toLowerCase()) + '</b> está em ' + Math.round(100 * (pior.p || 0)) + '%' + (pior.v ? ' (' + esc(pior.v) + ')' : '') + '.</span></div>' : '';
+    return '<div class="hp' + (alerta ? ' alerta' : '') + '">' + tit + dica + '<div class="hp-anel"><div class="anel"><svg viewBox="0 0 108 108" aria-hidden="true"><defs><linearGradient id="' + id + '" x1="0" y1="0" x2="1" y2="1">' +
+      (alerta ? '<stop offset="0" stop-color="#F6C79A"/><stop offset=".55" stop-color="#F0B472"/><stop offset="1" stop-color="#E0795A"/>' : '<stop offset="0" stop-color="#DCEBCB"/><stop offset=".55" stop-color="#C5DBAE"/><stop offset="1" stop-color="#F0B472"/>') + '</linearGradient></defs>' +
       '<circle class="tr" cx="54" cy="54" r="' + R + '"/>' +
       '<circle class="br" cx="54" cy="54" r="' + R + '" stroke="url(#' + id + ')" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + (C * (1 - v)).toFixed(1) + '" style="--c0:' + C.toFixed(1) + '"/>' +
       '<circle class="ar" cx="54" cy="54" r="' + R + '" stroke="url(#' + id + ')" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + (C * (1 - v)).toFixed(1) + '" style="--c0:' + C.toFixed(1) + '"/></svg>' +
@@ -316,10 +324,10 @@ function degradeSvg(raiz) {
       '<text x="0" fill="url(#' + id + ')"></text>';
     const t = svg.querySelector('text');
     t.textContent = txt;
-    t.setAttribute('style', 'font-family:' + cs.fontFamily + ';font-size:' + cs.fontSize + ';font-weight:' + cs.fontWeight + ';letter-spacing:' + cs.letterSpacing);
+    t.setAttribute('style', 'font-family:' + cs.fontFamily + ';font-size:' + cs.fontSize + ';font-weight:' + cs.fontWeight + ';letter-spacing:' + cs.letterSpacing + ';font-style:' + cs.fontStyle + ';font-optical-sizing:auto');
     em.appendChild(svg);
     const medir = function () {
-      const fs = parseFloat(cs.fontSize), w = Math.ceil(t.getComputedTextLength() + 2), h = Math.ceil(fs * 1.18), base = Math.round(fs * .93);
+      const fs = parseFloat(cs.fontSize), w = Math.ceil(t.getComputedTextLength()), h = Math.ceil(fs * 1.18), base = Math.round(fs * .93);
       t.setAttribute('y', base);
       svg.setAttribute('width', w); svg.setAttribute('height', h); svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
       svg.style.verticalAlign = -(h - base) + 'px';

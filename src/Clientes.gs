@@ -1,5 +1,5 @@
 /** Clientes (contas) da agência. Uma oportunidade pertence a um cliente. */
-const CAMPOS_CLIENTE = ['nome', 'segmento', 'contato', 'email', 'telefone', 'instagram', 'site', 'obs'];
+const CAMPOS_CLIENTE = ['nome', 'segmento', 'contato', 'email', 'telefone', 'instagram', 'site', 'logo', 'obs'];
 
 function normalizar_(s) {
   return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
@@ -14,6 +14,8 @@ function limparCliente_(d) {
     telefone: texto_(d.telefone, 30),
     instagram: texto_(d.instagram, 60).replace(/^https?:\/\/(www\.)?instagram\.com\//i, '@').replace(/\/$/, ''),
     site: url_(d.site) || (texto_(d.site, 200) && !/\s/.test(texto_(d.site, 200)) ? 'https://' + texto_(d.site, 200).replace(/^\/+/, '') : ''),
+    // Logo: só link https (imagem hospedada, por exemplo no site do cliente ou da agência).
+    logo: /^https:\/\/\S+$/i.test(texto_(d.logo, 1000)) ? texto_(d.logo, 1000) : '',
     obs: texto_(d.obs, 3000),
   };
   if (!c.nome) throw new Error('Informe o nome do cliente.');
