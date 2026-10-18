@@ -164,6 +164,10 @@
 @media (max-width: 1180px) {
   .topo.hero { grid-template-columns: minmax(0, 1fr) 300px; padding: 34px 32px; column-gap: 28px; }
   .topo.hero .topo-visual { width: 300px; }
+  .hp { padding: 18px 16px 16px; }
+  .hp-anel { grid-template-columns: 88px minmax(0, 1fr); gap: 14px; }
+  .hp-anel .anel { width: 88px; height: 88px; }
+  .hp-anel .num b { font-size: 26px; }
 }
 @media (max-width: 960px) {
   .topo.hero, .topo.hero.acoes-largas { grid-template-columns: minmax(0, 1fr); grid-template-areas: "t" "v" "a"; }
@@ -192,7 +196,7 @@ function iconeKpi(rotulo) {
   if (/atras|vencid|cobranc/.test(r)) return 'relogio';
   if (/renova/.test(r)) return 'trocar';
   if (/lead|cliente/.test(r)) return 'clientes';
-  if (/publica|feedback|frequen|instagram|post/.test(r)) return 'social';
+  if (/publica|feedback|frequen|instagram|posts?/.test(r)) return 'social';
   if (/agend|semana|reuni/.test(r)) return 'calendario';
   if (/aprova|ajuste|over/.test(r)) return 'check';
   if (/rascunho|fila|propost|aguardando/.test(r)) return 'propostas';
@@ -292,8 +296,73 @@ function pintarBanner(r, mudouTela) {
   const cv = topo.querySelector('.hero-fx');
   if (b && !FLUXO_PARAR) FLUXO_PARAR = bannerFluxo(cv, topo);
   if (!b && FLUXO_PARAR) { FLUXO_PARAR(); FLUXO_PARAR = null; }
+  // Altura do título simples, para o que gruda logo abaixo dele (abas do C-Vision).
+  if (!b) document.documentElement.style.setProperty('--topo-h', topo.offsetHeight + 'px');
   if (mudouTela && b) { topo.classList.remove('entrando'); void topo.offsetWidth; topo.classList.add('entrando'); }
 }
+
+// ---------- textos em degradê como SVG (degradê em movimento, como o logo do Be Flow) ----------
+// O <em> da manchete vira um <svg> com <text>: nítido, sem o truque de recorte do CSS, e o degradê corre devagar.
+const NS_SVG = 'http://www.w3.org/2000/svg';
+function degradeSvg(raiz) {
+  (raiz || document).querySelectorAll('.topo.hero h1 em:not(.tg-ok), .cv-hero h2 em:not(.tg-ok)').forEach(function (em) {
+    const txt = em.textContent, cs = getComputedStyle(em), id = 'tg' + Math.random().toString(36).slice(2, 8);
+    em.classList.add('tg-ok'); em.textContent = '';
+    const svg = document.createElementNS(NS_SVG, 'svg');
+    svg.setAttribute('class', 'tg'); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', txt);
+    svg.innerHTML = '<defs><linearGradient id="' + id + '" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="200" y2="0" spreadMethod="reflect">' +
+      '<stop offset="0" stop-color="#E6F0DA"/><stop offset=".35" stop-color="#C5DBAE"/><stop offset=".75" stop-color="#F0B472"/><stop offset="1" stop-color="#E39A5C"/>' +
+      '<animateTransform attributeName="gradientTransform" type="translate" from="0 0" to="400 0" dur="9s" repeatCount="indefinite"/></linearGradient></defs>' +
+      '<text x="0" fill="url(#' + id + ')"></text>';
+    const t = svg.querySelector('text');
+    t.textContent = txt;
+    t.setAttribute('style', 'font-family:' + cs.fontFamily + ';font-size:' + cs.fontSize + ';font-weight:' + cs.fontWeight + ';letter-spacing:' + cs.letterSpacing);
+    em.appendChild(svg);
+    const medir = function () {
+      const fs = parseFloat(cs.fontSize), w = Math.ceil(t.getComputedTextLength() + 2), h = Math.ceil(fs * 1.18), base = Math.round(fs * .93);
+      t.setAttribute('y', base);
+      svg.setAttribute('width', w); svg.setAttribute('height', h); svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+      svg.style.verticalAlign = -(h - base) + 'px';
+      const g = svg.querySelector('linearGradient'); g.setAttribute('x2', Math.max(80, w));
+      g.querySelector('animateTransform').setAttribute('to', (2 * Math.max(80, w)) + ' 0');
+    };
+    medir();
+    if (document.fonts && document.fonts.status !== 'loaded') document.fonts.ready.then(medir);
+  });
+}
+
+// ---------- acabamento dos cartões: ícone no cabeçalho pelo título, cor por segmento ----------
+const ICONE_CARTAO = [
+  [/funil|etapa|paradas|fechamento/, 'funil'], [/atencao|alerta|alerta de parado/, 'relogio'], [/tarefa/, 'tarefas'],
+  [/receita|financeiro|contrato|rentab|renova|reajuste|ganhos/, 'financeiro'], [/campanha|investimento|leads|trafego/, 'trafego'],
+  [/conteudo|social|pedido|entrega|resumo diario/, 'social'], [/cliente|pessoa|equipe|alocad/, 'clientes'], [/proposta/, 'propostas'],
+  [/hora/, 'horas'], [/chat|e-mail|ajuste/, 'balao'], [/identidade|cores|lista|dominio|exemplo/, 'admin'],
+];
+const COR_SEGMENTO = { esporte: '#A9511F', longevidade: '#3F5B2E', saude: '#2F7A6B', recovery: '#B08A55' };
+function decorar(raiz) {
+  raiz.querySelectorAll('.cartao-cab > h2:not([data-ic])').forEach(function (h) {
+    h.setAttribute('data-ic', '');
+    const n = normal(h.textContent), par = ICONE_CARTAO.find(function (p) { return p[0].test(n); });
+    if (par) h.insertAdjacentHTML('afterbegin', '<span class="c-ic">' + icone(par[1]) + '</span>');
+  });
+  raiz.querySelectorAll('.tabela .pilula:not([data-seg]), .op .pilula:not([data-seg])').forEach(function (p) {
+    const cor = COR_SEGMENTO[normal(p.textContent.trim())];
+    p.setAttribute('data-seg', cor ? '1' : '');
+    if (cor) p.style.setProperty('--sc', cor);
+  });
+}
+// Partes da tela se redesenham sozinhas (lista filtrada, quadro): o acabamento acompanha.
+(function () {
+  let pendente = false;
+  const obs = new MutationObserver(function () {
+    // Roda na hora (sem requestAnimationFrame, que para com a janela em segundo plano). As duas funções só mexem
+    // no que ainda não foi tratado, então a mudança que elas mesmas causam não gera outra rodada.
+    if (pendente) return; pendente = true;
+    try { const t = document.getElementById('tela'); if (t) decorar(t); degradeSvg(document.querySelector('.principal')); } finally { pendente = false; }
+  });
+  document.addEventListener('DOMContentLoaded', function () { obs.observe(document.getElementById('app'), { childList: true, subtree: true }); });
+  if (document.readyState !== 'loading') obs.observe(document.getElementById('app'), { childList: true, subtree: true });
+})();
 
 // ---------- números que contam ao abrir a tela ----------
 function contarNumeros(raiz) {

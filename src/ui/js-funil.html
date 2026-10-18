@@ -88,6 +88,7 @@ function cardOp(o) {
   const e = etapa(o.etapa);
   const fee = o.contrato === 'fee';
   return '<button type="button" class="op" draggable="' + (pode('colaborador') ? 'true' : 'false') + '" data-op="' + esc(o.id) + '"' + (e ? ' style="--e:' + esc(e.cor) + '"' : '') + '>' +
+    (e && e.tipo === 'aberta' ? '<span class="op-prob" style="--p:' + (Number(e.prob) || 0) + '" title="Chance da etapa">' + (Number(e.prob) || 0) + '<small>%</small></span>' : '') +
     '<span class="cli">' + esc(nomeCliente(o.clienteId) || 'Sem cliente') + '</span>' +
     '<span class="tit">' + esc(o.titulo) + '</span>' +
     '<span class="val">' + dinheiro(fee ? o.valor : totalOp(o)) + (fee ? ' <small>/mês · ' + o.meses + 'm</small>' : '') + '</span>' +

@@ -17,7 +17,7 @@
   --raio: 14px;
   --linha: rgba(20, 26, 15, .08);
   --linha-forte: rgba(20, 26, 15, .14);
-  --afundado: rgba(20, 26, 15, .035);
+  --afundado: color-mix(in srgb, #141A0F 4%, var(--fundo));
   --suave: rgba(20, 26, 15, .62);
   --apagado: rgba(20, 26, 15, .44);
   --sombra: 0 1px 2px rgba(20, 26, 15, .04), 0 18px 40px -26px rgba(20, 26, 15, .28);
@@ -30,7 +30,7 @@
 :root[data-tema="escuro"] {
   --fundo: #0F130B; --superficie: #161C11; --texto: #F2EEE6; --primaria: #0D1108;
   --destaque: #C5DBAE; --destaque-escuro: #DCEBCB; --sobre-destaque: #141A0F; --acento: #F0B472;
-  --linha: rgba(247, 243, 236, .08); --linha-forte: rgba(247, 243, 236, .15); --afundado: rgba(247, 243, 236, .035);
+  --linha: rgba(247, 243, 236, .08); --linha-forte: rgba(247, 243, 236, .15); --afundado: color-mix(in srgb, #F2EEE6 5%, var(--fundo));
   --suave: rgba(242, 238, 230, .66); --apagado: rgba(242, 238, 230, .44);
   --sombra: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 20px 44px -28px rgba(0, 0, 0, .8);
   --k1: #C5DBAE; --k2: #F0B472; --k3: #8CC271; --k4: #E6C7A0;
@@ -38,7 +38,7 @@
 :root[data-tema="floresta"] {
   --fundo: #18200F; --superficie: #1E2716; --texto: #F2F5EC; --primaria: #0D1108;
   --destaque: #C9E9B2; --destaque-escuro: #E0F3D2; --sobre-destaque: #141A0F; --acento: #F0B472;
-  --linha: rgba(201, 233, 178, .10); --linha-forte: rgba(201, 233, 178, .18); --afundado: rgba(201, 233, 178, .04);
+  --linha: rgba(201, 233, 178, .10); --linha-forte: rgba(201, 233, 178, .18); --afundado: color-mix(in srgb, #F2F5EC 5%, var(--fundo));
   --suave: rgba(242, 245, 236, .68); --apagado: rgba(242, 245, 236, .46);
   --sombra: 0 1px 0 rgba(255, 255, 255, .04) inset, 0 20px 44px -28px rgba(0, 0, 0, .7);
   --k1: #C9E9B2; --k2: #F0B472; --k3: #A6D388; --k4: #E6C7A0;
@@ -60,12 +60,15 @@ body { background: radial-gradient(1100px 520px at 100% -8%, rgba(240, 180, 114,
   --c-tx: rgba(242, 245, 236, .66); --c-tx2: rgba(242, 245, 236, .42); --c-forte: #F7F3EC;
   --c-hv: rgba(201, 233, 178, .06); --c-onbg: rgba(240, 180, 114, .1); --c-ontx: #F0B472; --c-acc: #F0B472; --c-logo: none;
 }
-.barra-app { height: 62px; padding: 0 20px 0 14px; }
+:root { --altura-barra: 62px; }
+.barra-app { height: var(--altura-barra); padding: 0 20px 0 14px; }
 .barra-nome b { font-weight: 500; letter-spacing: -.01em; }
 .barra-nome small { color: var(--acento-claro); font-weight: 500; letter-spacing: .18em; font-size: 9.5px; }
 .barra-sep { width: 1px; background: linear-gradient(180deg, transparent, rgba(240, 180, 114, .7), transparent); }
-.linha-marca { height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(169, 81, 31, .9) 18%, #F0B472 42%, #C5DBAE 70%, transparent 100%); background-size: 200% 100%; opacity: .9; }
-.barra-busca { border-radius: 100px !important; }
+.linha-marca { height: 3px; background: linear-gradient(90deg, transparent 0%, rgba(169, 81, 31, .9) 18%, #F0B472 42%, #C5DBAE 70%, transparent 100%) 0 0 / 200% 1px no-repeat, var(--c-lado); opacity: 1; }
+.barra-busca { border-radius: 100px !important; background: rgba(247, 243, 236, .04) !important; min-width: 240px; }
+.barra-busca:hover { background: rgba(247, 243, 236, .07) !important; border-color: rgba(247, 243, 236, .14) !important; }
+.barra-busca kbd { color: var(--c-tx2) !important; background: rgba(247, 243, 236, .06) !important; border-color: var(--c-bd) !important; font: 500 10px/1 var(--fonte); letter-spacing: .06em; padding: 4px 7px; }
 .lateral { padding: 18px 12px 14px; border-right: 1px solid var(--c-bd); }
 .menu { gap: 3px; }
 .menu::before { content: 'Navegação'; display: block; font: 500 9.5px/1 var(--fonte); letter-spacing: .22em; text-transform: uppercase; color: var(--c-tx2); padding: 4px 12px 12px; }
@@ -169,6 +172,47 @@ h1 em, h2 em { font-style: normal; font-weight: inherit; color: var(--acento); }
 .coluna-cards { padding: 12px; gap: 10px; }
 .op { position: relative; overflow: hidden; border-radius: 14px; padding: 14px 14px 12px 17px; gap: 9px; border-color: var(--linha); box-shadow: 0 1px 2px rgba(20, 26, 15, .05); background: var(--superficie); }
 .op::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--e, var(--linha-forte)); }
+/* com overflow escondido, o item de grade pode encolher abaixo do conteúdo numa coluna de altura limitada: nunca corta */
+.coluna-cards { display: flex !important; flex-direction: column; }
+.op .rodape + .rodape { border-top: 0; padding-top: 0; }
+/* calendário do social: nome do cliente quebra linha (sem reticências) e publicado vira chip tingido */
+.sm-chip { align-items: flex-start; flex-wrap: wrap; row-gap: 1px; padding: 4px 8px; border-radius: 8px; box-shadow: inset 3px 0 0 var(--sm-cor); }
+.sm-chip span { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; overflow-wrap: break-word; }
+.sm-chip.sm-st-publicado { background: color-mix(in srgb, var(--sm-cor) 18%, var(--superficie)); color: var(--texto); }
+.sm-chip.sm-st-publicado b { color: var(--suave); opacity: 1; }
+.sm-dia.hoje .sm-n { background: var(--acento); color: #F7F3EC; }
+.sm-cal-cab h2 { font-weight: 200; font-size: 28px; letter-spacing: -.035em; }
+
+/* tráfego: tabela de campanhas com a largura toda até telas largas; cartões laterais lado a lado embaixo */
+@media (max-width: 1360px) {
+  .tf-baixo { grid-template-columns: minmax(0, 1fr) !important; }
+  .tf-baixo > div:last-child { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+}
+@media (max-width: 820px) { .tf-baixo > div:last-child { grid-template-columns: minmax(0, 1fr); } }
+.tf-cli-topo span:first-child { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+.tf-cli .trilho { height: 6px; }
+.tf-cli .trilho i { background-image: linear-gradient(90deg, var(--g2), var(--g1)) !important; }
+
+/* abas do C-Vision grudam logo abaixo do título (altura medida na hora, ver pintarBanner) */
+.cv-nav { top: calc(var(--altura-barra) + 3px + var(--topo-h, 100px)) !important; padding: 10px 0; background: color-mix(in srgb, var(--fundo) 92%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.cv-nav a { font-size: 10px; letter-spacing: .16em; }
+
+/* formulários: campos alinhados no topo (sem select esticado pela altura da linha) */
+.campo { align-content: start; }
+.grade { align-items: start; }
+
+/* admin > equipe: nome com largura mínima; controles descem de linha quando falta espaço */
+.lista > li:has(.adm-areas) { flex-wrap: wrap; row-gap: 12px; }
+.lista > li:has(.adm-areas) .principal-li { flex: 1 1 240px; min-width: 220px; }
+.lista > li:has(.adm-areas) .adm-areas { flex-wrap: wrap; }
+
+/* barras de rolagem finas e discretas em todo o app */
+* { scrollbar-width: thin; scrollbar-color: var(--linha-forte) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--linha-forte); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-button { display: none; height: 0; width: 0; }
+.coluna-cards > * { flex-shrink: 0; }
 :root[data-tema="escuro"] .op, :root[data-tema="floresta"] .op { background: linear-gradient(180deg, rgba(247, 243, 236, .06), rgba(247, 243, 236, .03)); }
 .op:hover { transform: translateY(-2px); box-shadow: var(--sombra); border-color: var(--linha-forte); }
 .op .cli { font: 500 10px/1.3 var(--fonte); letter-spacing: .16em; color: var(--acento); }
@@ -208,4 +252,84 @@ h1 em, h2 em { font-style: normal; font-weight: inherit; color: var(--acento); }
   .kpi .rotulo { padding-right: 36px; }
 }
 @media (max-width: 400px) { .kpi .valor { font-size: 22px; } }
+/* =====================================================================================
+   Acabamento do conteúdo (rodada 2): cabeçalhos com ícone, listas com respiro, avatares finos,
+   barras do funil com volume, KPIs com tom da cor, kanban com anel de chance, segmentos com cor.
+   ===================================================================================== */
+.tg-ok { background: none !important; -webkit-text-fill-color: currentColor !important; color: inherit !important; font-style: normal; }
+.tg { display: inline-block; overflow: visible; }
+
+/* cabeçalho do cartão: ícone em traço cobre num círculo fino + título; linha separando do corpo */
+.cartao-cab { padding: 18px 22px 16px; border-bottom: 1px solid var(--linha); min-height: 66px; flex-wrap: wrap; row-gap: 8px; }
+.cartao-cab + .cartao-corpo { padding-top: 16px; }
+.cartao-cab h2[data-ic]:has(.c-ic)::before { display: none; }
+.c-ic { width: 32px; height: 32px; flex: none; border-radius: 50%; display: grid; place-items: center; color: var(--acento);
+  border: 1px solid color-mix(in srgb, var(--acento) 26%, transparent); background: color-mix(in srgb, var(--acento) 6%, transparent); }
+.c-ic svg { width: 15px; height: 15px; stroke-width: 1.5; }
+:root[data-tema="escuro"] .c-ic, :root[data-tema="floresta"] .c-ic { color: var(--acento-claro); border-color: rgba(240, 180, 114, .28); background: rgba(240, 180, 114, .07); }
+.cartao-cab .btn-fantasma { border: 1px solid var(--linha); }
+.cartao-cab .btn-fantasma:hover { border-color: var(--linha-forte); }
+
+/* listas: linhas com respiro e realce ao passar o mouse */
+.lista > li { margin: 0 -12px; padding: 12px; border-top: 0; border-radius: 14px; transition: background .15s; }
+.lista > li + li { box-shadow: 0 -1px 0 var(--linha); }
+.lista > li:hover { background: var(--afundado); box-shadow: none; }
+.lista > li:hover + li { box-shadow: none; }
+.lista .principal-li b { font-size: 14px; letter-spacing: -.005em; white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: break-word; }
+.cv-pessoa .topo-p b, .cv-pessoa .topo-p span, .op .cli { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+.lista .principal-li span { font-size: 12.5px; }
+
+/* avatares: iniciais finas com anel, sem bola pesada */
+.avatar { font-weight: 600; letter-spacing: .03em; box-shadow: 0 0 0 2px var(--superficie), 0 0 0 3px color-mix(in srgb, var(--av, #8C9A7E) 35%, transparent); }
+.avatar:not([class*="foto"]) { background: color-mix(in srgb, var(--av, #8C9A7E) 16%, var(--superficie)); color: color-mix(in srgb, var(--av, #8C9A7E) 85%, #000); }
+:root[data-tema="escuro"] .avatar:not([class*="foto"]), :root[data-tema="floresta"] .avatar:not([class*="foto"]) { background: color-mix(in srgb, var(--av, #8C9A7E) 30%, #141A0F); color: color-mix(in srgb, var(--av, #8C9A7E) 40%, #fff); }
+.barra-app .avatar:not([class*="foto"]) { background: var(--av, #8C9A7E); color: #F7F3EC; }
+.lista .avatar, .op .rodape .avatar { width: 30px; height: 30px; font-size: 10.5px; }
+
+/* pílulas: ponto de cor antes do texto nas de estado */
+.pilula.alerta::before, .pilula.ok::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.pilula[data-seg="1"] { background: color-mix(in srgb, var(--sc) 11%, transparent); color: var(--sc); font-weight: 600; }
+.pilula[data-seg="1"]::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+:root[data-tema="escuro"] .pilula[data-seg="1"], :root[data-tema="floresta"] .pilula[data-seg="1"] { color: color-mix(in srgb, var(--sc) 55%, #fff); background: color-mix(in srgb, var(--sc) 22%, transparent); }
+
+/* funil por etapa: barras com volume e brilho */
+.barra-funil { gap: 16px; }
+.barra-funil .linha { grid-template-columns: minmax(96px, 38%) minmax(60px, 1fr) auto; font-size: 13.5px; }
+.barra-funil .linha > span:first-child { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; overflow-wrap: break-word; }
+.barra-funil .linha > span:first-child { font-weight: 500; }
+.barra-funil .linha .num { text-align: right; font-weight: 500; font-size: 13px; }
+.barra-funil .trilho { height: 10px; border-radius: 10px; background: var(--afundado); box-shadow: inset 0 1px 2px rgba(20, 26, 15, .06); }
+.barra-funil .trilho i { border-radius: 10px; background-image: linear-gradient(180deg, rgba(255, 255, 255, .28), rgba(255, 255, 255, 0) 60%) !important; }
+
+/* KPIs: tom da cor no alto do cartão */
+.kpi { background: linear-gradient(165deg, color-mix(in srgb, var(--k) 7%, var(--superficie)) 0%, var(--superficie) 58%); }
+:root[data-tema="escuro"] .kpi, :root[data-tema="floresta"] .kpi { background: linear-gradient(165deg, color-mix(in srgb, var(--k) 12%, transparent) 0%, rgba(247, 243, 236, .02) 60%); }
+.kpi .k-ic { width: 38px; height: 38px; }
+.kpi .k-ic svg { width: 17px; height: 17px; }
+
+/* kanban: anel com a chance da etapa, cabeçalho da coluna com a soma em destaque */
+.op-prob { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font: 600 10px/1 var(--fonte); letter-spacing: -.02em; color: var(--texto);
+  background: radial-gradient(closest-side, var(--superficie) 76%, transparent 78% 100%), conic-gradient(var(--e, var(--destaque)) calc(var(--p) * 1%), var(--linha-forte) 0); }
+.op-prob small { font-size: 7px; font-weight: 500; margin-left: 1px; color: var(--suave); }
+:root[data-tema="escuro"] .op-prob, :root[data-tema="floresta"] .op-prob { background: radial-gradient(closest-side, #1D2417 76%, transparent 78% 100%), conic-gradient(var(--e, var(--destaque)) calc(var(--p) * 1%), var(--linha-forte) 0); }
+.op:has(.op-prob) .cli, .op:has(.op-prob) .tit { padding-right: 40px; }
+.coluna-cab .soma { font-size: 14px; color: var(--texto); font-weight: 400; }
+.op .rodape { gap: 8px; }
+
+/* tarefa: título com a largura toda; prazo embaixo do título, avatar à direita */
+.tarefa { display: grid; grid-template-columns: 19px minmax(0, 1fr) auto; column-gap: 11px; row-gap: 7px; align-items: start; }
+.tarefa > .marcar { grid-row: 1 / span 2; margin-top: 1px; }
+.tarefa > .tt { grid-column: 2; grid-row: 1; }
+.tarefa > .pilula { grid-column: 2; grid-row: 2; justify-self: start; }
+.tarefa > .avatar { grid-column: 3; grid-row: 1; }
+.tarefa .tt b { font-size: 14px; }
+
+/* tabelas: linhas mais altas, primeira coluna forte */
+.tabela td:first-child b { font-size: 14px; }
+
+.tabela tbody tr td { transition: background .12s; }
+
+/* gráficos: rótulos de eixo mais leves */
+.grafico .eixo { fill: var(--apagado); font-size: 10px; letter-spacing: .04em; }
 </style>
