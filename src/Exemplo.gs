@@ -6,10 +6,11 @@
 function zerarDados() {
   exigir_('admin');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const presentes = ler_('equipe').map(function (m) { return PRESENCA_CHAVE_ + m.email; });
   const abas = ss.getSheets();
   ss.insertSheet('Página1 ' + Date.now());
   abas.forEach(function (sh) { ss.deleteSheet(sh); });
-  CacheService.getScriptCache().remove('presenca');
+  try { CacheService.getScriptCache().removeAll(presentes); } catch (e) { /* a presença expira sozinha */ }
   return true;
 }
 

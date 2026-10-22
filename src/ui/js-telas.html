@@ -70,7 +70,12 @@ function listaClientes() {
     }).join('') + '</tbody></table></div>';
 }
 
-function abrirFormCliente(base) {
+function abrirFormCliente(base, semAntigos) {
+  // O cliente mostra todas as oportunidades dele: busca antes as que ficaram fora da abertura.
+  if (base && base.id && !semAntigos && temAntigos('oportunidades')) {
+    carregarAntigos().catch(function () { /* abre com o que já tem */ }).then(function () { abrirFormCliente(base, true); });
+    return;
+  }
   base = base || {};
   const novo = !base.id, cfg = S.dados.config, c = base;
   const ops = novo ? [] : S.dados.oportunidades.filter(function (o) { return o.clienteId === c.id; });

@@ -14,7 +14,7 @@ function produto() { return (S.dados && S.dados.config && S.dados.config.produto
 // Carimbo desta tela (o empacotador troca 'dev' pela data da publicação; o servidor tem o mesmo em BUILD).
 const BUILD = 'dev';
 // Leituras: podem ser repetidas sem efeito colateral, então tentam de novo uma vez se a rede falhar.
-const LEITURAS = { carregar: 1, cvision: 1, detalheOportunidade: 1, ping: 1 };
+const LEITURAS = { carregar: 1, carregarAntigos: 1, cvision: 1, detalheOportunidade: 1, ping: 1 };
 
 // google.script.run em forma de Promise. O erro chega como Error com uma mensagem que dá para mostrar à pessoa.
 function chamar(fn) {
@@ -204,6 +204,46 @@ function parada(o) {
 }
 function equipeAtiva() { return S.dados.equipe.filter(function (m) { return m.ativo; }); }
 function opsAtivas() { return S.dados.oportunidades.filter(function (o) { return !o.arquivado; }); }
+
+// Itens encerrados há muito tempo não vêm na abertura (recorte_ no servidor); chegam quando alguém pede.
+function temAntigos(tipo) {
+  const a = S.dados && S.dados.antigos;
+  if (!a || S.dados.antigosCarregados) return false;
+  return tipo ? a[tipo] > 0 : a.tarefas + a.oportunidades + a.posts > 0;
+}
+function linkAntigos(tipo, texto) {
+  if (!temAntigos(tipo)) return '';
+  return '<button type="button" class="btn btn-fantasma btn-peq" data-antigos>' + esc(texto) + ' (' + S.dados.antigos[tipo] + ')</button>';
+}
+let PEDIDO_ANTIGOS = null;
+function carregarAntigos() {
+  if (!temAntigos()) return Promise.resolve();
+  const dados = S.dados;
+  if (!PEDIDO_ANTIGOS) {
+    PEDIDO_ANTIGOS = chamar('carregarAntigos').then(function (r) {
+      ['oportunidades', 'propostas', 'tarefas', 'posts'].forEach(function (k) {
+        const tem = {};
+        (dados[k] || []).forEach(function (x) { tem[x.id] = true; });
+        dados[k] = (dados[k] || []).concat((r[k] || []).filter(function (x) { return !tem[x.id]; }));
+      });
+      dados.antigosCarregados = true;
+    }).finally(function () { PEDIDO_ANTIGOS = null; });
+  }
+  return PEDIDO_ANTIGOS;
+}
+document.addEventListener('click', function (e) {
+  const b = e.target.closest('[data-antigos]');
+  if (!b || b.disabled) return;
+  b.disabled = true;
+  b.textContent = 'Carregando…';
+  carregarAntigos().then(function () {
+    desenhar();
+    if (S.gaveta) desenharGaveta();
+  }).catch(function (err) {
+    if (b.isConnected) b.disabled = false;
+    toast(err.message, { erro: true });
+  });
+});
 
 // Troca um registro no estado local pelo que o servidor devolveu.
 function trocar(lista, novo, chave) {

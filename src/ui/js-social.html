@@ -377,7 +377,12 @@ function smLigar(box) {
     if (t.closest('[data-novo-sm]')) return abrirFormPost(smBaseNova());
     if (t.closest('[data-ir-cli]')) return irPara('clientes');
     const nav = t.closest('[data-cal]');
-    if (nav) { f.mes = nav.dataset.cal; return smAtualizar(); }
+    if (nav) {
+      f.mes = nav.dataset.cal;
+      // Antes do corte da abertura, o calendário busca os posts publicados que ficaram de fora.
+      if (temAntigos('posts') && f.mes <= S.dados.antigos.desde.posts.slice(0, 7)) return carregarAntigos().then(smAtualizar, smAtualizar);
+      return smAtualizar();
+    }
     const ns = t.closest('[data-nova-st]');
     if (ns) return abrirFormPost(smBaseNova({ status: ns.dataset.novaSt }));
     const mais = t.closest('[data-mais-dia]');

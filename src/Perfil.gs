@@ -68,8 +68,20 @@ function fotosDiretorio_() {
   return (MEMO_.__fotos = out);
 }
 
+// Uma chave de cache por pessoa: o aviso de presença não disputa a trava das gravações.
+const PRESENCA_CHAVE_ = 'pres_';
+
 function lerPresenca_() {
-  try { return JSON.parse(CacheService.getScriptCache().get('presenca') || '{}'); } catch (e) { return {}; }
+  const chaves = ler_('equipe').filter(function (m) { return m.ativo; }).map(function (m) { return PRESENCA_CHAVE_ + m.email; });
+  const mapa = {};
+  if (!chaves.length) return mapa;
+  try {
+    const achou = CacheService.getScriptCache().getAll(chaves);
+    Object.keys(achou).forEach(function (k) {
+      try { mapa[k.slice(PRESENCA_CHAVE_.length)] = JSON.parse(achou[k]); } catch (e) { /* chave corrompida: ignora */ }
+    });
+  } catch (e) { /* sem cache: ninguém aparece online */ }
+  return mapa;
 }
 
 function listaPresenca_(mapa) {
@@ -90,27 +102,16 @@ function ping(tela, build) {
 function pingPresenca_(tela) {
   const eu = eu_();
   if (eu.papel === 'sem_acesso' || !eu.email) return [];
-  const trava = LockService.getScriptLock();
-  if (!trava.tryLock(3000)) return presenca_();
   try {
-    const mapa = lerPresenca_(), agora = Date.now();
-    Object.keys(mapa).forEach(function (k) { if (agora - mapa[k].t > PRESENCA_MS_) delete mapa[k]; });
-    mapa[eu.email] = { t: agora, a: texto_(tela, 20) };
-    CacheService.getScriptCache().put('presenca', JSON.stringify(mapa), 21600);
-    return listaPresenca_(mapa);
-  } finally { trava.releaseLock(); }
+    CacheService.getScriptCache().put(PRESENCA_CHAVE_ + eu.email, JSON.stringify({ t: Date.now(), a: texto_(tela, 20) }), Math.ceil(PRESENCA_MS_ / 1000) + 60);
+  } catch (e) { /* sem cache: segue sem marcar presença */ }
+  return presenca_();
 }
 
 // Ao fechar a aba: sai da lista na hora, sem esperar os 2 minutos.
 function sair() {
   const eu = eu_();
   if (!eu.email) return true;
-  const trava = LockService.getScriptLock();
-  if (!trava.tryLock(2000)) return true;
-  try {
-    const mapa = lerPresenca_();
-    delete mapa[eu.email];
-    CacheService.getScriptCache().put('presenca', JSON.stringify(mapa), 21600);
-    return true;
-  } finally { trava.releaseLock(); }
+  try { CacheService.getScriptCache().remove(PRESENCA_CHAVE_ + eu.email); } catch (e) { /* expira sozinha */ }
+  return true;
 }

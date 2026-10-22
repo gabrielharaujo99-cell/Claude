@@ -29,6 +29,8 @@ function criarPlanilha(estado) {
     };
     const intervalo = (r, c, nr = 1, nc = 1) => ({
       getValues() {
+        // Contador para o teste de carga (dev/carga.js): quantas células cada chamada lê.
+        estado.celulas = (estado.celulas || 0) + nr * nc;
         const out = [];
         for (let i = 0; i < nr; i++) {
           const linha = linhas[r - 1 + i] || [];
@@ -71,6 +73,7 @@ function criarPlanilha(estado) {
       },
       appendRow(v) { linhas.splice(ultimaLinha(), 0, v.slice()); return this; },
       deleteRow(r) { linhas.splice(r - 1, 1); return this; },
+      deleteRows(r, n) { linhas.splice(r - 1, n); return this; },
       setFrozenRows() { return this; },
     };
   }
@@ -110,7 +113,15 @@ function criarGlobais(estado, opcoes) {
     CacheService: {
       getScriptCache: () => {
         estado.cache = estado.cache || {};
-        return { get: (k) => (k in estado.cache ? estado.cache[k] : null), put: (k, v) => { estado.cache[k] = String(v); }, remove: (k) => { delete estado.cache[k]; } };
+        const c = estado.cache;
+        return {
+          get: (k) => (k in c ? c[k] : null),
+          getAll: (ks) => { const o = {}; ks.forEach((k) => { if (k in c) o[k] = c[k]; }); return o; },
+          put: (k, v) => { c[k] = String(v); },
+          putAll: (o) => { Object.keys(o).forEach((k) => { c[k] = String(o[k]); }); },
+          remove: (k) => { delete c[k]; },
+          removeAll: (ks) => { ks.forEach((k) => { delete c[k]; }); },
+        };
       },
     },
     LockService: { getScriptLock: () => ({ waitLock() {}, tryLock: () => true, releaseLock() {} }) },

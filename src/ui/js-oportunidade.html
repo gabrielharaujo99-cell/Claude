@@ -173,7 +173,9 @@ function corpoAba(g, o, tarefas, propostas) {
   if (g.aba === 'tarefas') {
     return (tarefas.length ? '<ul class="lista">' + tarefas.sort(function (a, b) { return (a.status === 'feito') - (b.status === 'feito') || ((a.prazo || '9') < (b.prazo || '9') ? -1 : 1); })
       .map(function (t) { return '<li>' + linhaTarefa(t) + '</li>'; }).join('') + '</ul>' : '<div class="vazio"><b>Sem tarefas.</b>Crie o próximo passo desta oportunidade.</div>') +
-      (pode('colaborador') ? '<div style="margin-top:16px"><button class="btn btn-peq" data-nova-tarefa>' + icone('mais') + 'Nova tarefa</button></div>' : '');
+      (pode('colaborador') || temAntigos('tarefas') ? '<div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">' +
+        (pode('colaborador') ? '<button class="btn btn-peq" data-nova-tarefa>' + icone('mais') + 'Nova tarefa</button>' : '') +
+        linkAntigos('tarefas', 'Ver concluídas há mais de 90 dias') + '</div>' : '');
   }
   if (g.aba === 'propostas') {
     return (propostas.length ? '<ul class="lista">' + propostas.map(function (p) {

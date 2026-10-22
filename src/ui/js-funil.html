@@ -78,6 +78,8 @@ function desenharQuadro() {
         '<span class="soma">' + dinheiro(soma) + (e.tipo === 'aberta' ? ' · ' + e.prob + '%' : '') + '</span>' +
       '</header>' +
       '<div class="coluna-cards">' + lista.map(cardOp).join('') + '</div>' +
+      // Fora de .coluna-cards: o arrastar calcula a ordem pelos irmãos do card.
+      (e.tipo !== 'aberta' && temAntigos('oportunidades') ? '<div style="padding:8px 10px 12px">' + linkAntigos('oportunidades', 'Ver fechadas há mais de 12 meses') + '</div>' : '') +
     '</section>';
   }).join('');
 }

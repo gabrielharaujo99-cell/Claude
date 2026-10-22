@@ -101,19 +101,28 @@ function abas_() {
 }
 
 function aba_(nome) {
-  const s = esquema_(nome), ss = SpreadsheetApp.getActiveSpreadsheet();
+  const s = esquema_(nome), ss = SpreadsheetApp.getActiveSpreadsheet(), cabs = MEMO_.__cab || (MEMO_.__cab = {});
   let sh = abas_()[nome];
   if (!sh) {
     sh = ss.insertSheet(nome);
     abas_()[nome] = sh;
     sh.getRange(1, 1, 1, s.colunas.length).setValues([s.colunas]).setFontWeight('bold');
     sh.setFrozenRows(1);
+    cabs[nome] = s.colunas.slice();
     return sh;
   }
+  if (cabs[nome]) return sh;
   const cab = cabecalho_(sh);
   const faltam = s.colunas.filter(function (c) { return cab.indexOf(c) < 0; });
   if (faltam.length) sh.getRange(1, cab.length + 1, 1, faltam.length).setValues([faltam]).setFontWeight('bold');
+  cabs[nome] = cab.concat(faltam);
   return sh;
+}
+
+// Cabeçalho da aba (com as colunas novas do esquema), lido uma vez por execução.
+function cabDe_(nome) {
+  aba_(nome);
+  return MEMO_.__cab[nome];
 }
 
 function cabecalho_(sh) {
@@ -191,7 +200,40 @@ function ler_(nome) {
   return t.vals.filter(function (r) { return !vazia_(r); }).map(function (r) { return decodificar_(s, t.cab, r); });
 }
 
+/*
+ * Caminho leve: quando a aba ainda não foi lida inteira nesta execução, achar, atualizar, remover e inserir
+ * leem só a coluna da chave e a linha alvo. Assim uma gravação não fica mais lenta conforme a planilha cresce
+ * (o histórico, sobretudo). Se a aba já está na memória (ler_ foi chamado antes), segue o caminho completo.
+ */
+function linhasLeves_() { return MEMO_.__linhas || (MEMO_.__linhas = {}); }
+
+function esquecerLinhas_(nome) {
+  const memo = linhasLeves_();
+  Object.keys(memo).forEach(function (k) { if (k.indexOf(nome + '|') === 0) delete memo[k]; });
+}
+
+function localizar_(nome, chave) {
+  const memo = linhasLeves_(), k = nome + '|' + String(chave).toLowerCase();
+  if (k in memo) return memo[k];
+  const s = esquema_(nome), sh = aba_(nome), cab = cabDe_(nome), col = cab.indexOf(s.chave || 'id'), n = sh.getLastRow() - 1;
+  let achou = null;
+  if (col >= 0 && n > 0) {
+    const alvo = String(chave).toLowerCase(), ids = sh.getRange(2, col + 1, n, 1).getValues();
+    for (let i = 0; i < n; i++) {
+      if (String(ids[i][0]).toLowerCase() === alvo) {
+        achou = { sh: sh, cab: cab, i: i, linha: sh.getRange(i + 2, 1, 1, cab.length).getValues()[0] };
+        break;
+      }
+    }
+  }
+  return (memo[k] = achou);
+}
+
 function achar_(nome, chave) {
+  if (!MEMO_[nome]) {
+    const l = localizar_(nome, chave);
+    return l ? decodificar_(esquema_(nome), l.cab, l.linha) : null;
+  }
   const t = tabela_(nome), s = esquema_(nome), col = t.cab.indexOf(s.chave || 'id');
   for (let i = 0; i < t.vals.length; i++) {
     if (String(t.vals[i][col]).toLowerCase() === String(chave).toLowerCase()) return decodificar_(s, t.cab, t.vals[i]);
@@ -208,7 +250,14 @@ function linhaDe_(t, s, chave) {
 }
 
 function inserir_(nome, obj) {
-  const t = tabela_(nome), s = esquema_(nome);
+  const s = esquema_(nome);
+  if (!MEMO_[nome]) {
+    const sh = aba_(nome), cab = cabDe_(nome), nova = codificar_(s, cab, obj, null);
+    sh.getRange(sh.getLastRow() + 1, 1, 1, cab.length).setNumberFormat('@').setValues([nova]);
+    esquecerLinhas_(nome);
+    return decodificar_(s, cab, comoLido_(nova));
+  }
+  const t = tabela_(nome);
   const linha = codificar_(s, t.cab, obj, null);
   t.sh.getRange(t.vals.length + 2, 1, 1, t.cab.length).setNumberFormat('@').setValues([linha]);
   t.vals.push(comoLido_(linha));
@@ -216,6 +265,16 @@ function inserir_(nome, obj) {
 }
 
 function atualizar_(nome, chave, patch) {
+  if (!MEMO_[nome]) {
+    const s = esquema_(nome), l = localizar_(nome, chave);
+    if (!l) throw new Error('Registro não encontrado. Recarregue a página.');
+    const antes = decodificar_(s, l.cab, l.linha);
+    const linha = codificar_(s, l.cab, Object.assign({}, antes, patch), l.linha);
+    l.sh.getRange(l.i + 2, 1, 1, l.cab.length).setNumberFormat('@').setValues([linha]);
+    l.linha = comoLido_(linha);
+    if ((s.chave || 'id') in (patch || {})) esquecerLinhas_(nome);
+    return { antes: antes, depois: decodificar_(s, l.cab, l.linha) };
+  }
   const t = tabela_(nome), s = esquema_(nome), i = linhaDe_(t, s, chave);
   if (i < 0) throw new Error('Registro não encontrado. Recarregue a página.');
   const antes = decodificar_(s, t.cab, t.vals[i]);
@@ -226,6 +285,13 @@ function atualizar_(nome, chave, patch) {
 }
 
 function remover_(nome, chave) {
+  if (!MEMO_[nome]) {
+    const l = localizar_(nome, chave);
+    if (!l) return false;
+    l.sh.deleteRow(l.i + 2);
+    esquecerLinhas_(nome);
+    return true;
+  }
   const t = tabela_(nome), s = esquema_(nome), i = linhaDe_(t, s, chave);
   if (i < 0) return false;
   t.sh.deleteRow(i + 2);

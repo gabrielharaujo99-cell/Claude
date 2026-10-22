@@ -28,6 +28,9 @@ Tempo estimado: 30 a 60 minutos. Tudo fica no Google da agência: ela é dona do
 - Peça para ser adicionado como **editor da planilha** para dar suporte e atualizar versões.
 - Para atualizar: gere de novo com `--neutro`, cole os dois arquivos, salve e em **Implantar › Gerenciar implantações** edite a implantação com **Nova versão**. O link não muda, e quem estiver com o app aberto vê o aviso "Saiu uma versão nova".
 - Opcional: um arquivo privado com `CONFIG_AGENCIA` e `EQUIPE_INICIAL` (modelo em `src/EquipeSeok.exemplo.gs.txt`) deixa a instalação já pronta antes do primeiro acesso.
+- Na primeira abertura, o CRM instala sozinho um gatilho de manutenção (todo dia às 3h). Ele move o histórico com mais de 180 dias, ou além de 20 mil linhas, para a aba `historico_arquivo`, para abrir cards não ficar mais lento com o tempo. Para rodar na hora: `rodarManutencaoAgora` no editor.
+- A abertura não traz tarefas concluídas há 90+ dias, oportunidades fechadas há 12+ meses (menos fee em vigor) nem posts publicados há 180+ dias. Eles aparecem pelo botão "Ver…" no funil e no card, ao abrir um cliente e ao voltar no calendário do Social.
+- Agência grande: use uma conta própria do sistema no Workspace como dona da planilha e do script, não a conta de uma pessoa. Teste de carga local: `node dev/carga.js`.
 
 ## Demonstração
 - Local: `npm run demo` abre a **Agência Aurora** (fictícia) em http://localhost:8081, com equipe, clientes e números de exemplo.

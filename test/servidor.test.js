@@ -172,8 +172,9 @@ test('resumo diário: cards parados e tarefas atrasadas por pessoa, só via gati
   assert.throws(() => c.ana('gatilhoDiario', { triggerUid: 'falso' }), /só roda pelo gatilho/);
   c.dono('instalarResumoDiario', 8);
   c.dono('instalarResumoDiario', 9);
-  assert.equal(c.estado.gatilhos.length, 1, 'reinstalar não duplica');
-  const r = c.dono('gatilhoDiario', { triggerUid: c.estado.gatilhos[0].id });
+  const resumo = c.estado.gatilhos.filter((g) => g.fn === 'gatilhoDiario');
+  assert.equal(resumo.length, 1, 'reinstalar não duplica');
+  const r = c.dono('gatilhoDiario', { triggerUid: resumo[0].id });
   assert.ok(r.paradas >= 3);
   assert.ok(r.atrasadas >= 2);
   assert.equal(r.emails, 1);
