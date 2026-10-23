@@ -20,7 +20,7 @@ function popularExemplo() {
     if (ler_('clientes').length || ler_('oportunidades').length) throw new Error('O exemplo só pode ser carregado com o CRM vazio.');
     const cfg = config_();
     const dia = function (n) { return new Date(Date.now() - n * 864e5).toISOString(); };
-    const data = function (n) { return dia(n).slice(0, 10); };
+    const data = function (n) { return diaLocal_(new Date(Date.now() - n * 864e5)); };
     // Clientes do exemplo: a lista do arquivo privado da agência (CLIENTES_EXEMPLO, com logo e fee mensal), se houver;
     // senão, negócios wellness fictícios, um pouco de cada força.
     const reais = typeof CLIENTES_EXEMPLO !== 'undefined' && Array.isArray(CLIENTES_EXEMPLO) && CLIENTES_EXEMPLO.length ? CLIENTES_EXEMPLO : null;
@@ -114,7 +114,7 @@ function popularExemplo() {
 
     // Contratos: três fechamentos do funil (um fica sem contrato, para aparecer em "Fechamentos sem contrato")
     // e três contratos antigos com reajuste, serviços adicionais e um encerrado.
-    const mesesAtras = function (n) { const d = new Date(); d.setDate(10); d.setMonth(d.getMonth() - n); return d.toISOString().slice(0, 10); };
+    const mesesAtras = function (n) { const d = new Date(); d.setDate(10); d.setMonth(d.getMonth() - n); return diaLocal_(d); };
     const contrato = function (cl, op, titulo, servico, tipo, valor, inicio, meses, status, encerradoEm) {
       return inserir_('contratos', {
         id: novoId_('ct'), clienteId: clientes[cl].id, oportunidadeId: op == null ? '' : criadas[op].id, titulo: titulo, servico: servico,
@@ -215,7 +215,7 @@ function socialExemplo_(eu) {
   const clientes = ler_('clientes').filter(function (c) { return !c.arquivado; });
   if (!clientes.length) return { marcas: 0 };
   const agora = agora_(), hoje = new Date();
-  const data = function (n) { return new Date(Date.now() - n * 864e5).toISOString().slice(0, 10); };
+  const data = function (n) { return diaLocal_(new Date(Date.now() - n * 864e5)); };
   const mesAtras = function (n) { const d = new Date(hoje.getFullYear(), hoje.getMonth() - n, 1, 12); return d.toISOString().slice(0, 7); };
   const perfis = {
     Esporte: {

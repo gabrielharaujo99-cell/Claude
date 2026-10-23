@@ -8,7 +8,10 @@ const BUILD = 'dev';
 
 function agora_() { return new Date().toISOString(); }
 
-function hoje_() { return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'); }
+function hoje_() { return diaLocal_(new Date()); }
+
+// Dia no fuso do script (yyyy-MM-dd). toISOString() daria o dia em UTC, que à noite já é o seguinte.
+function diaLocal_(d) { return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd'); }
 
 function novoId_(prefixo) {
   return prefixo + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
