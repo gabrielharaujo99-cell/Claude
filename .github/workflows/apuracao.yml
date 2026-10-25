@@ -1,0 +1,36 @@
+name: Apuração ao vivo
+
+# Lê o TSE a cada minuto e grava apuracao/dados/*.json neste branch.
+# Começa sozinho quando o coletor ou este arquivo mudam; também dá para disparar à mão.
+on:
+  push:
+    branches: [claude/blissful-faraday-rq36hc]
+    paths: [apuracao/coletor.mjs, .github/workflows/apuracao.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apuracao-ao-vivo
+  cancel-in-progress: true
+
+jobs:
+  coletar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Coletar a cada minuto
+        run: |
+          git config user.name "apuracao-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          node apuracao/coletor.mjs
+        env:
+          DURACAO_MIN: "340"
+          INTERVALO_S: "60"
