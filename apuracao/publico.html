@@ -478,15 +478,90 @@ img { max-width: 100%; }
       cands: [cand("a"), cand("b")].filter(Boolean),
     };
   }
+  // Momento da leitura do TSE ("2026-10-25 20:54:20") para nunca trocar um número novo por um velho
+  function momentoTse(rec) {
+    const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec((rec && rec.dg) || "");
+    return m ? m[3] + "-" + m[2] + "-" + m[1] + " " + (rec.hg || "") : "";
+  }
+  function guardar(uf, rec) {
+    const atual = st.pres[uf];
+    if (atual && momentoTse(atual) > momentoTse(rec)) return false;
+    st.pres[uf] = rec;
+    return true;
+  }
   function receberPresidente(doc) {
-    st.pres = {};
-    st.primeiro = {};
     for (const r of doc.rows || []) {
       const uf = String(r.uf || "").toLowerCase();
-      st.pres[uf] = recortePresidente(r);
+      guardar(uf, recortePresidente(r));
       st.primeiro[uf] = { a: num(r.p1_a), b: num(r.p1_b), va: num(r.v1_a), vb: num(r.v1_b) };
     }
     st.ok = !!st.pres.br;
+  }
+
+  // Leitura direta do TSE (os mesmos arquivos do app oficial de resultados)
+  const TSE = "https://resultados.tse.jus.br/oficial/ele2026/6258/dados/";
+  function recorteTse(j) {
+    const cands = [];
+    const cargo = j && j.carg && j.carg[0];
+    for (const agr of (cargo && cargo.agr) || []) {
+      for (const par of agr.par || []) {
+        for (const c of par.cand || []) {
+          cands.push({
+            n: String(c.n || ""), sq: String(c.sqcand || ""), nome: c.nmu || c.nm || "", partido: par.sg || "",
+            vap: num(c.vap) || 0, pvap: num(c.pvapn != null && c.pvapn !== "" ? c.pvapn : c.pvap),
+            eleito: /^eleito/i.test(c.st || "") || c.e === "s", lado: String(c.n) === "13" ? "a" : String(c.n) === "22" ? "b" : "",
+          });
+        }
+      }
+    }
+    const s = j.s || {}, v = j.v || {}, e = j.e || {};
+    return {
+      dg: j.dg || "", hg: j.hg || "", pst: num(s.pst) || 0, st: num(s.st), ts: num(s.ts),
+      eleitorado: num(e.te), comparecimento: num(e.c), pComparecimento: num(e.pc), abstencao: num(e.a), pAbstencao: num(e.pa),
+      validos: num(v.vv), brancos: num(v.vb), pBrancos: num(v.pvb), nulos: num(v.tvn), pNulos: num(v.ptvn),
+      cands: cands.filter((c) => c.lado).sort((x, y) => (x.lado < y.lado ? -1 : 1)),
+    };
+  }
+  let falhasTse = 0;
+  async function lerTse() {
+    const ufs = ["br", "zz"].concat(UFS);
+    const res = await Promise.allSettled(ufs.map((uf) =>
+      fetch(TSE + uf + "/" + uf + "-c0001-e006258-u.json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })));
+    let mudou = false, ok = 0;
+    res.forEach((r, i) => {
+      if (r.status !== "fulfilled") return;
+      ok++;
+      const rec = recorteTse(r.value);
+      if (rec.cands.length < 2) return;
+      const antes = st.pres[ufs[i]];
+      if (guardar(ufs[i], rec) && (!antes || momentoTse(antes) !== momentoTse(rec))) mudou = true;
+    });
+    if (!ok) throw new Error("TSE indisponível");
+    st.fonte = "direto do TSE";
+    st.ok = !!st.pres.br;
+    // Ponto ao vivo no gráfico do Brasil, entre uma leitura do histórico e outra
+    const br = st.pres.br, [a, b] = par(br);
+    const h = st.hist.br || (st.hist.br = []);
+    const t = Date.parse(momentoTse(br).replace(" ", "T") + "-03:00");
+    if (a && b && br.pst > 0 && Number.isFinite(t) && (!h.length || h[h.length - 1].t < t)) h.push({ t, pst: br.pst, a: a.pvap, b: b.pvap });
+    return mudou;
+  }
+  function cicloTse() {
+    const rodar = async () => {
+      if (!document.hidden && falhasTse < 3) {
+        try {
+          if (await lerTse()) desenhar();
+          falhasTse = 0;
+          st.recebidoEm = Date.now();
+          mostrarErro("");
+        } catch (e) {
+          falhasTse++;
+        }
+      }
+      setTimeout(rodar, falhasTse >= 3 ? 60000 : 4000);
+      if (falhasTse >= 3) falhasTse = 2; // tenta o TSE de novo a cada minuto
+    };
+    return rodar();
   }
   function receberGovernadores(doc) {
     st.gov = {};
@@ -524,9 +599,9 @@ img { max-width: 100%; }
       if (!document.hidden) {
         try {
           if (await ler(nome, receber)) desenhar();
-          if (nome === "presidente.json") { st.recebidoEm = Date.now(); mostrarErro(""); }
+          if (nome === "presidente.json" && st.fonte !== "direto do TSE") { st.fonte = "via GitHub"; st.recebidoEm = Date.now(); mostrarErro(""); }
         } catch (e) {
-          if (nome === "presidente.json") mostrarErro("Sem conexão com os dados agora. Tentando de novo em instantes.");
+          if (nome === "presidente.json" && !st.ok) mostrarErro("Sem conexão com os dados agora. Tentando de novo em instantes.");
         }
       }
       setTimeout(rodar, ms);
@@ -534,7 +609,8 @@ img { max-width: 100%; }
     return rodar();
   }
   function iniciar() {
-    ciclo("presidente.json", receberPresidente, 3000);
+    cicloTse();
+    ciclo("presidente.json", receberPresidente, 5000);
     ciclo("governadores.json", receberGovernadores, 15000);
     ciclo("historico.json", receberHistorico, 30000);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) relogio(); });
@@ -602,7 +678,7 @@ img { max-width: 100%; }
   function relogio() {
     if (!st.recebidoEm) { $("t-recebido").textContent = ""; return; }
     const s = Math.max(0, Math.round((Date.now() - st.recebidoEm) / 1000));
-    $("t-recebido").textContent = "verificado há " + (s < 90 ? s + " s" : Math.round(s / 60) + " min");
+    $("t-recebido").textContent = (st.fonte ? st.fonte + " · " : "") + "verificado há " + (s < 90 ? s + " s" : Math.round(s / 60) + " min");
   }
 
   function desenharPlacar() {
