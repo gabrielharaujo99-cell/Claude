@@ -7,3 +7,5 @@ dev/screens/
 # Equipe real (nomes e e-mails): o repositório é público
 src/EquipeSeok.gs
 dist/
+# Apuração 2026: histórico gravado pelo servidor local
+apuracao/historico.json

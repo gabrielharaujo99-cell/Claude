@@ -1,0 +1,1010 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Apuração 2º Turno 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Layout: faixa de placar no topo (Brasil), depois cenários, evolução, mapa + regiões, tabela por estado e governadores */
+:root {
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --line: #dde2ea;
+  --fg: #141a24;
+  --muted: #5d6676;
+  --a: #c8102e;          /* Lula (PT) */
+  --a-soft: #f6d3d9;
+  --b: #1d4fa3;          /* Flávio Bolsonaro (PL) */
+  --b-soft: #d4e0f5;
+  --g1: #b8620b;         /* governador, candidato de menor número */
+  --g2: #0f7b6c;         /* governador, outro candidato */
+  --live: #d4142b;
+  --ok: #16794a;
+  --warn: #9a6a00;
+  --band: #0f1d33;
+  --band-fg: #f2f5fa;
+  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --body: "Source Sans 3", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d121b; --surface: #151c28; --line: #283245; --fg: #e8edf5; --muted: #98a3b6;
+    --a: #f0485f; --a-soft: #4a1d27; --b: #5b8ef0; --b-soft: #1c2b4d;
+    --g1: #e39445; --g2: #3fbfa9; --live: #ff4d5e; --ok: #4cc58a; --warn: #e0b04a;
+    --band: #070b12; --band-fg: #f2f5fa; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d121b; --surface: #151c28; --line: #283245; --fg: #e8edf5; --muted: #98a3b6;
+  --a: #f0485f; --a-soft: #4a1d27; --b: #5b8ef0; --b-soft: #1c2b4d;
+  --g1: #e39445; --g2: #3fbfa9; --live: #ff4d5e; --ok: #4cc58a; --warn: #e0b04a;
+  --band: #070b12; --band-fg: #f2f5fa; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 var(--body); }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; margin: 0; text-wrap: balance; letter-spacing: .01em; }
+h2 { font-size: 1.55rem; text-transform: uppercase; }
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.label { font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+
+/* Barra superior */
+.top { background: var(--band); color: var(--band-fg); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; }
+.top .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding-block: 10px; }
+.top h1 { font-size: 1.35rem; text-transform: uppercase; }
+.aovivo { display: inline-flex; align-items: center; gap: 6px; background: var(--live); color: #fff; font: 700 .78rem var(--body); letter-spacing: .1em; padding: 3px 9px; border-radius: 3px; }
+.aovivo::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #fff; animation: pulso 1.4s infinite; }
+.aovivo.parado { background: #5d6676; }
+.aovivo.parado::before { animation: none; }
+@keyframes pulso { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .aovivo::before { animation: none; } }
+.top .info { font-size: .85rem; opacity: .85; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.top .acoes { margin-left: auto; display: flex; gap: 8px; }
+button, .btn { font: 600 .85rem var(--body); border: 1px solid var(--line); background: var(--surface); color: var(--fg); padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+.top button { background: transparent; color: var(--band-fg); border-color: rgba(255,255,255,.3); }
+button:focus-visible, .tile:focus-visible, tr:focus-visible { outline: 3px solid var(--b); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+
+main { display: grid; gap: 22px; padding-block: 20px 48px; }
+section { display: grid; gap: 12px; min-width: 0; }
+.head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.head .muted { font-size: .9rem; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+
+.alerta { border-left: 4px solid var(--warn); background: var(--surface); padding: 12px 14px; border-radius: 6px; }
+.alerta code { font-size: .85em; }
+
+/* Placar Brasil */
+.placar { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: stretch; }
+.cand { display: grid; gap: 4px; padding: 16px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); border-top: 6px solid var(--cor); min-width: 0; }
+.cand.dir { text-align: right; }
+.cand .nome { font: 700 1.6rem/1.05 var(--display); text-transform: uppercase; }
+.cand .partido { font-size: .85rem; color: var(--muted); font-weight: 600; }
+.cand .pct { font: 700 clamp(2.8rem, 7vw, 4.6rem)/1 var(--display); color: var(--cor); font-variant-numeric: tabular-nums; }
+.cand .votos { font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.selo { display: inline-block; justify-self: start; font: 700 .75rem var(--body); letter-spacing: .08em; text-transform: uppercase; background: var(--ok); color: #fff; padding: 3px 8px; border-radius: 3px; }
+.cand.dir .selo { justify-self: end; }
+.meio { display: grid; align-content: center; justify-items: center; gap: 4px; padding: 8px 4px; min-width: 150px; text-align: center; }
+.meio .apurado { font: 700 2.6rem/1 var(--display); font-variant-numeric: tabular-nums; }
+.anel { width: 120px; height: 120px; }
+.barra-dupla { display: flex; height: 22px; border-radius: 4px; overflow: hidden; background: var(--line); position: relative; }
+.barra-dupla > div { transition: width .6s ease; }
+.barra-dupla .metade { position: absolute; left: 50%; top: -4px; bottom: -4px; width: 2px; background: var(--fg); opacity: .6; }
+.diferenca { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; font-weight: 600; }
+
+/* Números gerais */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 2px; }
+.kpi .v { font: 700 1.6rem/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.kpi .s { font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Cenários */
+.cenarios { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.cenario { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 4px; align-content: start; }
+.cenario .t { font-weight: 700; }
+.cenario .v { font: 700 1.5rem/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.cenario p { margin: 0; font-size: .9rem; color: var(--muted); }
+
+/* Gráfico */
+.grafico-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grafico svg { width: 100%; height: auto; display: block; }
+.grafico text { fill: var(--muted); font: 12px var(--body); }
+.grafico .grade { stroke: var(--line); }
+.grafico .meia { stroke: var(--fg); stroke-dasharray: 4 4; opacity: .5; }
+.legenda { display: flex; flex-wrap: wrap; gap: 14px; font-size: .9rem; font-weight: 600; }
+.legenda span::before { content: ""; display: inline-block; width: 12px; height: 4px; border-radius: 2px; background: var(--cor); margin-right: 6px; vertical-align: middle; }
+
+/* Mapa em grade */
+.mapa-regioes { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; }
+.mapa { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; max-width: 520px; width: 100%; margin: 0 auto; }
+.tile { aspect-ratio: 1; max-width: 100%; border-radius: 6px; display: grid; place-content: center; text-align: center; cursor: pointer; border: 2px solid transparent; color: var(--fg); background: var(--line); line-height: 1.05; padding: 2px; min-width: 0; }
+.tile b { font: 700 1.05rem var(--display); }
+.tile small { font-size: .68rem; font-variant-numeric: tabular-nums; }
+.tile.sel { border-color: var(--fg); }
+.tile.escuro { color: #fff; }
+.escala { display: flex; justify-content: center; gap: 4px; align-items: center; font-size: .78rem; color: var(--muted); flex-wrap: wrap; }
+.escala i { width: 22px; height: 10px; border-radius: 2px; display: inline-block; }
+.regiao { display: grid; gap: 4px; }
+.regiao .linha { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.regiao .barra-dupla { height: 14px; }
+.regioes { display: grid; gap: 14px; }
+
+/* Estado selecionado */
+.estado { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px; }
+.mini-cand { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline; }
+.mini-cand .n { font-weight: 700; }
+.mini-cand .p { font: 700 1.5rem var(--display); font-variant-numeric: tabular-nums; }
+.mini-cand .barra { grid-column: 1 / -1; height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.mini-cand .barra div { height: 100%; background: var(--cor); }
+.mini-cand .vv { grid-column: 1 / -1; font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pilha { display: grid; gap: 12px; }
+
+/* Tabela */
+.tabela { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: .92rem; }
+th, td { padding: 8px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+th { font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); cursor: pointer; user-select: none; position: sticky; top: 0; background: var(--surface); }
+th[aria-sort="descending"]::after { content: " ▼"; }
+th[aria-sort="ascending"]::after { content: " ▲"; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--bg); }
+tbody tr.sel { background: var(--bg); box-shadow: inset 4px 0 0 var(--fg); }
+.chip { display: inline-block; padding: 1px 8px; border-radius: 10px; font-weight: 700; font-size: .8rem; color: #fff; background: var(--cor); }
+.mini-apu { display: inline-block; width: 46px; height: 6px; background: var(--line); border-radius: 3px; vertical-align: middle; margin-right: 6px; overflow: hidden; }
+.mini-apu div { height: 100%; background: var(--fg); }
+
+/* Governadores */
+.govs { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
+.gov { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 10px; cursor: pointer; }
+.gov .cab { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.gov .cab h3 { font-size: 1.3rem; text-transform: uppercase; }
+
+footer { font-size: .85rem; color: var(--muted); display: grid; gap: 6px; }
+footer a { color: inherit; }
+
+@media (max-width: 860px) {
+  .mapa-regioes, .estado { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .placar { grid-template-columns: 1fr 1fr; }
+  .meio { grid-column: 1 / -1; grid-row: 1; grid-template-columns: auto 1fr; justify-items: start; text-align: left; min-width: 0; }
+  .anel { width: 84px; height: 84px; grid-row: span 3; }
+  .cand .nome { font-size: 1.2rem; }
+  .top .acoes { margin-left: 0; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <span class="aovivo" id="aovivo">AO VIVO</span>
+    <h1>Apuração · 2º turno 2026</h1>
+    <div class="info">
+      <span id="atualizacao">Conectando ao TSE…</span>
+      <span id="proxima"></span>
+      <span id="fonte"></span>
+    </div>
+    <div class="acoes">
+      <button type="button" id="btn-atualizar">Atualizar agora</button>
+      <button type="button" id="btn-tema" aria-label="Alternar tema claro ou escuro">Tema</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="alerta" id="erro" hidden></div>
+
+  <section aria-labelledby="t-pres">
+    <div class="head">
+      <h2 id="t-pres">Presidente · Brasil</h2>
+      <span class="muted" id="pres-status">% dos votos válidos</span>
+    </div>
+    <div class="placar" id="placar"></div>
+    <div class="card" style="display:grid;gap:8px">
+      <div class="barra-dupla" id="barra-br"><div class="metade"></div></div>
+      <div class="diferenca" id="diferenca-br"></div>
+    </div>
+    <div class="kpis" id="kpis"></div>
+  </section>
+
+  <section aria-labelledby="t-cen">
+    <div class="head">
+      <h2 id="t-cen">Cenários</h2>
+      <span class="muted">Contas feitas sobre os números do TSE. Não são projeção oficial.</span>
+    </div>
+    <div class="cenarios" id="cenarios"></div>
+  </section>
+
+  <section aria-labelledby="t-evo">
+    <div class="head">
+      <h2 id="t-evo">Evolução minuto a minuto</h2>
+      <span class="muted" id="evo-escopo">Brasil</span>
+    </div>
+    <div class="card grafico">
+      <div class="grafico-ctl">
+        <span class="label">Eixo horizontal</span>
+        <button type="button" id="x-hora" aria-pressed="true">Horário</button>
+        <button type="button" id="x-pst" aria-pressed="false">% de urnas apuradas</button>
+        <button type="button" id="evo-br" hidden>Voltar ao Brasil</button>
+      </div>
+      <div class="legenda" id="evo-legenda"></div>
+      <div id="evo-svg"></div>
+      <div class="muted" id="evo-nota" style="font-size:.85rem"></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-mapa">
+    <div class="head">
+      <h2 id="t-mapa">Por estado e região</h2>
+      <span class="muted">Cor pelo líder; quanto mais forte, maior a vantagem. Clique num estado para ver o detalhe.</span>
+    </div>
+    <div class="mapa-regioes">
+      <div class="card" style="display:grid;gap:10px">
+        <div class="mapa" id="mapa"></div>
+        <div class="escala" id="escala"></div>
+      </div>
+      <div class="card regioes" id="regioes"></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-uf" id="sec-estado">
+    <div class="head">
+      <h2 id="t-uf">Estado</h2>
+      <span class="muted" id="uf-status"></span>
+    </div>
+    <div class="estado">
+      <div class="pilha">
+        <div class="card pilha" id="uf-pres"></div>
+        <div class="card pilha" id="uf-gov" hidden></div>
+      </div>
+      <div class="card grafico">
+        <div class="label">Evolução no estado (presidente)</div>
+        <div id="uf-svg"></div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-tab">
+    <div class="head">
+      <h2 id="t-tab">Tabela por estado</h2>
+      <span class="muted">Clique no título da coluna para ordenar. 1º T = % dos válidos no 1º turno.</span>
+    </div>
+    <div class="tabela">
+      <table>
+        <thead><tr id="tab-cab"></tr></thead>
+        <tbody id="tab-corpo"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-gov">
+    <div class="head">
+      <h2 id="t-gov">Governadores · 2º turno</h2>
+      <span class="muted" id="gov-status">Procurando estados com 2º turno…</span>
+    </div>
+    <div class="govs" id="govs"></div>
+  </section>
+
+  <footer>
+    <div>Fonte: arquivos oficiais de divulgação do TSE (<span class="num">resultados.tse.jus.br</span>), eleição 6258 (presidente, 2º turno), 6260 (governador, 2º turno) e 6257 (1º turno, para comparação). Resultado parcial até a totalização; só o TSE proclama eleitos.</div>
+    <div id="rodape-hist"></div>
+  </footer>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Configuração ----------
+  const CFG = {
+    ciclo: "ele2026",
+    presidente: { ele: 6258, cargo: 1 },
+    governador: { ele: 6260, cargo: 3 },
+    primeiro: { ele: 6257, cargo: 1 },
+    intervaloMs: 30000,
+  };
+  const TSE = "https://resultados.tse.jus.br";
+  const ESTADOS = {
+    ac: "Acre", al: "Alagoas", am: "Amazonas", ap: "Amapá", ba: "Bahia", ce: "Ceará", df: "Distrito Federal",
+    es: "Espírito Santo", go: "Goiás", ma: "Maranhão", mg: "Minas Gerais", ms: "Mato Grosso do Sul", mt: "Mato Grosso",
+    pa: "Pará", pb: "Paraíba", pe: "Pernambuco", pi: "Piauí", pr: "Paraná", rj: "Rio de Janeiro", rn: "Rio Grande do Norte",
+    ro: "Rondônia", rr: "Roraima", rs: "Rio Grande do Sul", sc: "Santa Catarina", se: "Sergipe", sp: "São Paulo", to: "Tocantins",
+  };
+  const UFS = Object.keys(ESTADOS);
+  const REGIOES = {
+    "Norte": ["ac", "am", "ap", "pa", "ro", "rr", "to"],
+    "Nordeste": ["al", "ba", "ce", "ma", "pb", "pe", "pi", "rn", "se"],
+    "Centro-Oeste": ["df", "go", "ms", "mt"],
+    "Sudeste": ["es", "mg", "rj", "sp"],
+    "Sul": ["pr", "rs", "sc"],
+  };
+  // Grade aproximada do mapa do Brasil: [linha, coluna]
+  const GRADE = {
+    rr: [0, 2], ap: [0, 4],
+    am: [1, 1], pa: [1, 3], ma: [1, 4], ce: [1, 5], rn: [1, 6],
+    ac: [2, 0], ro: [2, 1], mt: [2, 2], to: [2, 3], pi: [2, 4], pe: [2, 5], pb: [2, 6],
+    ms: [3, 2], go: [3, 3], df: [3, 4], ba: [3, 5], al: [3, 6],
+    sp: [4, 3], mg: [4, 4], es: [4, 5], se: [4, 6],
+    pr: [5, 3], rj: [5, 4],
+    sc: [6, 3],
+    rs: [7, 3],
+  };
+
+  // ---------- Utilidades ----------
+  const $ = (id) => document.getElementById(id);
+  function num(v) {
+    if (v == null || v === "") return NaN;
+    if (typeof v === "number") return v;
+    return Number(String(v).replace(/\./g, "").replace(",", "."));
+  }
+  const fmtInt = (n) => Number.isFinite(n) ? Math.round(n).toLocaleString("pt-BR") : "–";
+  const fmtPct = (n, d = 2) => Number.isFinite(n) ? n.toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d }) + "%" : "–";
+  const fmtPp = (n) => Number.isFinite(n) ? n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " p.p." : "–";
+  function el(tag, attrs, ...filhos) {
+    const e = document.createElement(tag);
+    for (const k in attrs || {}) {
+      if (k === "class") e.className = attrs[k];
+      else if (k === "style") e.setAttribute("style", attrs[k]);
+      else if (k.startsWith("on")) e.addEventListener(k.slice(2), attrs[k]);
+      else e.setAttribute(k, attrs[k]);
+    }
+    for (const f of filhos) if (f != null) e.append(f);
+    return e;
+  }
+  function titulo(nome) {
+    return String(nome || "").toLowerCase().replace(/(^|\s)\S/g, (m) => m.toUpperCase()).replace(/\b(Da|De|Do|Das|Dos|E)\b/g, (m) => m.toLowerCase());
+  }
+  function lsLer(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } }
+  function lsGravar(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sem armazenamento */ } }
+
+  // ---------- Fonte dos dados ----------
+  let base = TSE;       // trocado para "/tse" quando o servidor local está no ar
+  let temServidor = false;
+  function caminho(e, uf) {
+    const ele = String(e.ele).padStart(6, "0");
+    const cargo = String(e.cargo).padStart(4, "0");
+    return "/oficial/" + CFG.ciclo + "/" + e.ele + "/dados/" + uf + "/" + uf + "-c" + cargo + "-e" + ele + "-u.json";
+  }
+  async function buscar(e, uf) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15000);
+    try {
+      const r = await fetch(base + caminho(e, uf), { signal: ctrl.signal, cache: "no-store" });
+      if (r.status === 404 || r.status === 403) return { ausente: true };
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return { json: await r.json() };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function lerRecorte(json) {
+    const cands = [];
+    const cargo = json && json.carg && json.carg[0];
+    for (const agr of (cargo && cargo.agr) || []) {
+      for (const par of agr.par || []) {
+        for (const c of par.cand || []) {
+          const nome = c.nmu || c.nm || "Candidato";
+          cands.push({
+            n: String(c.n || ""), nome, partido: par.sg || "",
+            vap: num(c.vap) || 0, pvap: num(c.pvapn != null && c.pvapn !== "" ? c.pvapn : c.pvap),
+            st: c.st || "", eleito: /^eleito/i.test(c.st || "") || c.e === "s",
+            lado: lado(nome, par.sg),
+          });
+        }
+      }
+    }
+    cands.sort((x, y) => Number(x.n) - Number(y.n));
+    const s = json.s || {}, v = json.v || {}, e = json.e || {};
+    const vv = num(v.vv);
+    // Se o TSE ainda não trouxe o %, calcula a partir dos votos
+    const somaVap = cands.reduce((t, c) => t + c.vap, 0);
+    for (const c of cands) if (!Number.isFinite(c.pvap)) c.pvap = somaVap ? c.vap / somaVap * 100 : NaN;
+    return {
+      dg: json.dg || "", hg: json.hg || "", andamento: json.and || "",
+      pst: num(s.pst) || 0, st: num(s.st), ts: num(s.ts),
+      eleitorado: num(e.te), comparecimento: num(e.c), pComparecimento: num(e.pc),
+      abstencao: num(e.a), pAbstencao: num(e.pa),
+      validos: Number.isFinite(vv) ? vv : somaVap, pValidos: num(v.pvv),
+      brancos: num(v.vb), pBrancos: num(v.pvb), nulos: num(v.tvn), pNulos: num(v.ptvn),
+      cands,
+    };
+  }
+  function lado(nome, sigla) {
+    const n = String(nome || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+    if (n.includes("LULA")) return "a";
+    if (n.includes("FLAVIO") || n.includes("BOLSONARO")) return "b";
+    if (sigla === "PT") return "a";
+    if (sigla === "PL") return "b";
+    return "";
+  }
+
+  // ---------- Estado da página ----------
+  const st = {
+    pres: {},          // uf|"br"|"zz" -> recorte
+    gov: {},           // uf -> recorte
+    govAusente: {},    // uf -> momento do 404
+    primeiro: {},      // uf|"br" -> {a: pvap, b: pvap}
+    hist: lsLer("apuracao-6258-hist") || {},  // "p:br" -> [{t,dg,hg,pst,c:[{n,vap,pvap}]}]
+    sel: lsLer("apuracao-uf") || "sp",
+    eixo: "hora",
+    ordem: { col: "uf", dir: 1 },
+    proxima: 0,
+    ok: false,
+  };
+  if (!ESTADOS[st.sel]) st.sel = "sp";
+
+  function registrar(chave, r) {
+    const serie = st.hist[chave] || (st.hist[chave] = []);
+    const u = serie[serie.length - 1];
+    if (u && u.hg === r.hg && u.dg === r.dg && Number(u.pst) === r.pst) return;
+    serie.push({ t: Date.now(), dg: r.dg, hg: r.hg, pst: r.pst, c: r.cands.map((c) => ({ n: c.n, vap: c.vap, pvap: c.pvap })) });
+    if (serie.length > 2000) serie.splice(0, serie.length - 2000);
+  }
+
+  // Momento do ponto em horário de Brasília, a partir de dg/hg do TSE
+  function momento(p) {
+    const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(p.dg || "");
+    const h = /^(\d{2}):(\d{2}):(\d{2})$/.exec(p.hg || "");
+    if (m && h) return Date.UTC(+m[3], +m[2] - 1, +m[1], +h[1] + 3, +h[2], +h[3]);
+    return p.t;
+  }
+
+  // ---------- Ciclo de atualização ----------
+  let rodando = false;
+  async function atualizar() {
+    if (rodando) return;
+    rodando = true;
+    const falhas = [];
+    try {
+      const pres = ["br", "zz"].concat(UFS).map(async (uf) => {
+        try {
+          const r = await buscar(CFG.presidente, uf);
+          if (r.json) {
+            st.pres[uf] = lerRecorte(r.json);
+            registrar("p:" + uf, st.pres[uf]);
+          }
+        } catch (e) { falhas.push(uf); }
+      });
+      const gov = UFS.map(async (uf) => {
+        if (st.govAusente[uf] && Date.now() - st.govAusente[uf] < 10 * 60 * 1000) return;
+        try {
+          const r = await buscar(CFG.governador, uf);
+          if (r.ausente) { st.govAusente[uf] = Date.now(); delete st.gov[uf]; return; }
+          const rec = lerRecorte(r.json);
+          if (rec.cands.length >= 2) { st.gov[uf] = rec; registrar("g:" + uf, rec); }
+          else st.govAusente[uf] = Date.now();
+        } catch (e) { /* tenta de novo no próximo ciclo */ }
+      });
+      await Promise.all(pres.concat(gov));
+      if (temServidor) await mesclarHistoricoServidor();
+      lsGravar("apuracao-6258-hist", st.hist);
+      st.ok = !!st.pres.br;
+      mostrarErro(st.ok ? (falhas.length > 5 ? "Alguns estados não responderam nesta rodada (" + falhas.join(", ").toUpperCase() + "). Tento de novo em instantes." : "") : erroConexao());
+      desenhar();
+    } finally {
+      rodando = false;
+      st.proxima = Date.now() + CFG.intervaloMs;
+    }
+  }
+
+  async function carregarPrimeiroTurno() {
+    await Promise.all(["br"].concat(UFS).map(async (uf) => {
+      try {
+        const r = await buscar(CFG.primeiro, uf);
+        if (!r.json) return;
+        const rec = lerRecorte(r.json);
+        const a = rec.cands.find((c) => c.lado === "a"), b = rec.cands.find((c) => c.lado === "b");
+        st.primeiro[uf] = { a: a ? a.pvap : NaN, b: b ? b.pvap : NaN, va: a ? a.vap : NaN, vb: b ? b.vap : NaN };
+      } catch (e) { /* comparação é opcional */ }
+    }));
+    desenhar();
+  }
+
+  async function detectarServidor() {
+    if (!/^https?:$/.test(location.protocol)) return;
+    try {
+      const r = await fetch("/api/historico", { cache: "no-store" });
+      if (!r.ok) return;
+      const h = await r.json();
+      if (h && h.series) { temServidor = true; base = "/tse"; mesclar(h.series); }
+    } catch (e) { /* sem servidor local: busca direto no TSE */ }
+  }
+  async function mesclarHistoricoServidor() {
+    try {
+      const r = await fetch("/api/historico", { cache: "no-store" });
+      if (r.ok) mesclar((await r.json()).series || {});
+    } catch (e) { /* mantém o histórico local */ }
+  }
+  function mesclar(series) {
+    for (const chave in series) {
+      const mapa = new Map();
+      for (const p of (st.hist[chave] || []).concat(series[chave].map((p) => ({
+        t: p.t, dg: p.dg, hg: p.hg, pst: num(p.pst), c: p.c.map((c) => ({ n: c.n, vap: num(c.vap), pvap: num(c.pvap) })),
+      })))) mapa.set(p.dg + " " + p.hg + " " + p.pst, p);
+      st.hist[chave] = Array.from(mapa.values()).sort((x, y) => momento(x) - momento(y));
+    }
+  }
+
+  function erroConexao() {
+    return "Não consegui ler os arquivos do TSE pelo navegador. Rode o servidor local, que busca os dados por você e guarda o histórico minuto a minuto: " +
+      "<code>node apuracao/servidor.js</code> e abra <code>http://localhost:8026</code>.";
+  }
+  function mostrarErro(html) {
+    const e = $("erro");
+    e.hidden = !html;
+    e.innerHTML = html || "";
+  }
+
+  // ---------- Desenho ----------
+  function corLado(c, i) {
+    if (c && c.lado === "a") return "var(--a)";
+    if (c && c.lado === "b") return "var(--b)";
+    return i === 0 ? "var(--g1)" : "var(--g2)";
+  }
+  function par(rec) {
+    const c = rec && rec.cands || [];
+    const a = c.find((x) => x.lado === "a") || c[0];
+    const b = c.find((x) => x.lado === "b") || c.find((x) => x !== a);
+    return [a, b];
+  }
+
+  function desenhar() {
+    desenharTopo();
+    desenharPlacar();
+    desenharCenarios();
+    desenharEvolucao();
+    desenharMapa();
+    desenharRegioes();
+    desenharEstado();
+    desenharTabela();
+    desenharGovernadores();
+  }
+
+  function desenharTopo() {
+    const br = st.pres.br;
+    $("atualizacao").textContent = br ? "TSE: " + br.dg + " às " + br.hg + " (Brasília)" : "Aguardando o TSE…";
+    $("fonte").textContent = temServidor ? "via servidor local" : "direto do TSE";
+    $("aovivo").classList.toggle("parado", !(br && br.pst < 100) );
+    $("aovivo").textContent = br && br.pst >= 100 ? "FINAL" : "AO VIVO";
+    const n = st.hist["p:br"] ? st.hist["p:br"].length : 0;
+    $("rodape-hist").textContent = n ? "Histórico guardado: " + n + " leituras do Brasil" + (temServidor ? " (servidor local + navegador)." : " (neste navegador, enquanto a página fica aberta).") : "";
+  }
+
+  function desenharPlacar() {
+    const br = st.pres.br;
+    const placar = $("placar");
+    placar.textContent = "";
+    if (!br) {
+      placar.append(el("div", { class: "card", style: "grid-column:1/-1" }, st.ok ? "O arquivo do Brasil ainda não lista candidatos." : "Carregando a apuração…"));
+      return;
+    }
+    const [a, b] = par(br);
+    const bloco = (c, dir, i) => {
+      if (!c) return el("div", { class: "cand" });
+      const lider = (a && b) && c.vap === Math.max(a.vap, b.vap) && a.vap !== b.vap;
+      return el("div", { class: "cand" + (dir ? " dir" : ""), style: "--cor:" + corLado(c, i) },
+        c.eleito ? el("span", { class: "selo" }, "Eleito") : (lider ? el("span", { class: "label", style: "color:" + corLado(c, i) }, "À frente") : el("span", { class: "label" }, " ")),
+        el("div", { class: "nome" }, c.nome),
+        el("div", { class: "partido" }, c.partido + " · " + c.n),
+        el("div", { class: "pct" }, fmtPct(c.pvap)),
+        el("div", { class: "votos" }, fmtInt(c.vap) + " votos"));
+    };
+    placar.append(bloco(a, false, 0), anel(br), bloco(b, true, 1));
+
+    const barra = $("barra-br");
+    barra.querySelectorAll(".seg").forEach((x) => x.remove());
+    const pa = a ? a.pvap : 0, pb = b ? b.pvap : 0;
+    barra.prepend(el("div", { class: "seg", style: "width:" + pa + "%;background:" + corLado(a, 0) }));
+    barra.insertBefore(el("div", { class: "seg", style: "width:" + pb + "%;background:" + corLado(b, 1) }), barra.querySelector(".metade"));
+    const dif = $("diferenca-br");
+    dif.textContent = "";
+    if (a && b) {
+      const lider = a.vap >= b.vap ? a : b;
+      dif.append(
+        el("span", null, "Diferença: " + fmtInt(Math.abs(a.vap - b.vap)) + " votos para " + titulo(lider.nome)),
+        el("span", null, fmtPp(Math.abs(a.pvap - b.pvap))),
+        el("span", { class: "muted" }, "Linha central = 50% dos válidos"));
+    }
+    $("pres-status").textContent = (br.andamento ? br.andamento + " · " : "") + "% dos votos válidos";
+
+    const k = $("kpis");
+    k.textContent = "";
+    const kpi = (rotulo, v, s) => el("div", { class: "kpi" }, el("span", { class: "label" }, rotulo), el("span", { class: "v" }, v), el("span", { class: "s" }, s));
+    k.append(
+      kpi("Seções apuradas", fmtInt(br.st), "de " + fmtInt(br.ts)),
+      kpi("Votos válidos", fmtInt(br.validos), Number.isFinite(br.pValidos) ? fmtPct(br.pValidos) + " dos votos" : "nominais"),
+      kpi("Brancos", fmtInt(br.brancos), fmtPct(br.pBrancos)),
+      kpi("Nulos", fmtInt(br.nulos), fmtPct(br.pNulos)),
+      kpi("Comparecimento", fmtInt(br.comparecimento), fmtPct(br.pComparecimento) + " do eleitorado"),
+      kpi("Abstenção", fmtInt(br.abstencao), fmtPct(br.pAbstencao)),
+      kpi("Eleitorado", fmtInt(br.eleitorado), "aptos a votar"));
+  }
+
+  function anel(rec) {
+    const r = 50, c = 2 * Math.PI * r, p = Math.max(0, Math.min(100, rec.pst));
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 120 120");
+    svg.setAttribute("class", "anel");
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", fmtPct(p) + " das urnas apuradas");
+    svg.innerHTML = '<circle cx="60" cy="60" r="50" fill="none" stroke="var(--line)" stroke-width="12"/>' +
+      '<circle cx="60" cy="60" r="50" fill="none" stroke="var(--fg)" stroke-width="12" stroke-linecap="butt" transform="rotate(-90 60 60)" stroke-dasharray="' + (c * p / 100) + " " + c + '"/>';
+    return el("div", { class: "meio" }, svg, el("div", { class: "apurado" }, fmtPct(p)), el("div", { class: "label" }, "urnas apuradas"));
+  }
+
+  // Votos válidos que ainda faltam, estimados pelo ritmo das seções já apuradas
+  function faltam(rec) {
+    if (!rec || !(rec.pst > 0)) return NaN;
+    if (rec.pst >= 100) return 0;
+    return rec.validos * (100 - rec.pst) / rec.pst;
+  }
+
+  function desenharCenarios() {
+    const box = $("cenarios");
+    box.textContent = "";
+    const br = st.pres.br;
+    if (!br) return;
+    const [a, b] = par(br);
+    if (!a || !b) return;
+    const cen = (t, v, p) => el("div", { class: "cenario" }, el("span", { class: "t" }, t), el("span", { class: "v" }, v), el("p", null, p));
+    const lider = a.vap >= b.vap ? a : b, atras = lider === a ? b : a;
+    const resto = faltam(br);
+    const dif = lider.vap - atras.vap;
+
+    box.append(cen("Votos válidos que faltam", br.pst >= 100 ? "0" : "≈ " + fmtInt(resto),
+      "Estimativa mantendo a proporção de válidos por seção já apurada (" + fmtPct(br.pst) + " das urnas)."));
+
+    if (br.pst < 100 && resto > 0) {
+      const precisa = (resto + dif) / (2 * resto) * 100;
+      box.append(cen("Para " + titulo(atras.nome) + " virar", precisa > 100 ? "Impossível" : fmtPct(precisa),
+        precisa > 100 ? "A diferença atual é maior que os votos que faltam, pela estimativa." : "dos votos válidos restantes é o que precisa ter, daqui até o fim."));
+      box.append(cen("Para " + titulo(lider.nome) + " garantir", fmtPct(Math.max(0, (resto - dif) / (2 * resto) * 100)),
+        "dos votos válidos restantes bastam para manter a liderança."));
+    }
+
+    const ufs = UFS.filter((u) => st.pres[u]);
+    const venceA = ufs.filter((u) => { const [x, y] = par(st.pres[u]); return x && y && x.vap > y.vap; }).length;
+    const venceB = ufs.filter((u) => { const [x, y] = par(st.pres[u]); return x && y && y.vap > x.vap; }).length;
+    box.append(cen("Estados na frente", venceA + " × " + venceB,
+      titulo(a.nome) + " lidera em " + venceA + " e " + titulo(b.nome) + " em " + venceB + " das " + ufs.length + " unidades da federação."));
+
+    const p1 = st.primeiro.br;
+    if (p1 && Number.isFinite(p1.va)) {
+      const ga = a.vap - p1.va, gb = b.vap - p1.vb;
+      box.append(cen("Contra o 1º turno", fmtPct(p1.a) + " × " + fmtPct(p1.b),
+        "Válidos no 1º turno (com os demais candidatos). Votos de agora menos 1º turno: " +
+        titulo(a.nome) + " " + (ga >= 0 ? "+" : "") + fmtInt(ga) + ", " + titulo(b.nome) + " " + (gb >= 0 ? "+" : "") + fmtInt(gb) + (br.pst < 100 ? " (apuração parcial)." : ".")));
+    }
+
+    const zz = st.pres.zz;
+    if (zz) {
+      const [xa, xb] = par(zz);
+      if (xa && xb) box.append(cen("Exterior", fmtPct(xa.pvap) + " × " + fmtPct(xb.pvap),
+        fmtInt(xa.vap + xb.vap) + " votos válidos, " + fmtPct(zz.pst) + " das urnas no exterior apuradas."));
+    }
+
+    let maisA = null, maisB = null, apertado = null;
+    for (const u of ufs) {
+      const [x, y] = par(st.pres[u]);
+      if (!x || !y || !(st.pres[u].pst > 0)) continue;
+      const m = x.pvap - y.pvap;
+      if (!maisA || m > maisA.m) maisA = { u, m, p: x.pvap };
+      if (!maisB || m < maisB.m) maisB = { u, m, p: y.pvap };
+      if (!apertado || Math.abs(m) < Math.abs(apertado.m)) apertado = { u, m };
+    }
+    if (maisA) box.append(cen("Maiores vitórias até agora", maisA.u.toUpperCase() + " · " + maisB.u.toUpperCase(),
+      titulo(a.nome) + " tem " + fmtPct(maisA.p) + " em " + ESTADOS[maisA.u] + "; " + titulo(b.nome) + " tem " + fmtPct(maisB.p) + " em " + ESTADOS[maisB.u] + "."));
+    if (apertado) box.append(cen("Disputa mais apertada", ESTADOS[apertado.u], "Diferença de " + fmtPp(Math.abs(apertado.m)) + " com " + fmtPct(st.pres[apertado.u].pst) + " das urnas apuradas."));
+  }
+
+  // Gráfico de linhas em SVG: série de % válidos de cada candidato
+  function graficoLinhas(alvo, serie, rotulos, cores, eixo, alto) {
+    alvo.textContent = "";
+    const pts = (serie || []).filter((p) => p.c && p.c.length >= 2 && p.pst > 0);
+    if (pts.length < 1) {
+      alvo.append(el("p", { class: "muted" }, "As linhas aparecem a partir da primeira leitura com urnas apuradas. Cada atualização do TSE vira um ponto."));
+      return;
+    }
+    // Desenha na largura real do contêiner para o texto não encolher no celular
+    const W = Math.max(300, Math.round(alvo.clientWidth || 760)), H = Math.round(Math.min(alto || 300, W * 0.62)), ml = 40, mr = 62, mt = 14, mb = 30;
+    const xs = pts.map((p) => eixo === "pst" ? p.pst : momento(p));
+    let x0 = Math.min(...xs), x1 = Math.max(...xs);
+    if (eixo === "pst") { x0 = 0; x1 = 100; }
+    if (x1 === x0) { x0 -= 60000; x1 += 60000; }
+    const vals = [];
+    pts.forEach((p) => p.c.slice(0, 2).forEach((c) => vals.push(c.pvap)));
+    let y0 = Math.min(...vals, 50), y1 = Math.max(...vals, 50);
+    const pad = Math.max(1, (y1 - y0) * 0.12);
+    y0 = Math.max(0, Math.floor(y0 - pad)); y1 = Math.min(100, Math.ceil(y1 + pad));
+    const X = (v) => ml + (v - x0) / (x1 - x0) * (W - ml - mr);
+    const Y = (v) => mt + (y1 - v) / (y1 - y0) * (H - mt - mb);
+    let s = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Evolução dos percentuais">';
+    const passoY = (y1 - y0) > 20 ? 5 : (y1 - y0) > 8 ? 2 : 1;
+    for (let v = Math.ceil(y0 / passoY) * passoY; v <= y1; v += passoY) {
+      s += '<line class="grade" x1="' + ml + '" x2="' + (W - mr) + '" y1="' + Y(v) + '" y2="' + Y(v) + '"/>';
+      s += '<text x="' + (ml - 6) + '" y="' + (Y(v) + 4) + '" text-anchor="end">' + v + "%</text>";
+    }
+    if (y0 <= 50 && y1 >= 50) s += '<line class="meia" x1="' + ml + '" x2="' + (W - mr) + '" y1="' + Y(50) + '" y2="' + Y(50) + '"/>';
+    const nTicks = W < 500 ? 3 : 6;
+    for (let i = 0; i <= nTicks; i++) {
+      const v = x0 + (x1 - x0) * i / nTicks;
+      const rot = eixo === "pst" ? Math.round(v) + "%" : new Date(v).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+      s += '<text x="' + X(v) + '" y="' + (H - 10) + '" text-anchor="middle">' + rot + "</text>";
+    }
+    for (let k = 0; k < 2; k++) {
+      const d = pts.map((p, i) => (i ? "L" : "M") + X(xs[i]).toFixed(1) + " " + Y(p.c[k].pvap).toFixed(1)).join(" ");
+      s += '<path d="' + d + '" fill="none" stroke="' + cores[k] + '" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>';
+      const u = pts[pts.length - 1];
+      const ux = X(xs[xs.length - 1]), uy = Y(u.c[k].pvap);
+      s += '<circle cx="' + ux + '" cy="' + uy + '" r="5" fill="' + cores[k] + '"/>';
+      s += '<text x="' + (ux + 8) + '" y="' + (uy + 4) + '" style="fill:' + cores[k] + ';font-weight:700">' + fmtPct(u.c[k].pvap) + "</text>";
+    }
+    s += "</svg>";
+    alvo.innerHTML = s;
+    alvo.title = rotulos.join(" × ");
+  }
+
+  // Ordena os candidatos de cada ponto do histórico pelo número, igual ao placar
+  function serieOrdenada(chave) {
+    return (st.hist[chave] || []).map((p) => ({ ...p, c: p.c.slice().sort((x, y) => Number(x.n) - Number(y.n)) }))
+      .sort((x, y) => momento(x) - momento(y));
+  }
+
+  let escopoEvo = "br";
+  function desenharEvolucao() {
+    const rec = st.pres[escopoEvo];
+    const [a, b] = par(rec);
+    const cores = [corLado(a, 0), corLado(b, 1)];
+    const nomes = [a ? titulo(a.nome) : "", b ? titulo(b.nome) : ""];
+    $("evo-escopo").textContent = escopoEvo === "br" ? "Brasil" : ESTADOS[escopoEvo];
+    $("evo-br").hidden = escopoEvo === "br";
+    const leg = $("evo-legenda");
+    leg.textContent = "";
+    if (a && b) leg.append(el("span", { style: "--cor:" + cores[0] }, nomes[0]), el("span", { style: "--cor:" + cores[1] }, nomes[1]));
+    const serie = serieOrdenada("p:" + escopoEvo);
+    graficoLinhas($("evo-svg"), serie, nomes, cores, st.eixo, 300);
+    $("evo-nota").textContent = serie.length + " leituras. " + (temServidor
+      ? "O servidor local grava uma leitura por minuto, mesmo com a página fechada."
+      : "Sem o servidor local, o histórico só cresce enquanto esta página fica aberta.");
+  }
+
+  function corMargem(m, maxAbs) {
+    // m > 0: vantagem do lado "a"; intensidade em 4 faixas
+    if (!Number.isFinite(m)) return { bg: "var(--line)", escuro: false };
+    const f = Math.abs(m);
+    const nivel = f < 5 ? 1 : f < 15 ? 2 : f < 30 ? 3 : 4;
+    const cor = m > 0 ? "var(--a)" : "var(--b)";
+    const pct = [0, 30, 55, 78, 100][nivel];
+    return { bg: "color-mix(in srgb, " + cor + " " + pct + "%, var(--surface))", escuro: nivel >= 3 };
+  }
+
+  function desenharMapa() {
+    const mapa = $("mapa");
+    mapa.textContent = "";
+    for (const uf of UFS) {
+      const [r, c] = GRADE[uf];
+      const rec = st.pres[uf];
+      const [a, b] = par(rec);
+      const m = a && b && rec.pst > 0 ? a.pvap - b.pvap : NaN;
+      const cor = corMargem(m);
+      const lider = Number.isFinite(m) ? (m >= 0 ? a : b) : null;
+      const t = el("div", {
+        class: "tile" + (cor.escuro ? " escuro" : "") + (st.sel === uf ? " sel" : ""),
+        style: "grid-row:" + (r + 1) + ";grid-column:" + (c + 1) + ";background:" + cor.bg,
+        tabindex: "0", role: "button",
+        "aria-label": ESTADOS[uf] + (lider ? ": " + titulo(lider.nome) + " " + fmtPct(lider.pvap) : ": sem dados"),
+        title: ESTADOS[uf] + (rec ? " · " + fmtPct(rec.pst) + " apurado" : ""),
+        onclick: () => selecionar(uf),
+        onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selecionar(uf); } },
+      }, el("b", null, uf.toUpperCase()), el("small", null, lider ? fmtPct(lider.pvap, 1) : "–"));
+      mapa.append(t);
+    }
+    const esc = $("escala");
+    esc.textContent = "";
+    {
+      const [a, b] = par(st.pres.br);
+      const item = (m) => { const i = el("i"); i.style.background = corMargem(m).bg; return i; };
+      esc.append(el("span", null, a ? titulo(a.nome) : "A"), item(40), item(20), item(10), item(2), item(-2), item(-10), item(-20), item(-40), el("span", null, b ? titulo(b.nome) : "B"));
+      esc.append(el("span", { style: "flex-basis:100%;text-align:center" }, "vantagem: até 5, 5 a 15, 15 a 30, acima de 30 p.p."));
+    }
+  }
+
+  function desenharRegioes() {
+    const box = $("regioes");
+    box.textContent = "";
+    box.append(el("div", { class: "label" }, "Presidente por região (soma dos estados)"));
+    const linha = (nome, va, vb, apur, a, b) => {
+      const tot = va + vb;
+      const pa = tot ? va / tot * 100 : NaN, pb = tot ? vb / tot * 100 : NaN;
+      return el("div", { class: "regiao" },
+        el("div", { class: "linha" }, el("span", null, nome), el("span", { class: "muted", style: "font-weight:400" }, apur)),
+        el("div", { class: "barra-dupla" },
+          el("div", { style: "width:" + (pa || 0) + "%;background:" + corLado(a, 0) }),
+          el("div", { style: "width:" + (pb || 0) + "%;background:" + corLado(b, 1) }),
+          el("div", { class: "metade" })),
+        el("div", { class: "linha" }, el("span", { style: "color:" + corLado(a, 0) }, fmtPct(pa) + " · " + fmtInt(va)), el("span", { style: "color:" + corLado(b, 1) }, fmtInt(vb) + " · " + fmtPct(pb))));
+    };
+    const [a0, b0] = par(st.pres.br);
+    for (const nome in REGIOES) {
+      let va = 0, vb = 0, st0 = 0, ts0 = 0;
+      for (const uf of REGIOES[nome]) {
+        const rec = st.pres[uf];
+        const [a, b] = par(rec);
+        if (!a || !b) continue;
+        va += a.vap; vb += b.vap;
+        st0 += rec.st || 0; ts0 += rec.ts || 0;
+      }
+      box.append(linha(nome, va, vb, ts0 ? fmtPct(st0 / ts0 * 100) + " das seções" : "", a0, b0));
+    }
+    const zz = st.pres.zz;
+    if (zz) {
+      const [a, b] = par(zz);
+      if (a && b) box.append(linha("Exterior", a.vap, b.vap, fmtPct(zz.pst) + " das seções", a, b));
+    }
+  }
+
+  function blocoCandidatos(rec, chaveCor) {
+    const frag = document.createDocumentFragment();
+    rec.cands.slice(0, 2).forEach((c, i) => {
+      const cor = chaveCor === "gov" ? (i === 0 ? "var(--g1)" : "var(--g2)") : corLado(c, i);
+      frag.append(el("div", { class: "mini-cand", style: "--cor:" + cor },
+        el("span", { class: "n" }, titulo(c.nome) + " ", el("span", { class: "muted", style: "font-weight:400" }, c.partido), c.eleito ? el("span", { class: "selo", style: "margin-left:6px" }, "Eleito") : null),
+        el("span", { class: "p", style: "color:" + cor }, fmtPct(c.pvap)),
+        el("div", { class: "barra" }, el("div", { style: "width:" + (c.pvap || 0) + "%" })),
+        el("span", { class: "vv" }, fmtInt(c.vap) + " votos")));
+    });
+    return frag;
+  }
+
+  function desenharEstado() {
+    const uf = st.sel;
+    const rec = st.pres[uf];
+    $("t-uf").textContent = ESTADOS[uf];
+    $("uf-status").textContent = rec ? fmtPct(rec.pst) + " das urnas apuradas · TSE " + rec.hg : "sem dados ainda";
+    const p = $("uf-pres");
+    p.textContent = "";
+    p.append(el("div", { class: "label" }, "Presidente"));
+    if (rec && rec.cands.length) {
+      p.append(blocoCandidatos(rec));
+      const [a, b] = par(rec);
+      const p1 = st.primeiro[uf];
+      const linhas = [
+        "Diferença: " + fmtInt(Math.abs(a.vap - b.vap)) + " votos (" + fmtPp(Math.abs(a.pvap - b.pvap)) + ")",
+        "Brancos " + fmtPct(rec.pBrancos) + " · Nulos " + fmtPct(rec.pNulos) + " · Abstenção " + fmtPct(rec.pAbstencao),
+      ];
+      if (p1) linhas.push("1º turno: " + titulo(a.nome) + " " + fmtPct(p1.a) + " · " + titulo(b.nome) + " " + fmtPct(p1.b));
+      for (const l of linhas) p.append(el("div", { class: "muted num", style: "font-size:.9rem" }, l));
+    } else {
+      p.append(el("p", { class: "muted" }, "Ainda sem votos apurados neste estado."));
+    }
+    const g = $("uf-gov");
+    const gr = st.gov[uf];
+    g.hidden = !gr;
+    g.textContent = "";
+    if (gr) {
+      g.append(el("div", { class: "label" }, "Governador · 2º turno · " + fmtPct(gr.pst) + " apurado"), blocoCandidatos(gr, "gov"));
+    }
+    const [a, b] = par(rec);
+    graficoLinhas($("uf-svg"), serieOrdenada("p:" + uf), [], [corLado(a, 0), corLado(b, 1)], st.eixo, 260);
+  }
+
+  const COLUNAS = [
+    { id: "uf", rot: "UF" }, { id: "nome", rot: "Estado" }, { id: "pst", rot: "Apurado" },
+    { id: "pa", rot: "A %" }, { id: "pb", rot: "B %" }, { id: "mg", rot: "Margem" },
+    { id: "va", rot: "Votos A" }, { id: "vb", rot: "Votos B" },
+    { id: "p1a", rot: "1º T A" }, { id: "p1b", rot: "1º T B" }, { id: "abs", rot: "Abstenção" },
+  ];
+  function desenharTabela() {
+    const [a0, b0] = par(st.pres.br);
+    const na = a0 ? titulo(a0.nome).split(" ")[0] : "A", nb = b0 ? titulo(b0.nome).split(" ")[0] : "B";
+    const cab = $("tab-cab");
+    cab.textContent = "";
+    for (const c of COLUNAS) {
+      const th = el("th", { scope: "col", tabindex: "0", onclick: () => ordenar(c.id), onkeydown: (e) => { if (e.key === "Enter") ordenar(c.id); } },
+        c.rot.replace(/\bA\b/, na).replace(/\bB\b/, nb));
+      if (st.ordem.col === c.id) th.setAttribute("aria-sort", st.ordem.dir > 0 ? "ascending" : "descending");
+      cab.append(th);
+    }
+    const linhas = UFS.map((uf) => {
+      const rec = st.pres[uf];
+      const [a, b] = par(rec);
+      const p1 = st.primeiro[uf] || {};
+      return {
+        uf, nome: ESTADOS[uf], pst: rec ? rec.pst : NaN,
+        pa: a ? a.pvap : NaN, pb: b ? b.pvap : NaN, mg: a && b ? a.pvap - b.pvap : NaN,
+        va: a ? a.vap : NaN, vb: b ? b.vap : NaN, p1a: p1.a, p1b: p1.b, abs: rec ? rec.pAbstencao : NaN, a, b,
+      };
+    });
+    const { col, dir } = st.ordem;
+    linhas.sort((x, y) => {
+      const vx = x[col], vy = y[col];
+      if (typeof vx === "string") return vx.localeCompare(vy) * dir;
+      return ((Number.isFinite(vx) ? vx : -1e9) - (Number.isFinite(vy) ? vy : -1e9)) * dir;
+    });
+    const corpo = $("tab-corpo");
+    corpo.textContent = "";
+    for (const l of linhas) {
+      const lider = Number.isFinite(l.mg) && l.mg !== 0 ? (l.mg > 0 ? l.a : l.b) : null;
+      corpo.append(el("tr", { class: st.sel === l.uf ? "sel" : "", tabindex: "0", onclick: () => selecionar(l.uf), onkeydown: (e) => { if (e.key === "Enter") selecionar(l.uf); } },
+        el("td", null, el("b", null, l.uf.toUpperCase())),
+        el("td", null, l.nome),
+        el("td", null, el("span", { class: "mini-apu" }, el("div", { style: "width:" + (l.pst || 0) + "%" })), fmtPct(l.pst)),
+        el("td", { style: "color:" + corLado(a0, 0) + ";font-weight:700" }, fmtPct(l.pa)),
+        el("td", { style: "color:" + corLado(b0, 1) + ";font-weight:700" }, fmtPct(l.pb)),
+        el("td", null, lider ? el("span", { class: "chip", style: "--cor:" + corLado(lider) }, "+" + fmtPp(Math.abs(l.mg)).replace(" p.p.", "")) : "–"),
+        el("td", null, fmtInt(l.va)), el("td", null, fmtInt(l.vb)),
+        el("td", { class: "muted" }, fmtPct(l.p1a)), el("td", { class: "muted" }, fmtPct(l.p1b)),
+        el("td", { class: "muted" }, fmtPct(l.abs))));
+    }
+  }
+  function ordenar(col) {
+    st.ordem = st.ordem.col === col ? { col, dir: -st.ordem.dir } : { col, dir: col === "uf" || col === "nome" ? 1 : -1 };
+    desenharTabela();
+  }
+
+  function desenharGovernadores() {
+    const box = $("govs");
+    box.textContent = "";
+    const ufs = UFS.filter((u) => st.gov[u]);
+    const verificados = UFS.filter((u) => st.gov[u] || st.govAusente[u]).length;
+    $("gov-status").textContent = ufs.length
+      ? ufs.length + " estados com 2º turno para governador"
+      : verificados >= UFS.length ? "Nenhum arquivo de 2º turno para governador encontrado no TSE." : "Procurando estados com 2º turno…";
+    for (const uf of ufs) {
+      const rec = st.gov[uf];
+      box.append(el("article", { class: "gov", tabindex: "0", onclick: () => selecionar(uf), onkeydown: (e) => { if (e.key === "Enter") selecionar(uf); } },
+        el("div", { class: "cab" }, el("h3", null, ESTADOS[uf]), el("span", { class: "muted num" }, fmtPct(rec.pst) + " apurado")),
+        blocoCandidatos(rec, "gov")));
+    }
+  }
+
+  function selecionar(uf) {
+    st.sel = uf;
+    escopoEvo = uf;
+    lsGravar("apuracao-uf", uf);
+    desenharMapa();
+    desenharEstado();
+    desenharTabela();
+    desenharEvolucao();
+    $("sec-estado").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  }
+
+  // ---------- Controles ----------
+  $("btn-atualizar").addEventListener("click", atualizar);
+  $("x-hora").addEventListener("click", () => { st.eixo = "hora"; $("x-hora").setAttribute("aria-pressed", "true"); $("x-pst").setAttribute("aria-pressed", "false"); desenharEvolucao(); desenharEstado(); });
+  $("x-pst").addEventListener("click", () => { st.eixo = "pst"; $("x-pst").setAttribute("aria-pressed", "true"); $("x-hora").setAttribute("aria-pressed", "false"); desenharEvolucao(); desenharEstado(); });
+  $("evo-br").addEventListener("click", () => { escopoEvo = "br"; desenharEvolucao(); });
+  $("btn-tema").addEventListener("click", () => {
+    const raiz = document.documentElement;
+    const escuro = raiz.dataset.theme ? raiz.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    raiz.dataset.theme = escuro ? "light" : "dark";
+    lsGravar("apuracao-tema", raiz.dataset.theme);
+  });
+  const tema = lsLer("apuracao-tema");
+  if (tema) document.documentElement.dataset.theme = tema;
+
+  setInterval(() => {
+    const s = Math.max(0, Math.round((st.proxima - Date.now()) / 1000));
+    $("proxima").textContent = rodando ? "atualizando…" : "próxima leitura em " + s + "s";
+    if (!rodando && st.proxima && Date.now() >= st.proxima) atualizar();
+  }, 1000);
+
+  let redimensionar = 0;
+  addEventListener("resize", () => {
+    clearTimeout(redimensionar);
+    redimensionar = setTimeout(() => { desenharEvolucao(); desenharEstado(); }, 200);
+  });
+
+  desenhar();
+  detectarServidor().then(() => { atualizar(); carregarPrimeiroTurno(); });
+})();
+</script>
+</body>
+</html>
