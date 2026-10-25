@@ -2,14 +2,14 @@
 /**
  * Coletor da apuração (roda no GitHub Actions, ver .github/workflows/apuracao.yml).
  *
- * A cada minuto lê no TSE o presidente (Brasil, exterior e 27 estados) e os governadores
+ * A cada INTERVALO_S segundos lê no TSE o presidente (Brasil, exterior e 27 estados) e os governadores
  * no 2º turno, grava apuracao/dados/*.json e faz commit + push quando algo mudou.
  * O painel no claude.ai lê esses arquivos pela conexão do GitHub.
  *
- * Variáveis: DURACAO_MIN (340), INTERVALO_S (60), SEM_GIT=1 para só gravar os arquivos.
+ * Variáveis: DURACAO_MIN (340), INTERVALO_S (5 no Action), SEM_GIT=1 para só gravar os arquivos.
  */
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -72,7 +72,7 @@ function lerRecorte(json) {
     for (const par of agr.par || []) {
       for (const c of par.cand || []) {
         cands.push({
-          n: String(c.n || ""), nome: c.nmu || c.nm || "Candidato", partido: par.sg || "",
+          n: String(c.n || ""), sq: String(c.sqcand || ""), nome: c.nmu || c.nm || "Candidato", partido: par.sg || "",
           vap: num(c.vap) || 0, pvap: num(c.pvapn != null && c.pvapn !== "" ? c.pvapn : c.pvap),
           eleito: /^eleito/i.test(c.st || "") || c.e === "s",
         });
@@ -127,6 +127,26 @@ async function carregarPrimeiroTurno() {
   }));
 }
 
+// Fotos oficiais dos candidatos (baixadas uma vez por candidato)
+const fotosTentadas = new Set();
+async function baixarFotos(lista) {
+  const pasta = join(PASTA, "fotos");
+  mkdirSync(pasta, { recursive: true });
+  for (const { sq, ele, uf } of lista) {
+    if (!/^\d+$/.test(sq) || fotosTentadas.has(sq) || existsSync(join(pasta, sq + ".jpeg"))) continue;
+    fotosTentadas.add(sq);
+    for (const pastaUf of [uf, "br"]) {
+      try {
+        const r = await fetch(TSE + "/oficial/ele2026/" + ele + "/fotos/" + pastaUf + "/" + sq + ".jpeg");
+        if (!r.ok) continue;
+        writeFileSync(join(pasta, sq + ".jpeg"), Buffer.from(await r.arrayBuffer()));
+        console.log("foto " + sq + " (" + pastaUf + ")");
+        break;
+      } catch { /* tenta a próxima pasta */ }
+    }
+  }
+}
+
 const semGovernador = new Map();
 async function rodada() {
   const presidente = {};
@@ -160,6 +180,7 @@ async function rodada() {
     const { cands, ...resto } = r;
     porUf[uf] = {
       uf: uf.toUpperCase(), estado: ESTADOS[uf], regiao: REGIAO[uf], atualizado_em: momento(r), ...resto,
+      a_sq: a ? a.sq : null, b_sq: b ? b.sq : null,
       a_nome: a ? a.nome : null, a_partido: a ? a.partido : null, a_numero: a ? a.n : null, a_votos: a ? a.vap : null, a_pct: a ? a.pvap : null, a_eleito: a ? a.eleito : false,
       b_nome: b ? b.nome : null, b_partido: b ? b.partido : null, b_numero: b ? b.n : null, b_votos: b ? b.vap : null, b_pct: b ? b.pvap : null, b_eleito: b ? b.eleito : false,
       margem_pp: a && b && a.pvap != null && b.pvap != null ? Math.round((a.pvap - b.pvap) * 100) / 100 : null,
@@ -200,12 +221,17 @@ async function rodada() {
       linhasGov.push({
         chave: uf.toUpperCase() + "-" + c.n, uf: uf.toUpperCase(), estado: ESTADOS[uf], ordem: i + 1,
         pst: r.pst, hora: r.hg.slice(0, 5), atualizado_em: momento(r),
-        nome: c.nome, partido: c.partido, numero: c.n, votos: c.vap, pct: c.pvap, eleito: c.eleito,
+        nome: c.nome, partido: c.partido, numero: c.n, sq: c.sq, votos: c.vap, pct: c.pvap, eleito: c.eleito,
       });
     });
   }
   linhasGov.sort((x, y) => x.uf.localeCompare(y.uf) || x.ordem - y.ordem);
   const mudouGov = gravar("governadores.json", { fonte: "TSE, eleição 6260 (governador, 2º turno)", rows: linhasGov });
+
+  const fotos = [];
+  if (presidente.br) for (const c of presidente.br.cands) fotos.push({ sq: c.sq, ele: PRESIDENTE.ele, uf: "br" });
+  for (const uf in governadores) for (const c of governadores[uf].cands) fotos.push({ sq: c.sq, ele: GOVERNADOR.ele, uf });
+  await baixarFotos(fotos);
 
   const br = presidente.br;
   console.log(new Date().toISOString() + "  Brasil " + (br ? br.pst + "% (TSE " + br.hg + ")" : "sem dados") +
@@ -246,5 +272,5 @@ while (Date.now() < fim) {
   } catch (e) {
     console.log("rodada falhou: " + e.message);
   }
-  await new Promise((ok) => setTimeout(ok, Math.max(5000, INTERVALO_S * 1000 - (Date.now() - inicio))));
+  await new Promise((ok) => setTimeout(ok, Math.max(1000, INTERVALO_S * 1000 - (Date.now() - inicio))));
 }

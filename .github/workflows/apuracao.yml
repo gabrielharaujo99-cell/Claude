@@ -1,6 +1,6 @@
 name: Apuração ao vivo
 
-# Lê o TSE a cada minuto e grava apuracao/dados/*.json neste branch.
+# Lê o TSE a cada 5 segundos e grava apuracao/dados/*.json neste branch.
 # Começa sozinho quando o coletor ou este arquivo mudam; também dá para disparar à mão.
 on:
   push:
@@ -26,11 +26,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Coletar a cada minuto
+      - name: Coletar a cada 5 segundos
         run: |
           git config user.name "apuracao-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           node apuracao/coletor.mjs
         env:
           DURACAO_MIN: "340"
-          INTERVALO_S: "60"
+          INTERVALO_S: "5"
