@@ -1,187 +1,240 @@
 <title>Apuração 2º Turno 2026</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Source+Sans+3:wght@400;600;700&display=swap">
 <style>
-/* Layout: faixa de placar no topo (Brasil), depois cenários, evolução, mapa + regiões, tabela por estado e governadores */
+/* Layout: faixa de transmissão no topo; placar do presidente com fotos; mapa real ao lado do estado escolhido;
+   cenários, evolução, regiões, tabela e governadores abaixo */
 :root {
-  --bg: #f3f5f8;
+  --bg: #eef1f6;
   --surface: #ffffff;
-  --line: #dde2ea;
-  --fg: #141a24;
-  --muted: #5d6676;
-  --a: #c8102e;          /* Lula (PT) */
-  --a-soft: #f6d3d9;
-  --b: #1d4fa3;          /* Flávio Bolsonaro (PL) */
-  --b-soft: #d4e0f5;
-  --g1: #b8620b;         /* governador, candidato de menor número */
-  --g2: #0f7b6c;         /* governador, outro candidato */
-  --live: #d4142b;
-  --ok: #16794a;
-  --warn: #9a6a00;
-  --band: #0f1d33;
-  --band-fg: #f2f5fa;
+  --surface-2: #f6f8fb;
+  --line: #dce2ec;
+  --fg: #111827;
+  --muted: #5b6577;
+  --a: #d7182a;            /* Lula, PT */
+  --b: #1f4fbf;            /* Flávio Bolsonaro, PL */
+  --g2: #0f8b7a;           /* governador: segundo candidato quando as cores dos partidos se parecem */
+  --live: #e3001b;
+  --ok: #0f8a4a;
+  --band: #0b1630;
+  --band-2: #13244a;
+  --band-fg: #f3f6fb;
+  --mapa-base: #e4e8f0;
   --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
   --body: "Source Sans 3", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --raio: 14px;
+  --sombra: 0 1px 2px rgba(15, 23, 42, .06), 0 8px 24px rgba(15, 23, 42, .06);
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0d121b; --surface: #151c28; --line: #283245; --fg: #e8edf5; --muted: #98a3b6;
-    --a: #f0485f; --a-soft: #4a1d27; --b: #5b8ef0; --b-soft: #1c2b4d;
-    --g1: #e39445; --g2: #3fbfa9; --live: #ff4d5e; --ok: #4cc58a; --warn: #e0b04a;
-    --band: #070b12; --band-fg: #f2f5fa; color-scheme: dark;
+    --bg: #0a0f1a; --surface: #121a29; --surface-2: #172134; --line: #253149; --fg: #eaf0f8; --muted: #9aa6bb;
+    --a: #ff4a5c; --b: #5b8cff; --g2: #35c2ad; --live: #ff3348; --ok: #3ecf85;
+    --band: #050912; --band-2: #0d1730; --band-fg: #f3f6fb; --mapa-base: #222d43;
+    --sombra: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+    color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0d121b; --surface: #151c28; --line: #283245; --fg: #e8edf5; --muted: #98a3b6;
-  --a: #f0485f; --a-soft: #4a1d27; --b: #5b8ef0; --b-soft: #1c2b4d;
-  --g1: #e39445; --g2: #3fbfa9; --live: #ff4d5e; --ok: #4cc58a; --warn: #e0b04a;
-  --band: #070b12; --band-fg: #f2f5fa; color-scheme: dark;
+  --bg: #0a0f1a; --surface: #121a29; --surface-2: #172134; --line: #253149; --fg: #eaf0f8; --muted: #9aa6bb;
+  --a: #ff4a5c; --b: #5b8cff; --g2: #35c2ad; --live: #ff3348; --ok: #3ecf85;
+  --band: #050912; --band-2: #0d1730; --band-fg: #f3f6fb; --mapa-base: #222d43;
+  --sombra: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+  color-scheme: dark;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 var(--body); }
-.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-h1, h2, h3 { font-family: var(--display); font-weight: 700; margin: 0; text-wrap: balance; letter-spacing: .01em; }
-h2 { font-size: 1.55rem; text-transform: uppercase; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--band); }
+.wrap { max-width: 1280px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; }
+h2 { font-size: 1.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: .01em; }
 .num { font-variant-numeric: tabular-nums; }
 .muted { color: var(--muted); }
-.label { font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.rotulo { font-size: .72rem; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); font-weight: 700; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--raio); box-shadow: var(--sombra); padding: 18px; min-width: 0; }
 
-/* Barra superior */
-body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--band); }
-.top { background: var(--band); color: var(--band-fg); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; }
-.top .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding-block: 10px; }
-.top h1 { font-size: 1.35rem; text-transform: uppercase; }
-.aovivo { display: inline-flex; align-items: center; gap: 6px; background: var(--live); color: #fff; font: 700 .78rem var(--body); letter-spacing: .1em; padding: 3px 9px; border-radius: 3px; }
-.aovivo::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #fff; animation: pulso 1.4s infinite; }
-.aovivo.parado { background: #5d6676; }
+/* Faixa superior */
+.topo { background: linear-gradient(90deg, var(--band), var(--band-2)); color: var(--band-fg); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; box-shadow: 0 2px 12px rgba(0, 0, 0, .25); }
+.topo .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; padding-block: 10px; }
+.topo h1 { font-size: 1.35rem; font-weight: 800; text-transform: uppercase; letter-spacing: .02em; }
+.topo h1 span { font-weight: 500; opacity: .75; }
+.aovivo { display: inline-flex; align-items: center; gap: 7px; background: var(--live); color: #fff; font: 800 .78rem var(--body); letter-spacing: .12em; padding: 4px 10px; border-radius: 4px; }
+.aovivo::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #fff; animation: pulso 1.2s infinite; }
+.aovivo.parado { background: #4b5568; }
 .aovivo.parado::before { animation: none; }
-@keyframes pulso { 50% { opacity: .25; } }
-@media (prefers-reduced-motion: reduce) { .aovivo::before { animation: none; } }
-.top .info { font-size: .85rem; opacity: .85; display: flex; flex-wrap: wrap; gap: 4px 14px; }
-.top .acoes { margin-left: auto; display: flex; gap: 8px; }
-button, .btn { font: 600 .85rem var(--body); border: 1px solid var(--line); background: var(--surface); color: var(--fg); padding: 6px 12px; border-radius: 6px; cursor: pointer; }
-.top button { background: transparent; color: var(--band-fg); border-color: rgba(255,255,255,.3); }
-button:focus-visible, .tile:focus-visible, tr:focus-visible { outline: 3px solid var(--b); outline-offset: 2px; }
-button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+@keyframes pulso { 50% { opacity: .2; } }
+.topo .info { margin-left: auto; display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: .86rem; opacity: .9; }
+.topo .info b { font-variant-numeric: tabular-nums; }
 
-main { display: grid; gap: 22px; padding-block: 20px 48px; }
-section { display: grid; gap: 12px; min-width: 0; }
-.head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
-.head .muted { font-size: .9rem; }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+main { display: grid; gap: 26px; padding-block: 22px 56px; }
+section { display: grid; gap: 14px; min-width: 0; }
+.cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+.cab .muted { font-size: .92rem; }
+.alerta { border-left: 4px solid var(--live); background: var(--surface); padding: 12px 14px; border-radius: 8px; }
 
-.alerta { border-left: 4px solid var(--warn); background: var(--surface); padding: 12px 14px; border-radius: 6px; }
-.alerta code { font-size: .85em; }
+/* Totalização */
+.totalizacao { display: grid; gap: 8px; }
+.totalizacao .linha { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 12px; }
+.totalizacao .grande { font: 800 2.2rem/1 var(--display); font-variant-numeric: tabular-nums; }
+.trilho { height: 10px; border-radius: 6px; background: var(--line); overflow: hidden; }
+.trilho > div { height: 100%; background: linear-gradient(90deg, var(--fg), color-mix(in srgb, var(--fg) 70%, var(--surface))); border-radius: 6px; transition: width .8s ease; }
 
-/* Placar Brasil */
-.placar { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: stretch; }
-.cand { display: grid; gap: 4px; padding: 16px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); border-top: 6px solid var(--cor); min-width: 0; }
-.cand.dir { text-align: right; }
-.cand .nome { font: 700 1.6rem/1.05 var(--display); text-transform: uppercase; }
-.cand .partido { font-size: .85rem; color: var(--muted); font-weight: 600; }
-.cand .pct { font: 700 clamp(2.8rem, 7vw, 4.6rem)/1 var(--display); color: var(--cor); font-variant-numeric: tabular-nums; }
-.cand .votos { font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-.selo { display: inline-block; justify-self: start; font: 700 .75rem var(--body); letter-spacing: .08em; text-transform: uppercase; background: var(--ok); color: #fff; padding: 3px 8px; border-radius: 3px; }
+/* Placar */
+.placar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px; align-items: stretch; }
+.cand { position: relative; overflow: hidden; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; align-items: center; padding: 20px; border-radius: var(--raio); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--sombra); }
+.cand::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 6px; background: var(--cor); }
+.cand::after { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--cor) 12%, transparent), transparent 60%); pointer-events: none; }
+.cand.dir { grid-template-columns: minmax(0, 1fr) auto; text-align: right; }
+.cand.dir::after { background: radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--cor) 12%, transparent), transparent 60%); }
+.cand.dir .foto { order: 2; }
+.cand .dados { display: grid; gap: 4px; min-width: 0; position: relative; z-index: 1; }
+.cand .nome { font: 800 clamp(1.4rem, 3vw, 2rem)/1 var(--display); text-transform: uppercase; }
+.cand .partido { display: flex; align-items: center; gap: 8px; font-size: .86rem; color: var(--muted); font-weight: 600; }
+.cand.dir .partido { justify-content: flex-end; }
+.cand .pct { font: 800 clamp(3rem, 7.5vw, 5.2rem)/.95 var(--display); color: var(--cor); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.cand .votos { font-weight: 700; font-variant-numeric: tabular-nums; }
+.cand .p1 { font-size: .82rem; color: var(--muted); }
+.selo { display: inline-flex; align-items: center; gap: 6px; justify-self: start; font: 800 .74rem var(--body); letter-spacing: .1em; text-transform: uppercase; padding: 4px 9px; border-radius: 4px; background: var(--cor); color: #fff; }
 .cand.dir .selo { justify-self: end; }
-.meio { display: grid; align-content: center; justify-items: center; gap: 4px; padding: 8px 4px; min-width: 150px; text-align: center; }
-.meio .apurado { font: 700 2.6rem/1 var(--display); font-variant-numeric: tabular-nums; }
-.anel { width: 120px; height: 120px; }
-.barra-dupla { display: flex; height: 22px; border-radius: 4px; overflow: hidden; background: var(--line); position: relative; }
-.barra-dupla > div { transition: width .6s ease; }
-.barra-dupla .metade { position: absolute; left: 50%; top: -4px; bottom: -4px; width: 2px; background: var(--fg); opacity: .6; }
-.diferenca { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; font-weight: 600; }
+.selo.eleito { background: var(--ok); font-size: .9rem; }
+.selo.vazio { visibility: hidden; }
 
-/* Números gerais */
+.foto { position: relative; width: var(--tam, 116px); height: var(--tam, 116px); flex: none; border-radius: 50%; padding: 4px; background: conic-gradient(var(--cor) var(--pct, 50%), var(--line) 0); z-index: 1; }
+.foto > div { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; background: var(--surface-2); border: 3px solid var(--surface); display: grid; place-items: center; }
+.foto img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; display: block; }
+.foto .iniciais { font: 800 calc(var(--tam, 116px) * .32) var(--display); color: var(--cor); }
+.foto .numero { position: absolute; right: -2px; bottom: 2px; background: var(--cor); color: #fff; font: 800 .85rem var(--display); padding: 1px 7px; border-radius: 10px; border: 2px solid var(--surface); }
+
+.vs { display: grid; align-content: center; justify-items: center; gap: 6px; text-align: center; min-width: 150px; }
+.vs .x { font: 800 1.1rem var(--display); color: var(--muted); }
+.vs .dif { font: 800 1.9rem/1 var(--display); font-variant-numeric: tabular-nums; }
+.vs .dif small { display: block; font: 600 .78rem var(--body); color: var(--muted); }
+
+.cabo { position: relative; display: flex; height: 30px; border-radius: 8px; overflow: hidden; background: var(--line); }
+.cabo > .seg { display: flex; align-items: center; padding: 0 10px; color: #fff; font: 800 1rem var(--display); transition: width .8s ease; white-space: nowrap; overflow: hidden; }
+.cabo > .seg.b { justify-content: flex-end; }
+.cabo .meio { position: absolute; left: 50%; top: -4px; bottom: -4px; width: 3px; margin-left: -1.5px; background: var(--fg); }
+.cabo-legenda { display: flex; justify-content: space-between; font-size: .8rem; color: var(--muted); }
+
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 2px; }
-.kpi .v { font: 700 1.6rem/1.1 var(--display); font-variant-numeric: tabular-nums; }
-.kpi .s { font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 2px; }
+.kpi .v { font: 800 1.65rem/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.kpi .s { font-size: .84rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Bandeira de partido */
+.bandeira { display: inline-flex; align-items: center; height: 22px; padding: 0 9px 0 8px; font: 800 .78rem/1 var(--body); letter-spacing: .04em; color: var(--tx); background: linear-gradient(180deg, var(--p1) 0 70%, var(--p2) 70% 100%); clip-path: polygon(0 0, 100% 0, 92% 50%, 100% 100%, 0 100%); padding-right: 14px; border-left: 3px solid color-mix(in srgb, var(--p1) 70%, #000); white-space: nowrap; }
+
+/* Mapa + estado */
+.mapa-area { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.mapa-box { position: relative; }
+.mapa-box svg { width: 100%; height: auto; display: block; }
+.mapa-box path { stroke: var(--surface); stroke-width: 1.2; cursor: pointer; transition: fill .5s ease; }
+.mapa-box path:hover { stroke: var(--fg); stroke-width: 1.6; }
+.mapa-box path.sel { stroke: var(--fg); stroke-width: 2.6; }
+.mapa-box path:focus-visible { outline: none; stroke: var(--fg); stroke-width: 3; }
+.mapa-box text { font: 700 12px var(--body); pointer-events: none; text-anchor: middle; }
+.mapa-box text.uf { font: 800 13px var(--display); letter-spacing: .02em; }
+.mapa-box line { stroke: var(--muted); stroke-width: .8; }
+.dica { position: absolute; z-index: 5; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--sombra); padding: 10px 12px; min-width: 190px; font-size: .86rem; display: grid; gap: 4px; }
+.dica b { font-family: var(--display); font-size: 1.1rem; text-transform: uppercase; }
+.dica .l { display: flex; justify-content: space-between; gap: 12px; font-variant-numeric: tabular-nums; }
+.legenda-mapa { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 6px; font-size: .78rem; color: var(--muted); }
+.legenda-mapa i { width: 22px; height: 10px; border-radius: 2px; display: inline-block; }
+
+.estado { display: grid; gap: 14px; }
+.estado .titulo { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.estado h3 { font-size: 1.8rem; font-weight: 800; text-transform: uppercase; }
+.linha-cand { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; }
+.linha-cand .n { font-weight: 700; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; line-height: 1.15; }
+.linha-cand .n .bandeira { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.linha-cand .p { font: 800 1.9rem/1 var(--display); color: var(--cor); font-variant-numeric: tabular-nums; }
+.linha-cand .barra { grid-column: 2 / -1; height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.linha-cand .barra div { height: 100%; background: var(--cor); border-radius: 4px; transition: width .8s ease; }
+.linha-cand .vv { grid-column: 2 / -1; font-size: .84rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.linha-cand .foto { grid-row: span 3; }
+.notas { display: grid; gap: 2px; font-size: .88rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bloco-gov { border-top: 1px dashed var(--line); padding-top: 12px; display: grid; gap: 12px; }
 
 /* Cenários */
-.cenarios { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
-.cenario { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 4px; align-content: start; }
-.cenario .t { font-weight: 700; }
-.cenario .v { font: 700 1.5rem/1.1 var(--display); font-variant-numeric: tabular-nums; }
-.cenario p { margin: 0; font-size: .9rem; color: var(--muted); }
+.cenarios { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.cenario { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.cenario .t { font-weight: 700; font-size: .92rem; }
+.cenario .v { font: 800 1.7rem/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.cenario p { margin: 0; font-size: .87rem; color: var(--muted); }
+.cenario.destaque { background: linear-gradient(135deg, color-mix(in srgb, var(--a) 10%, var(--surface)), color-mix(in srgb, var(--b) 10%, var(--surface))); }
 
-/* Gráfico */
-.grafico-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.grafico svg { width: 100%; height: auto; display: block; }
+/* Gráficos */
+.ctl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+button { font: 700 .84rem var(--body); border: 1px solid var(--line); background: var(--surface); color: var(--fg); padding: 6px 12px; border-radius: 999px; cursor: pointer; }
+button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+button:focus-visible, path:focus-visible, tr:focus-visible, .gov:focus-visible { outline: 3px solid var(--b); outline-offset: 2px; }
+.grafico { position: relative; }
+.grafico svg { width: 100%; height: auto; display: block; overflow: visible; }
 .grafico text { fill: var(--muted); font: 12px var(--body); }
 .grafico .grade { stroke: var(--line); }
-.grafico .meia { stroke: var(--fg); stroke-dasharray: 4 4; opacity: .5; }
-.legenda { display: flex; flex-wrap: wrap; gap: 14px; font-size: .9rem; font-weight: 600; }
-.legenda span::before { content: ""; display: inline-block; width: 12px; height: 4px; border-radius: 2px; background: var(--cor); margin-right: 6px; vertical-align: middle; }
+.grafico .meia { stroke: var(--fg); stroke-dasharray: 4 4; opacity: .45; }
+.grafico .regua { stroke: var(--muted); stroke-dasharray: 3 3; }
 
-/* Mapa em grade */
-.mapa-regioes { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; }
-.mapa { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; max-width: 520px; width: 100%; margin: 0 auto; }
-.tile { aspect-ratio: 1; max-width: 100%; border-radius: 6px; display: grid; place-content: center; text-align: center; cursor: pointer; border: 2px solid transparent; color: var(--fg); background: var(--line); line-height: 1.05; padding: 2px; min-width: 0; }
-.tile b { font: 700 1.05rem var(--display); }
-.tile small { font-size: .68rem; font-variant-numeric: tabular-nums; }
-.tile.sel { border-color: var(--fg); }
-.tile.escuro { color: #fff; }
-.escala { display: flex; justify-content: center; gap: 4px; align-items: center; font-size: .78rem; color: var(--muted); flex-wrap: wrap; }
-.escala i { width: 22px; height: 10px; border-radius: 2px; display: inline-block; }
-.regiao { display: grid; gap: 4px; }
-.regiao .linha { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.regiao .barra-dupla { height: 14px; }
-.regioes { display: grid; gap: 14px; }
-
-/* Estado selecionado */
-.estado { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px; }
-.mini-cand { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline; }
-.mini-cand .n { font-weight: 700; }
-.mini-cand .p { font: 700 1.5rem var(--display); font-variant-numeric: tabular-nums; }
-.mini-cand .barra { grid-column: 1 / -1; height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
-.mini-cand .barra div { height: 100%; background: var(--cor); }
-.mini-cand .vv { grid-column: 1 / -1; font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
-.pilha { display: grid; gap: 12px; }
+/* Regiões */
+.regioes { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.regiao { display: grid; gap: 6px; }
+.regiao .l { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.regiao .cabo { height: 20px; }
+.regiao .cabo > .seg { font-size: .85rem; }
 
 /* Tabela */
-.tabela { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.tabela { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: .92rem; }
-th, td { padding: 8px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
-th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
-th { font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); cursor: pointer; user-select: none; position: sticky; top: 0; background: var(--surface); }
+th, td { padding: 9px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+th:first-child, td:first-child { text-align: left; }
+th { font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); cursor: pointer; user-select: none; background: var(--surface); position: sticky; top: 0; }
 th[aria-sort="descending"]::after { content: " ▼"; }
 th[aria-sort="ascending"]::after { content: " ▲"; }
 tbody tr { cursor: pointer; }
-tbody tr:hover { background: var(--bg); }
-tbody tr.sel { background: var(--bg); box-shadow: inset 4px 0 0 var(--fg); }
-.chip { display: inline-block; padding: 1px 8px; border-radius: 10px; font-weight: 700; font-size: .8rem; color: #fff; background: var(--cor); }
-.mini-apu { display: inline-block; width: 46px; height: 6px; background: var(--line); border-radius: 3px; vertical-align: middle; margin-right: 6px; overflow: hidden; }
+tbody tr:hover { background: var(--surface-2); }
+tbody tr.sel { background: var(--surface-2); box-shadow: inset 4px 0 0 var(--fg); }
+.uf-cel { display: flex; align-items: center; gap: 10px; }
+.uf-cel b { font-family: var(--display); font-size: 1.05rem; width: 2.2em; }
+.mini-cabo { display: inline-flex; width: 110px; height: 8px; border-radius: 4px; overflow: hidden; background: var(--line); vertical-align: middle; }
+.mini-apu { display: inline-block; width: 52px; height: 6px; background: var(--line); border-radius: 3px; vertical-align: middle; margin-right: 6px; overflow: hidden; }
 .mini-apu div { height: 100%; background: var(--fg); }
+.chip { display: inline-block; padding: 2px 9px; border-radius: 999px; font-weight: 800; font-size: .8rem; color: #fff; background: var(--cor); }
 
 /* Governadores */
-.govs { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
-.gov { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 10px; cursor: pointer; }
-.gov .cab { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.gov .cab h3 { font-size: 1.3rem; text-transform: uppercase; }
+.govs { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.gov { display: grid; gap: 14px; cursor: pointer; }
+.gov .t { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.gov h3 { font-size: 1.4rem; font-weight: 800; text-transform: uppercase; }
 
 footer { font-size: .85rem; color: var(--muted); display: grid; gap: 6px; }
-footer a { color: inherit; }
 
-@media (max-width: 860px) {
-  .mapa-regioes, .estado { grid-template-columns: 1fr; }
+@media (max-width: 960px) { .mapa-area { grid-template-columns: 1fr; } }
+@media (max-width: 720px) {
+  .placar { grid-template-columns: 1fr; }
+  .vs { grid-row: 2; grid-auto-flow: column; justify-content: center; min-width: 0; }
+  .cand, .cand.dir { grid-template-columns: auto minmax(0, 1fr); text-align: left; }
+  .cand.dir .foto { order: 0; }
+  .cand.dir .partido { justify-content: flex-start; }
+  .cand.dir .selo { justify-self: start; }
+  .cand.dir::after { background: radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--cor) 12%, transparent), transparent 60%); }
+  .foto { --tam: 88px; }
+  .topo .info { margin-left: 0; }
 }
-@media (max-width: 640px) {
-  .placar { grid-template-columns: 1fr 1fr; }
-  .meio { grid-column: 1 / -1; grid-row: 1; grid-template-columns: auto 1fr; justify-items: start; text-align: left; min-width: 0; }
-  .anel { width: 84px; height: 84px; grid-row: span 3; }
-  .cand .nome { font-size: 1.2rem; }
-  .top .acoes { margin-left: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .aovivo::before { animation: none; }
+  .trilho > div, .cabo > .seg, .linha-cand .barra div, .mapa-box path { transition: none; }
 }
 </style>
-<header class="top">
+
+<header class="topo">
   <div class="wrap">
     <span class="aovivo" id="aovivo">AO VIVO</span>
-    <h1>Apuração · 2º turno 2026</h1>
+    <h1>Apuração 2026 <span>· 2º turno</span></h1>
     <div class="info">
-      <span id="atualizacao">Conectando ao TSE…</span>
-      <span id="proxima"></span>
+      <span id="t-tse">Aguardando o TSE…</span>
+      <span id="t-recebido"></span>
     </div>
   </div>
 </header>
@@ -189,82 +242,79 @@ footer a { color: inherit; }
 <main class="wrap">
   <div class="alerta" id="erro" hidden></div>
 
-  <section aria-labelledby="t-pres">
-    <div class="head">
-      <h2 id="t-pres">Presidente · Brasil</h2>
-      <span class="muted" id="pres-status">% dos votos válidos</span>
+  <section id="presidente" aria-labelledby="h-pres">
+    <div class="cab">
+      <h2 id="h-pres">Presidente da República</h2>
+      <span class="muted">% dos votos válidos · fotos e dados oficiais do TSE</span>
+    </div>
+    <div class="card totalizacao">
+      <div class="linha">
+        <span><span class="grande" id="pst">–</span> <span class="rotulo">das seções totalizadas</span></span>
+        <span class="muted num" id="secoes"></span>
+      </div>
+      <div class="trilho"><div id="pst-barra" style="width:0"></div></div>
     </div>
     <div class="placar" id="placar"></div>
     <div class="card" style="display:grid;gap:8px">
-      <div class="barra-dupla" id="barra-br"><div class="metade"></div></div>
-      <div class="diferenca" id="diferenca-br"></div>
+      <div class="cabo" id="cabo-br"></div>
+      <div class="cabo-legenda"><span id="cabo-esq"></span><span>50%</span><span id="cabo-dir"></span></div>
     </div>
     <div class="kpis" id="kpis"></div>
   </section>
 
-  <section aria-labelledby="t-cen">
-    <div class="head">
-      <h2 id="t-cen">Cenários</h2>
-      <span class="muted">Contas feitas sobre os números do TSE. Não são projeção oficial.</span>
+  <section id="mapa" aria-labelledby="h-mapa">
+    <div class="cab">
+      <h2 id="h-mapa">Mapa da apuração</h2>
+      <span class="muted">Cor do candidato à frente em cada estado; mais forte, maior a vantagem. Toque num estado.</span>
     </div>
-    <div class="cenarios" id="cenarios"></div>
+    <div class="mapa-area">
+      <div class="card" style="display:grid;gap:10px">
+        <div class="mapa-box" id="mapa-box"></div>
+        <div class="legenda-mapa" id="legenda-mapa"></div>
+      </div>
+      <div class="card estado" id="estado"></div>
+    </div>
   </section>
 
-  <section aria-labelledby="t-evo">
-    <div class="head">
-      <h2 id="t-evo">Evolução minuto a minuto</h2>
+  <section id="cenarios" aria-labelledby="h-cen">
+    <div class="cab">
+      <h2 id="h-cen">Cenários</h2>
+      <span class="muted">Contas sobre os números do TSE. Não são projeção oficial.</span>
+    </div>
+    <div class="cenarios" id="lista-cenarios"></div>
+  </section>
+
+  <section id="evolucao" aria-labelledby="h-evo">
+    <div class="cab">
+      <h2 id="h-evo">Evolução minuto a minuto</h2>
       <span class="muted" id="evo-escopo">Brasil</span>
     </div>
-    <div class="card grafico">
-      <div class="grafico-ctl">
-        <span class="label">Eixo horizontal</span>
+    <div class="card" style="display:grid;gap:12px">
+      <div class="ctl">
+        <span class="rotulo">Eixo</span>
         <button type="button" id="x-hora" aria-pressed="true">Horário</button>
-        <button type="button" id="x-pst" aria-pressed="false">% de urnas apuradas</button>
+        <button type="button" id="x-pst" aria-pressed="false">% de seções totalizadas</button>
         <button type="button" id="evo-br" hidden>Voltar ao Brasil</button>
       </div>
-      <div class="legenda" id="evo-legenda"></div>
-      <div id="evo-svg"></div>
-      <div class="muted" id="evo-nota" style="font-size:.85rem"></div>
+      <div class="grafico" id="evo"></div>
+      <div class="muted" style="font-size:.85rem" id="evo-nota"></div>
     </div>
   </section>
 
-  <section aria-labelledby="t-mapa">
-    <div class="head">
-      <h2 id="t-mapa">Por estado e região</h2>
-      <span class="muted">Cor pelo líder; quanto mais forte, maior a vantagem. Clique num estado para ver o detalhe.</span>
+  <section id="regioes" aria-labelledby="h-reg">
+    <div class="cab">
+      <h2 id="h-reg">Regiões e exterior</h2>
+      <span class="muted">Soma dos votos dos estados de cada região</span>
     </div>
-    <div class="mapa-regioes">
-      <div class="card" style="display:grid;gap:10px">
-        <div class="mapa" id="mapa"></div>
-        <div class="escala" id="escala"></div>
-      </div>
-      <div class="card regioes" id="regioes"></div>
-    </div>
+    <div class="card regioes" id="lista-regioes"></div>
   </section>
 
-  <section aria-labelledby="t-uf" id="sec-estado">
-    <div class="head">
-      <h2 id="t-uf">Estado</h2>
-      <span class="muted" id="uf-status"></span>
+  <section id="tabela" aria-labelledby="h-tab">
+    <div class="cab">
+      <h2 id="h-tab">Todos os estados</h2>
+      <span class="muted">Toque no título da coluna para ordenar; 1º T = % dos válidos no 1º turno</span>
     </div>
-    <div class="estado">
-      <div class="pilha">
-        <div class="card pilha" id="uf-pres"></div>
-        <div class="card pilha" id="uf-gov" hidden></div>
-      </div>
-      <div class="card grafico">
-        <div class="label">Evolução no estado (presidente)</div>
-        <div id="uf-svg"></div>
-      </div>
-    </div>
-  </section>
-
-  <section aria-labelledby="t-tab">
-    <div class="head">
-      <h2 id="t-tab">Tabela por estado</h2>
-      <span class="muted">Clique no título da coluna para ordenar. 1º T = % dos válidos no 1º turno.</span>
-    </div>
-    <div class="tabela">
+    <div class="card tabela" style="padding:0">
       <table>
         <thead><tr id="tab-cab"></tr></thead>
         <tbody id="tab-corpo"></tbody>
@@ -272,17 +322,17 @@ footer a { color: inherit; }
     </div>
   </section>
 
-  <section aria-labelledby="t-gov">
-    <div class="head">
-      <h2 id="t-gov">Governadores · 2º turno</h2>
-      <span class="muted" id="gov-status">Procurando estados com 2º turno…</span>
+  <section id="governadores" aria-labelledby="h-gov">
+    <div class="cab">
+      <h2 id="h-gov">Governadores · 2º turno</h2>
+      <span class="muted" id="gov-status"></span>
     </div>
     <div class="govs" id="govs"></div>
   </section>
 
   <footer>
-    <div>Fonte: arquivos oficiais de divulgação do TSE (<span class="num">resultados.tse.jus.br</span>), eleição 6258 (presidente, 2º turno), 6260 (governador, 2º turno) e 6257 (1º turno, para comparação). Um coletor lê o TSE a cada minuto e repassa os números para este painel. Resultado parcial até a totalização; só o TSE proclama eleitos.</div>
-    <div id="rodape-hist"></div>
+    <div>Fonte: arquivos oficiais de divulgação do TSE (resultados.tse.jus.br), os mesmos do app de resultados: eleição 6258 (presidente, 2º turno), 6260 (governador, 2º turno) e 6257 (1º turno, para comparação). Fotos oficiais do TSE. As bandeiras são selos nas cores de cada partido, não os logotipos oficiais. Um coletor lê o TSE a cada 2 segundos e repassa cada atualização para este painel. Resultado parcial até a totalização; só o TSE proclama eleitos.</div>
+    <div id="rodape"></div>
   </footer>
 </main>
 
@@ -290,15 +340,7 @@ footer a { color: inherit; }
 (function () {
   "use strict";
 
-  // ---------- Configuração ----------
-  const CFG = {
-    ciclo: "ele2026",
-    presidente: { ele: 6258, cargo: 1 },
-    governador: { ele: 6260, cargo: 3 },
-    primeiro: { ele: 6257, cargo: 1 },
-    intervaloMs: 30000,
-  };
-  const TSE = "https://resultados.tse.jus.br";
+  const MAPA = {"w":600,"h":600,"uf":{"ac":{"d":"M104,221L106,223L106,223L103,225L101,228L98,229L96,229L94,231L92,232L91,235L89,234L86,234L82,239L79,240L78,240L76,241L75,239L72,239L67,238L58,238L55,239L53,240L51,239L50,238L48,239L48,222L50,220L49,218L50,216L49,216L46,219L45,219L43,221L41,222L40,224L38,224L26,224L26,221L25,221L24,217L23,217L18,216L11,216L13,213L14,212L15,210L12,206L10,204L10,202L9,202L6,200L5,195L4,195L4,192L2,191L0,189L1,187L0,186L4,185L4,184L3,182L19,190L26,191L29,192L44,195L52,197L66,204L75,209L84,213Z","cx":51,"cy":214},"al":{"d":"M560,208L557,214L551,220L547,225L544,228L542,232L542,230L540,230L540,229L536,227L531,223L527,221L525,220L519,217L517,216L516,214L518,212L520,212L523,208L524,210L526,209L529,211L530,213L532,213L534,215L535,214L538,214L539,215L541,213L544,212L544,211L546,210L546,209L549,208L551,207L552,208L556,207ZM558,212L558,212L558,212Z","cx":539,"cy":217},"am":{"d":"M153,47L154,48L156,48L158,50L161,50L163,51L162,54L161,56L164,59L165,64L166,65L166,68L165,69L165,73L166,74L167,78L168,79L168,81L169,82L170,84L168,87L169,88L166,90L167,91L169,93L173,96L174,99L176,99L179,100L180,102L179,97L179,95L179,92L180,90L181,89L184,87L184,86L186,86L190,89L191,92L194,92L195,91L197,90L196,87L197,83L199,81L201,75L218,75L218,79L218,80L218,84L220,85L220,88L223,91L224,92L224,94L226,96L227,96L228,97L230,95L231,97L231,98L234,101L239,103L240,104L242,104L244,105L245,107L247,108L249,109L248,110L251,111L252,110L254,111L256,109L258,108L256,111L254,112L253,114L254,115L247,130L245,134L237,150L227,173L224,175L224,177L224,179L228,183L229,186L228,187L228,189L225,193L226,196L226,200L225,202L225,204L224,205L226,205L223,207L196,207L179,207L178,206L175,206L175,207L173,208L171,207L170,204L168,204L168,201L166,200L165,201L164,198L163,196L160,195L150,195L150,195L148,198L147,200L145,200L144,202L145,203L144,205L142,206L142,209L140,210L140,209L135,210L133,209L130,211L131,213L129,215L128,216L126,213L124,215L123,216L121,216L119,218L118,217L116,216L113,216L109,216L110,217L108,219L106,219L104,221L84,213L75,209L66,204L52,197L44,195L29,192L26,191L19,190L3,182L4,181L3,180L5,177L9,175L11,174L13,172L11,168L11,166L12,164L15,161L15,158L16,155L16,154L29,146L30,145L32,144L34,145L36,143L39,143L39,143L41,143L44,143L47,139L48,140L50,139L53,139L53,141L55,142L56,141L57,142L58,140L62,122L66,99L66,96L66,94L63,90L64,88L63,86L60,84L59,84L57,82L57,71L60,71L62,70L63,70L65,69L67,70L69,70L70,70L69,64L67,63L62,64L62,63L60,64L60,54L64,53L66,54L84,54L82,53L83,51L84,51L85,52L87,53L90,50L92,50L93,48L95,47L97,52L98,53L99,54L100,58L99,62L103,61L111,68L113,68L116,68L116,66L119,65L121,65L122,67L121,69L122,70L123,69L125,66L127,65L127,63L129,63L132,60L133,61L136,60L136,58L139,57L139,58L143,55L143,51L145,50L146,51L150,48L153,48Z","cx":134,"cy":140},"ap":{"d":"M345,69L341,70L340,71L338,75L335,78L332,79L331,80L329,81L327,84L325,87L323,89L322,91L322,94L320,96L316,96L315,96L312,95L311,94L311,91L309,92L310,89L309,87L308,88L307,86L307,84L304,81L303,79L300,74L301,69L297,66L296,63L297,61L295,62L294,60L290,58L287,58L286,56L283,54L278,54L277,50L277,47L276,44L278,44L278,45L280,45L282,47L286,48L289,47L292,45L292,46L296,47L298,45L299,47L299,48L302,47L303,48L305,46L307,45L309,43L310,39L312,35L312,33L314,32L317,27L318,25L320,22L322,21L324,15L325,16L328,19L329,22L331,23L330,30L331,33L332,37L335,43L336,48L339,47L341,49L343,53L344,53L347,55L348,58L348,62L347,65Z","cx":318,"cy":58},"ba":{"d":"M516,214L517,216L519,217L519,220L520,222L520,224L522,224L523,229L521,230L522,232L522,234L519,235L518,235L516,235L516,238L518,239L519,242L520,242L520,245L522,246L524,247L526,247L529,245L526,250L525,254L519,262L514,268L512,269L511,268L511,267L508,270L506,272L505,273L506,275L505,280L506,282L505,286L505,288L504,293L505,298L505,302L506,309L507,311L505,317L502,330L502,331L502,337L503,339L501,341L498,342L496,347L495,349L495,348L487,343L487,342L488,341L487,339L485,337L484,337L482,334L482,332L482,330L482,328L483,326L486,327L487,326L485,325L486,322L488,322L489,319L492,317L492,315L489,312L487,310L482,310L480,308L476,308L474,310L471,309L471,306L464,300L462,301L460,301L459,300L458,300L452,297L448,294L445,293L441,294L439,295L439,294L434,293L434,291L436,288L429,287L425,288L421,291L420,292L417,294L415,294L412,297L410,297L408,299L406,300L404,300L403,302L404,298L403,296L404,295L404,290L405,288L404,287L401,285L400,282L400,278L401,277L400,276L400,275L403,273L403,272L400,274L399,272L400,269L402,267L399,268L400,260L398,258L398,254L401,252L398,252L400,248L403,248L399,247L396,246L395,243L397,242L398,239L400,238L401,234L403,233L408,228L408,226L409,226L411,228L412,231L412,232L412,234L415,236L417,237L419,238L421,236L423,235L424,233L426,234L428,232L430,234L432,233L432,230L434,230L437,225L437,223L438,222L436,221L435,218L436,216L440,213L443,216L445,215L447,215L448,217L450,219L453,217L454,217L457,214L458,214L464,213L465,210L468,209L469,207L471,205L474,205L476,207L477,207L479,211L481,212L479,216L481,217L484,215L485,215L486,211L488,211L491,210L492,209L492,207L495,206L495,205L496,205L499,203L501,203L501,205L504,206L506,207L508,207L510,209L511,207L512,208L512,209L513,210L515,209L515,212ZM496,345L496,345L496,345Z","cx":465,"cy":261},"ce":{"d":"M490,120L496,123L499,125L501,126L504,128L505,128L510,132L512,133L514,135L515,136L517,139L521,142L523,143L523,144L525,146L529,147L530,149L524,150L522,154L521,159L518,161L519,162L517,165L515,167L513,167L511,170L511,171L509,176L510,177L508,179L508,180L510,182L509,183L511,185L510,189L509,189L506,191L505,193L504,192L502,190L499,187L495,185L492,185L491,186L487,187L486,186L482,186L483,182L484,181L484,178L483,177L480,176L479,174L479,170L478,169L477,166L478,166L477,161L477,154L474,152L473,151L472,148L473,147L473,146L474,141L475,139L474,137L473,137L473,136L472,134L472,133L471,132L471,129L470,128L472,124L471,121L472,121L475,121L478,120L484,120ZM490,120L490,120L490,120Z","cx":496,"cy":153},"es":{"d":"M480,387L479,388L478,391L477,394L475,393L472,393L468,392L465,391L466,389L465,386L463,386L464,384L464,380L464,380L465,377L470,377L472,373L473,372L473,369L476,366L477,363L477,361L475,360L476,358L473,355L474,356L477,356L477,354L475,353L476,350L473,350L475,346L477,345L479,345L477,343L479,343L480,344L483,342L487,343L495,348L495,349L494,351L494,356L495,363L493,368L492,369L490,371L488,373L487,377L486,379L484,384L484,384L482,386ZM483,384L483,384L483,384ZM483,384L483,384L483,384ZM484,384L484,384L484,384ZM480,387L480,387L480,387Z","cx":481,"cy":367},"go":{"d":"M402,267L400,269L399,272L400,274L403,272L403,273L400,275L400,276L401,277L400,278L400,282L401,285L404,287L405,288L404,290L404,295L403,296L401,297L399,297L399,295L397,294L396,295L397,299L395,299L392,298L391,299L390,302L392,303L390,305L390,306L391,307L392,311L387,312L385,314L384,311L385,309L385,307L383,306L372,306L372,309L371,311L371,314L385,314L385,317L383,320L383,321L386,323L388,328L382,334L382,336L385,336L386,338L384,341L385,344L382,347L381,347L379,349L375,351L374,350L371,348L370,349L367,348L363,349L361,348L359,350L359,349L356,352L355,353L353,351L349,353L346,352L345,354L342,354L339,358L339,359L338,361L336,361L334,363L333,365L334,366L333,366L331,364L326,361L322,361L319,359L318,358L316,358L314,356L312,356L311,354L309,353L307,354L304,353L303,352L306,349L303,348L301,348L301,345L302,344L301,341L299,339L300,333L301,329L303,326L306,324L308,320L307,318L309,316L309,316L312,314L314,312L317,311L319,311L321,306L322,301L324,299L327,298L327,299L329,298L332,291L332,289L332,287L334,284L333,279L334,279L335,276L336,275L338,272L337,269L338,268L339,266L339,264L341,261L344,260L342,264L342,266L343,267L347,268L355,272L355,270L357,267L359,265L359,267L361,268L362,266L366,269L367,270L366,273L368,270L368,273L373,271L373,273L374,272L375,273L377,273L380,275L380,274L380,271L380,270L382,271L383,273L384,272L385,272L386,271L389,270L393,268L397,268L398,266L399,268Z","cx":351,"cy":314},"ma":{"d":"M389,209L391,207L391,203L392,202L395,200L396,200L397,198L397,195L395,193L394,194L389,196L388,194L386,192L384,189L382,188L382,185L380,185L379,183L380,183L381,181L382,176L384,170L383,166L383,163L382,162L382,160L381,158L379,157L377,157L377,155L375,155L372,155L370,154L367,154L366,156L364,156L378,146L380,146L381,144L383,141L384,140L385,138L387,137L388,135L389,131L390,129L390,128L392,127L394,122L394,121L395,120L394,119L395,117L398,116L397,114L398,111L400,110L401,107L400,104L402,103L401,100L402,98L401,98L402,97L404,94L404,97L406,94L405,97L407,96L406,97L408,96L408,99L410,98L410,98L411,99L411,100L413,99L414,100L413,102L414,103L417,99L417,99L417,100L417,100L417,100L419,101L421,100L420,102L420,103L423,102L423,103L421,104L424,104L424,106L426,107L425,110L427,111L427,113L427,114L428,115L431,114L433,115L433,116L435,113L438,111L440,113L442,113L444,113L450,116L451,116L454,118L459,118L464,119L463,121L464,122L461,126L460,126L458,129L454,129L452,132L452,134L451,136L447,140L448,142L449,143L449,145L448,147L449,151L450,154L450,156L448,158L446,160L446,164L446,167L449,169L450,171L448,176L447,177L444,177L440,178L438,176L436,176L431,178L428,182L427,182L424,184L423,186L421,186L419,187L416,188L413,189L411,190L410,193L410,197L409,199L406,205L405,206L404,209L405,212L405,214L407,216L406,217L406,221L406,226L405,228L403,227L401,227L399,227L397,225L396,221L394,220L396,218L394,215L393,215L392,214L392,213L390,211L388,211ZM421,105L421,105L421,105ZM424,107L424,107L424,107ZM407,99L407,99L407,99ZM405,96L405,96L405,96ZM406,98L406,98L406,98ZM423,105L423,105L423,105ZM413,104L413,104L413,104ZM421,103L421,103L421,103ZM416,101L416,101L416,101ZM406,97L406,97L406,97ZM410,98L410,98L410,98ZM407,98L407,98L407,98ZM421,105L421,105L421,105ZM413,100L413,100L413,100ZM405,97L405,97L405,97ZM410,99L410,99L410,99ZM413,102L413,102L413,102ZM419,99L419,99L419,99ZM419,99L419,99L419,99ZM420,98L420,98L420,98ZM408,98L409,98L408,98ZM409,98L409,98L409,98ZM421,101L421,101L421,101ZM421,101L421,101L421,101ZM408,96L408,96L408,96ZM410,96L410,96L410,96ZM424,105L424,105L424,105ZM422,102L422,102L422,102ZM407,95L407,95L407,95ZM407,96L407,96L407,96ZM410,98L410,98L410,98ZM417,100L417,100L417,100ZM417,100L417,100L417,100ZM418,99L418,99L418,99ZM422,104L422,104L422,104ZM408,98L408,98L408,98ZM426,109L426,109L426,109ZM426,110L426,110L426,110ZM412,99L412,99L412,99ZM417,100L417,100L417,100ZM422,103L422,103L422,103ZM426,108L426,108L426,108ZM424,105L424,105L424,105ZM417,100L417,100L417,100ZM411,99L411,99L411,99ZM418,98L418,98L418,98ZM407,97L407,97L407,97ZM418,99L418,99L418,99ZM424,106L424,106L424,106ZM409,98L409,98L409,98ZM421,102L421,102L421,102ZM410,97L410,97L410,97ZM451,116L451,116L451,116ZM432,114L432,114L432,114ZM424,105L424,105L424,105ZM409,98L409,98L409,98ZM409,99L409,99L409,99ZM409,97L409,97L409,97ZM432,114L432,114L432,114ZM416,100L416,100L416,100ZM421,102L421,102L421,102ZM420,99L420,99L420,99ZM418,99L418,99L418,99ZM416,101L416,101L416,101ZM426,110L426,110L426,110ZM406,97L406,97L406,97ZM389,209L389,209L389,209ZM417,99L417,99L417,99ZM417,99L417,99L417,99ZM410,97L410,97L410,97ZM422,102L422,102L422,102ZM407,96L407,96L407,96Z","cx":414,"cy":152},"mg":{"d":"M487,343L483,342L480,344L479,343L477,343L479,345L477,345L475,346L473,350L476,350L475,353L477,354L477,356L474,356L473,355L476,358L475,360L477,361L477,363L476,366L473,369L473,372L472,373L470,377L465,377L464,380L464,380L464,384L463,386L462,388L459,389L460,390L458,392L459,393L457,396L458,397L456,399L458,400L450,404L446,406L445,405L442,405L440,406L436,406L431,408L426,409L425,410L421,411L419,412L416,413L414,414L412,415L411,414L410,415L408,414L406,416L408,416L407,418L405,418L405,418L402,419L402,418L399,419L399,417L397,416L398,415L397,413L394,411L394,409L395,407L394,405L395,405L394,402L397,398L396,396L394,395L389,396L389,395L388,393L387,389L386,387L387,385L388,384L387,382L385,381L385,379L386,377L383,375L383,373L380,375L379,373L377,374L376,376L375,374L373,376L372,374L372,376L363,376L362,378L362,380L361,380L361,376L360,376L359,378L357,378L356,376L356,373L354,374L353,372L348,373L345,372L341,372L339,370L337,372L335,373L332,375L332,372L331,370L333,366L334,366L333,365L334,363L336,361L338,361L339,359L339,358L342,354L345,354L346,352L349,353L353,351L355,353L356,352L359,349L359,350L361,348L363,349L367,348L370,349L371,348L374,350L375,351L379,349L381,347L382,347L385,344L384,341L386,338L385,336L382,336L382,334L388,328L386,323L383,321L383,320L385,317L385,314L385,314L387,312L392,311L391,307L390,306L390,305L392,303L390,302L391,299L392,298L395,299L397,299L396,295L397,294L399,295L399,297L401,297L403,296L404,298L403,302L404,300L406,300L408,299L410,297L412,297L415,294L417,294L420,292L421,291L425,288L429,287L436,288L434,291L434,293L439,294L439,295L441,294L445,293L448,294L452,297L458,300L459,300L460,301L462,301L464,300L471,306L471,309L474,310L476,308L480,308L482,310L487,310L489,312L492,315L492,317L489,319L488,322L486,322L485,325L487,326L486,327L483,326L482,328L482,330L482,332L482,334L484,337L485,337L487,339L488,341L487,342Z","cx":423,"cy":351},"ms":{"d":"M290,342L292,343L294,343L296,344L297,343L302,344L301,345L301,348L303,348L306,349L303,352L304,353L307,354L309,353L311,354L312,356L314,356L316,358L318,358L319,359L322,361L326,361L331,364L333,366L331,370L332,372L332,375L331,378L327,379L322,385L323,388L321,389L320,391L319,391L319,393L318,396L316,398L316,399L313,404L312,406L310,408L303,412L301,414L300,416L295,419L294,420L294,422L292,426L289,428L286,436L284,437L282,435L279,433L273,436L269,436L268,435L268,432L266,430L266,428L267,426L266,425L266,423L265,423L264,419L265,415L263,413L263,411L262,409L256,409L254,407L254,406L252,406L250,409L249,408L247,409L245,408L242,409L237,407L236,406L233,407L231,406L232,403L231,402L232,400L231,397L233,394L233,390L233,389L232,387L233,387L232,384L231,385L231,381L229,379L228,376L233,373L229,370L234,359L235,359L234,357L237,347L238,347L237,345L235,341L234,338L234,337L235,336L236,340L239,341L242,340L243,340L245,338L245,337L247,336L249,333L250,333L252,333L253,333L256,331L259,331L259,332L265,334L266,335L270,336L272,338L276,338L278,336L280,335L283,337L283,338L286,337L287,338L288,336L291,334L291,333L293,332L293,338L290,339L289,342ZM290,342L290,342L290,342Z","cx":276,"cy":379},"mt":{"d":"M197,273L198,270L201,267L201,263L205,259L203,257L203,255L202,254L202,252L200,251L200,247L203,245L202,242L202,241L199,240L197,240L195,239L179,239L180,236L180,234L181,230L179,226L180,222L180,220L180,219L179,216L178,213L180,213L179,211L181,208L179,207L196,207L223,207L226,205L224,205L225,204L225,202L226,200L226,196L225,193L228,189L228,187L229,186L230,186L232,190L233,195L236,198L235,201L236,206L239,207L239,207L242,209L244,211L245,213L248,213L249,216L250,215L279,217L314,220L343,222L342,225L340,226L340,229L339,230L338,233L337,234L338,235L337,237L337,240L335,246L336,248L336,250L337,252L336,254L336,257L337,257L337,260L336,263L337,263L337,266L339,266L338,268L337,269L338,272L336,275L335,276L334,279L333,279L334,284L332,287L332,289L332,291L329,298L327,299L327,298L324,299L322,301L321,306L319,311L317,311L314,312L312,314L309,316L309,316L307,318L308,320L306,324L303,326L301,329L300,333L299,339L301,341L302,344L297,343L296,344L294,343L292,343L290,342L290,342L289,342L290,339L293,338L293,332L291,333L291,334L288,336L287,338L286,337L283,338L283,337L280,335L278,336L276,338L272,338L270,336L266,335L265,334L259,332L259,331L256,331L253,333L252,333L250,333L249,333L247,336L245,337L245,338L243,340L242,340L239,341L236,340L235,336L234,337L232,335L231,336L227,334L225,331L224,327L224,323L226,321L226,317L224,318L209,317L199,317L198,305L194,300L198,300L198,292L195,288L195,285L196,283L195,282L195,280L192,279L193,277L196,275ZM197,273L197,273L197,273Z","cx":261,"cy":268},"pa":{"d":"M390,90L390,92L391,90L391,91L394,90L395,91L394,93L396,93L396,92L397,94L399,94L401,92L401,94L403,95L402,97L401,98L402,98L401,100L402,103L400,104L401,107L400,110L398,111L397,114L398,116L395,117L394,119L395,120L394,121L394,122L392,127L390,128L390,129L389,131L388,135L387,137L385,138L384,140L383,141L381,144L380,146L378,146L364,156L368,158L369,157L371,159L373,160L372,162L371,162L371,164L372,165L370,166L371,167L369,169L369,171L368,171L366,173L366,175L363,177L360,177L357,179L358,184L355,188L356,190L358,192L358,196L356,201L355,201L355,203L352,207L351,207L348,210L347,212L345,214L345,218L343,222L314,220L279,217L250,215L249,216L248,213L245,213L244,211L242,209L239,207L239,207L236,206L235,201L236,198L233,195L232,190L230,186L229,186L228,183L224,179L224,177L224,175L227,173L237,150L245,134L247,130L254,115L253,114L254,112L256,111L258,108L256,109L254,111L252,110L251,111L248,110L249,109L247,108L245,107L244,105L242,104L240,104L239,103L234,101L231,98L231,97L230,95L228,97L227,96L226,96L224,94L224,92L223,91L220,88L220,85L218,84L218,80L218,79L218,75L218,61L219,62L220,61L223,61L224,59L223,58L225,58L226,56L228,57L229,58L231,57L231,55L236,55L238,54L239,52L241,50L241,51L243,50L245,52L246,51L248,52L249,51L251,52L253,51L256,52L259,53L261,52L259,47L257,46L258,45L260,44L260,43L263,44L267,44L268,44L269,43L272,43L275,42L276,44L277,47L277,50L278,54L283,54L286,56L287,58L290,58L294,60L295,62L297,61L296,63L297,66L301,69L300,74L303,79L304,81L307,84L307,86L308,88L309,87L310,89L309,92L311,91L311,94L312,95L315,96L316,96L320,96L322,94L322,91L323,89L325,87L327,84L329,81L331,80L332,79L335,78L338,75L340,71L341,70L345,69L345,71L345,74L347,75L351,74L354,78L355,79L360,82L362,83L369,83L369,84L368,86L375,89L376,87L377,89L378,87L379,87L381,89L381,88L383,90L382,88L385,88ZM398,93L398,93L398,93ZM403,95L403,95L403,95ZM389,89L389,89L389,89ZM398,94L398,94L398,94ZM377,89L377,89L377,89ZM397,94L397,94L397,94ZM399,93L399,93L399,93ZM395,91L395,91L395,91ZM395,92L395,92L395,92ZM389,90L389,90L389,90ZM397,93L397,93L397,93ZM401,93L401,93L401,93ZM390,90L390,90L390,90ZM389,90L389,90L389,90ZM400,93L400,93L400,93Z","cx":302,"cy":137},"pb":{"d":"M563,173L563,175L564,180L565,183L565,188L563,188L563,187L559,186L556,187L555,187L555,189L553,191L548,192L545,192L544,193L542,192L542,194L539,194L539,197L534,199L532,199L531,195L529,194L532,191L531,190L532,188L534,187L533,186L530,184L528,186L526,186L526,187L521,190L518,193L517,192L515,193L514,190L513,191L511,191L509,189L510,189L511,185L509,183L510,182L508,180L508,179L510,177L509,176L511,171L513,172L515,173L517,173L521,172L522,169L527,168L530,166L531,167L531,168L528,171L528,173L527,174L527,176L530,176L531,178L534,176L534,177L536,177L538,178L537,180L539,180L541,178L540,176L542,174L540,173L541,171L544,170L544,172L547,172L548,173L551,173L553,172L557,173L558,174L560,174ZM564,180L564,180L564,180Z","cx":536,"cy":182},"pe":{"d":"M565,188L565,190L565,192L565,195L563,199L563,200L561,205L560,208L556,207L552,208L551,207L549,208L546,209L546,210L544,211L544,212L541,213L539,215L538,214L535,214L534,215L532,213L530,213L529,211L526,209L524,210L523,208L520,212L518,212L516,214L515,212L515,209L513,210L512,209L512,208L511,207L510,209L508,207L506,207L504,206L501,205L501,203L499,203L496,205L495,205L495,206L492,207L492,209L491,210L488,211L486,211L485,215L484,215L481,217L479,216L481,212L479,211L477,207L476,207L474,205L471,205L473,204L474,203L476,201L479,200L479,199L481,197L482,194L483,193L481,192L481,189L480,187L482,186L486,186L487,187L491,186L492,185L495,185L499,187L502,190L504,192L505,193L506,191L509,189L511,191L513,191L514,190L515,193L517,192L518,193L521,190L526,187L526,186L528,186L530,184L533,186L534,187L532,188L531,190L532,191L529,194L531,195L532,199L534,199L539,197L539,194L542,194L542,192L544,193L545,192L548,192L553,191L555,189L555,187L556,187L559,186L563,187L563,188ZM600,135L600,135L600,135ZM600,135L600,135L600,135Z","cx":519,"cy":200},"pi":{"d":"M471,121L472,124L470,128L471,129L471,132L472,133L472,134L473,136L473,137L474,137L475,139L474,141L473,146L473,147L472,148L473,151L474,152L477,154L477,161L478,166L477,166L478,169L479,170L479,174L480,176L483,177L484,178L484,181L483,182L482,186L480,187L481,189L481,192L483,193L482,194L481,197L479,199L479,200L476,201L474,203L473,204L471,205L469,207L468,209L465,210L464,213L458,214L457,214L454,217L453,217L450,219L448,217L447,215L445,215L443,216L440,213L436,216L435,218L436,221L438,222L437,223L437,225L434,230L432,230L432,233L430,234L428,232L426,234L424,233L423,235L421,236L419,238L417,237L415,236L412,234L412,232L412,231L411,228L409,226L408,226L407,228L405,228L406,226L406,221L406,217L407,216L405,214L405,212L404,209L405,206L406,205L409,199L410,197L410,193L411,190L413,189L416,188L419,187L421,186L423,186L424,184L427,182L428,182L431,178L436,176L438,176L440,178L444,177L447,177L448,176L450,171L449,169L446,167L446,164L446,160L448,158L450,156L450,154L449,151L448,147L449,145L449,143L448,142L447,140L451,136L452,134L452,132L454,129L458,129L460,126L461,126L464,122L463,121L464,119L467,121Z","cx":447,"cy":186},"pr":{"d":"M373,457L370,461L369,462L366,468L361,468L358,468L355,470L353,472L351,471L348,469L348,469L346,468L343,469L342,468L341,470L339,468L338,468L335,471L332,472L332,472L329,473L327,475L328,477L328,478L325,479L324,477L317,477L316,476L310,474L307,474L303,474L301,474L299,472L296,473L293,472L292,469L291,468L291,465L290,462L287,461L287,460L283,461L282,463L280,461L279,459L281,457L282,454L282,451L284,447L284,443L285,442L283,438L284,437L286,436L289,428L292,426L294,422L294,420L295,419L300,416L301,414L303,414L307,415L309,414L314,415L315,415L315,413L318,414L319,415L324,416L325,415L328,415L329,416L333,417L336,420L336,419L339,420L341,419L343,420L345,419L347,419L347,421L350,422L351,425L352,427L352,430L353,431L352,434L353,435L355,440L358,442L356,445L356,447L364,447L366,447L368,448L367,449L367,453L367,454L369,452L370,453L371,452Z","cx":323,"cy":446},"rj":{"d":"M425,425L424,426L422,426L420,424L421,423L421,420L426,418L426,419L429,417L430,415L429,414L427,414L425,415L423,414L422,411L421,411L425,410L426,409L431,408L436,406L440,406L442,405L445,405L446,406L450,404L458,400L456,399L458,397L457,396L459,393L458,392L460,390L459,389L462,388L463,386L465,386L466,389L465,391L468,392L472,393L475,393L477,394L475,397L476,399L476,400L476,404L476,405L472,407L469,408L465,410L462,414L462,416L463,417L460,420L453,419L446,420L445,419L447,416L446,415L444,416L444,418L444,419L444,420L439,421L437,421L438,420L435,419L432,419L431,421L429,421L427,421L428,419L424,421L423,421L422,424L425,424ZM442,420L442,420L442,420ZM429,422L430,422L430,424L427,423ZM435,421L435,421L435,421ZM444,417L444,417L444,417ZM434,419L434,419L434,419ZM444,418L444,418L444,418ZM434,420L434,420L434,420ZM424,424L424,424L424,424ZM432,420L432,420L432,420ZM423,423L423,423L423,423ZM466,411L466,411L466,411ZM425,425L425,425L425,425ZM445,417L445,417L445,417ZM445,417L445,417L445,417ZM444,419L444,419L444,419ZM423,422L423,422L423,422ZM435,420L435,420L435,420ZM466,411L466,411L466,411ZM424,424L424,424L424,424ZM424,423L424,423L424,423ZM434,420L434,420L434,420ZM423,424L423,424L423,424ZM463,417L463,417L463,417ZM431,421L431,421L431,421ZM434,419L434,419L434,419ZM440,421L440,421L440,421ZM445,421L445,421L445,421ZM423,424L423,424L423,424ZM433,421L433,421L433,421ZM423,424L423,424L423,424ZM433,420L433,420L433,420ZM444,421L444,421L444,421ZM423,422L423,422L423,422ZM433,421L433,421L433,421ZM435,420L435,420L435,420ZM423,422L423,422L423,422Z","cx":452,"cy":408},"rn":{"d":"M563,173L560,174L558,174L557,173L553,172L551,173L548,173L547,172L544,172L544,170L541,171L540,173L542,174L540,176L541,178L539,180L537,180L538,178L536,177L534,177L534,176L531,178L530,176L527,176L527,174L528,173L528,171L531,168L531,167L530,166L527,168L522,169L521,172L517,173L515,173L513,172L511,171L511,170L513,167L515,167L517,165L519,162L518,161L521,159L522,154L524,150L530,149L531,150L535,151L538,153L541,152L544,153L549,152L555,154L556,155L559,158L560,164L561,166L561,169L562,169Z","cx":538,"cy":164},"ro":{"d":"M109,222L106,223L104,221L106,219L108,219L110,217L109,216L113,216L116,216L118,217L119,218L121,216L123,216L124,215L126,213L128,216L129,215L131,213L130,211L133,209L135,210L140,209L140,210L142,209L142,206L144,205L145,203L144,202L145,200L147,200L148,198L150,195L150,195L160,195L163,196L164,198L165,201L166,200L168,201L168,204L170,204L171,207L173,208L175,207L175,206L178,206L179,207L181,208L179,211L180,213L178,213L179,216L180,219L180,220L180,222L179,226L181,230L180,234L180,236L179,239L195,239L197,240L199,240L202,241L202,242L203,245L200,247L200,251L202,252L202,254L203,255L203,257L205,259L201,263L201,267L198,270L197,273L197,273L196,275L193,277L192,279L189,278L187,276L186,276L183,276L181,277L179,276L175,276L171,272L171,271L170,270L169,271L164,269L164,268L161,268L160,266L158,266L157,263L156,263L155,264L153,263L149,261L147,260L145,261L141,260L138,260L136,257L134,256L132,254L129,254L128,249L126,249L126,246L125,246L124,241L126,239L126,237L124,236L125,234L124,233L123,231L125,227L125,223L125,222L124,220L123,219L122,222L119,221L117,221L115,221L113,221L112,222ZM109,222L109,222L109,222Z","cx":161,"cy":238},"rr":{"d":"M218,61L218,75L201,75L199,81L197,83L196,87L197,90L195,91L194,92L191,92L190,89L186,86L184,86L184,87L181,89L180,90L179,92L179,95L179,97L180,102L179,100L176,99L174,99L173,96L169,93L167,91L166,90L169,88L168,87L170,84L169,82L168,81L168,79L167,78L166,74L165,73L165,69L166,68L166,65L165,64L164,59L161,56L162,54L163,51L161,50L158,50L156,48L154,48L153,47L153,44L149,45L147,45L143,43L144,40L143,37L141,34L141,33L140,30L141,28L140,26L137,25L132,19L133,17L134,18L136,20L138,19L142,20L144,22L145,23L146,22L148,23L149,21L150,23L151,24L152,22L155,22L156,24L158,25L157,26L159,27L161,25L162,26L162,21L165,21L165,20L167,19L171,20L173,19L176,19L177,18L179,18L180,16L182,15L183,14L187,14L188,12L191,10L193,8L192,4L197,4L199,3L202,6L201,11L199,14L204,14L206,16L206,19L207,20L207,20L209,22L207,26L204,28L205,29L205,31L202,35L202,40L203,44L203,45L206,46L206,50L205,52L207,52L206,54L208,54L212,59L214,60L217,60Z","cx":182,"cy":49},"rs":{"d":"M317,560L316,559L316,562L314,563L314,565L315,566L316,568L316,570L313,573L311,577L310,582L308,587L306,589L301,594L297,597L295,596L295,593L296,594L297,592L296,589L297,587L298,585L299,586L300,584L301,581L303,581L305,583L306,582L309,576L307,572L308,569L306,570L305,573L307,574L304,575L302,578L297,577L293,574L293,572L292,568L288,565L287,565L282,561L280,558L276,558L273,555L273,556L270,554L269,551L268,550L266,547L264,549L261,551L259,551L260,548L258,546L257,543L254,541L253,540L248,535L244,535L242,538L241,538L239,538L237,538L237,536L240,533L240,531L242,530L243,530L246,527L246,526L249,523L251,519L254,518L253,517L255,515L255,514L257,513L259,510L259,509L261,508L261,506L264,507L264,506L263,504L266,503L268,501L268,500L271,498L272,499L275,497L277,493L277,494L281,492L282,491L283,492L285,490L286,488L287,489L288,487L291,487L293,487L294,488L297,486L298,487L300,487L302,486L304,487L305,487L307,489L308,488L311,488L313,489L316,489L318,490L318,492L319,492L322,492L323,493L325,493L326,495L331,498L333,500L333,502L335,503L335,504L338,507L339,507L345,508L348,508L350,509L350,511L349,511L347,512L347,515L347,518L347,519L345,520L347,520L350,522L347,527L344,533L342,541L335,552L333,554L329,558L328,560L325,562L320,565L316,569L317,566L316,564L319,565L319,564L322,563L325,559L328,558L329,555L329,551L330,552L332,550L333,548L335,547L336,543L336,539L337,540L338,538L337,537L336,538L333,539L333,541L331,540L331,538L330,538L329,538L327,533L327,538L329,538L329,540L330,539L330,541L329,540L327,543L327,546L327,544L326,544L326,548L324,549L325,552L323,553L323,555L318,555ZM327,546L327,546L327,546ZM345,520L345,520L345,520ZM330,541L330,541L330,541ZM347,518L347,518L347,518ZM327,534L327,534L327,534ZM316,564L316,564L316,564ZM297,586L297,586L297,586ZM347,519L347,519L347,519ZM325,559L325,559L325,559ZM329,538L329,538L329,538ZM330,538L330,538L330,538ZM317,560L317,560L317,560ZM329,537L329,537L329,537Z","cx":298,"cy":529},"sc":{"d":"M293,472L296,473L299,472L301,474L303,474L307,474L310,474L316,476L317,477L324,477L325,479L328,478L328,477L327,475L329,473L332,472L332,472L335,471L338,468L339,468L341,470L342,468L343,469L346,468L348,469L348,469L351,471L353,472L355,470L358,468L361,468L366,468L367,471L368,471L366,474L365,479L365,480L366,481L366,482L366,486L367,487L366,488L367,489L366,492L367,494L366,494L367,499L366,501L363,510L358,513L354,517L350,522L347,520L345,520L345,520L347,519L347,519L347,518L347,518L347,515L347,512L349,511L350,511L350,509L348,508L345,508L339,507L338,507L335,504L335,503L333,502L333,500L331,498L326,495L325,493L323,493L322,492L319,492L318,492L318,490L316,489L313,489L311,488L308,488L307,489L305,487L304,487L302,486L300,487L298,487L297,486L294,488L293,487L291,487L291,485L293,482L292,480L293,474ZM369,490L370,491L369,493L367,498L367,492ZM367,492L367,492L367,492Z","cx":339,"cy":488},"se":{"d":"M542,232L539,233L536,235L535,236L530,243L529,245L526,247L524,247L522,246L520,245L520,242L519,242L518,239L516,238L516,235L518,235L519,235L522,234L522,232L521,230L523,229L522,224L520,224L520,222L519,220L519,217L525,220L527,221L531,223L536,227L540,229L540,230L542,230Z","cx":527,"cy":233},"sp":{"d":"M373,457L371,452L370,453L369,452L367,454L367,453L367,449L368,448L366,447L364,447L356,447L356,445L358,442L355,440L353,435L352,434L353,431L352,430L352,427L351,425L350,422L347,421L347,419L345,419L343,420L341,419L339,420L336,419L336,420L333,417L329,416L328,415L325,415L324,416L319,415L318,414L315,413L315,415L314,415L309,414L307,415L303,414L301,414L303,412L310,408L312,406L313,404L316,399L316,398L318,396L319,393L319,391L320,391L321,389L323,388L322,385L327,379L331,378L332,375L335,373L337,372L339,370L341,372L345,372L348,373L353,372L354,374L356,373L356,376L357,378L359,378L360,376L361,376L361,380L362,380L362,378L363,376L372,376L372,374L373,376L375,374L376,376L377,374L379,373L380,375L383,373L383,375L386,377L385,379L385,381L387,382L388,384L387,385L386,387L387,389L388,393L389,395L389,396L394,395L396,396L397,398L394,402L395,405L394,405L395,407L394,409L394,411L397,413L398,415L397,416L399,417L399,419L402,418L402,419L405,418L405,418L407,418L408,416L406,416L408,414L410,415L411,414L412,415L414,414L416,413L419,412L421,411L422,411L423,414L425,415L427,414L429,414L430,415L429,417L426,419L426,418L421,420L421,423L420,424L422,426L421,426L420,426L417,428L416,428L415,430L414,429L412,431L412,433L405,432L402,433L401,436L399,436L395,438L389,441L389,443L386,445L380,449L376,453L376,455ZM414,435L412,434L413,432L415,433ZM417,429L417,429L417,429ZM416,433L416,433L416,433ZM416,429L416,429L416,429ZM418,432L418,432L418,432ZM407,434L407,434L407,434ZM414,430L414,430L414,430ZM418,432L418,432L418,432ZM408,433L408,433L408,433ZM411,434L411,434L411,434ZM391,442L391,442L391,442ZM391,442L391,442L391,442ZM418,429L418,429L418,429ZM420,427L420,427L420,427ZM419,426L419,426L419,426ZM390,442L390,442L390,442ZM376,455L376,455L376,455ZM415,433L415,433L415,433ZM414,435L414,435L414,435ZM408,433L408,433L408,433ZM414,434L414,434L414,434ZM414,435L414,435L414,435ZM416,433L416,433L416,433ZM409,433L409,433L409,433Z","cx":365,"cy":409},"to":{"d":"M389,209L388,211L390,211L392,213L392,214L393,215L394,215L396,218L394,220L396,221L397,225L399,227L401,227L403,227L405,228L407,228L408,226L408,228L403,233L401,234L400,238L398,239L397,242L395,243L396,246L399,247L403,248L400,248L398,252L401,252L398,254L398,258L400,260L399,268L402,267L399,268L398,266L397,268L393,268L389,270L386,271L385,272L384,272L383,273L382,271L380,270L380,271L380,274L380,275L377,273L375,273L374,272L373,273L373,271L368,273L368,270L366,273L367,270L366,269L362,266L361,268L359,267L359,265L357,267L355,270L355,272L347,268L343,267L342,266L342,264L344,260L341,261L339,264L339,266L337,266L337,263L336,263L337,260L337,257L336,257L336,254L337,252L336,250L336,248L335,246L337,240L337,237L338,235L337,234L338,233L339,230L340,229L340,226L342,225L343,222L345,218L345,214L347,212L348,210L351,207L352,207L355,203L355,201L356,201L358,196L358,192L356,190L355,188L358,184L357,179L360,177L363,177L366,175L366,173L368,171L369,171L369,169L371,167L370,166L372,165L371,164L371,162L372,162L373,160L371,159L369,157L368,158L364,156L366,156L367,154L370,154L372,155L375,155L377,155L377,157L379,157L381,158L382,160L382,162L383,163L383,166L384,170L382,176L381,181L380,183L379,183L380,185L382,185L382,188L384,189L386,192L388,194L389,196L394,194L395,193L397,195L397,198L396,200L395,200L392,202L391,203L391,207L389,209Z","cx":370,"cy":227},"df":{"d":"M385,314L385,314L371,314L371,311L372,309L372,306L383,306L385,307L385,309L384,311Z","cx":378,"cy":310}}};
   const ESTADOS = {
     ac: "Acre", al: "Alagoas", am: "Amazonas", ap: "Amapá", ba: "Bahia", ce: "Ceará", df: "Distrito Federal",
     es: "Espírito Santo", go: "Goiás", ma: "Maranhão", mg: "Minas Gerais", ms: "Mato Grosso do Sul", mt: "Mato Grosso",
@@ -313,20 +355,35 @@ footer a { color: inherit; }
     "Sudeste": ["es", "mg", "rj", "sp"],
     "Sul": ["pr", "rs", "sc"],
   };
-  // Grade aproximada do mapa do Brasil: [linha, coluna]
-  const GRADE = {
-    rr: [0, 2], ap: [0, 4],
-    am: [1, 1], pa: [1, 3], ma: [1, 4], ce: [1, 5], rn: [1, 6],
-    ac: [2, 0], ro: [2, 1], mt: [2, 2], to: [2, 3], pi: [2, 4], pe: [2, 5], pb: [2, 6],
-    ms: [3, 2], go: [3, 3], df: [3, 4], ba: [3, 5], al: [3, 6],
-    sp: [4, 3], mg: [4, 4], es: [4, 5], se: [4, 6],
-    pr: [5, 3], rj: [5, 4],
-    sc: [6, 3],
-    rs: [7, 3],
+  // Estados pequenos: rótulo fora do mapa, ligado por uma linha
+  const ROTULO_FORA = { rn: [598, 140], pb: [604, 163], pe: [604, 186], al: [598, 209], se: [588, 232], es: [546, 372], rj: [500, 444], df: [440, 296] };
+  const ROTULO_AJUSTE = { ac: [64, 218], sc: [384, 512] };
+  // Cores dos partidos para os selos (cor principal, faixa, texto)
+  const PARTIDOS = {
+    PT: ["Partido dos Trabalhadores", "#c4122d", "#ffffff", "#ffffff"],
+    PL: ["Partido Liberal", "#1b3f8b", "#ffd200", "#ffffff"],
+    PP: ["Progressistas", "#0b4ea2", "#5cb8ff", "#ffffff"],
+    PSD: ["Partido Social Democrático", "#f2a900", "#1d4f9c", "#1b1b1b"],
+    MDB: ["Movimento Democrático Brasileiro", "#0a7c3e", "#ffd400", "#ffffff"],
+    "UNIÃO": ["União Brasil", "#0e2a63", "#f5c400", "#ffffff"],
+    REPUBLICANOS: ["Republicanos", "#0067b1", "#5ac8fa", "#ffffff"],
+    PSDB: ["Partido da Social Democracia Brasileira", "#0a5aa8", "#ffd400", "#ffffff"],
+    PSB: ["Partido Socialista Brasileiro", "#f7b500", "#d4161c", "#1b1b1b"],
+    PDT: ["Partido Democrático Trabalhista", "#d9232e", "#1d3f8f", "#ffffff"],
+    PSOL: ["Partido Socialismo e Liberdade", "#ffcc00", "#c8102e", "#1b1b1b"],
+    NOVO: ["Partido Novo", "#f26522", "#1b1b1b", "#ffffff"],
+    PODE: ["Podemos", "#2d9a47", "#0a3d91", "#ffffff"],
+    AVANTE: ["Avante", "#ff6f00", "#1d3f8f", "#ffffff"],
+    SOLIDARIEDADE: ["Solidariedade", "#f68b1f", "#1b1b1b", "#ffffff"],
+    CIDADANIA: ["Cidadania", "#e4007c", "#1b1b1b", "#ffffff"],
+    PCdoB: ["Partido Comunista do Brasil", "#c00000", "#ffd400", "#ffffff"],
+    PV: ["Partido Verde", "#00953a", "#ffd400", "#ffffff"],
+    REDE: ["Rede Sustentabilidade", "#00a19a", "#f5821f", "#ffffff"],
   };
 
   // ---------- Utilidades ----------
   const $ = (id) => document.getElementById(id);
+  const SVGNS = "http://www.w3.org/2000/svg";
   function num(v) {
     if (v == null || v === "") return NaN;
     if (typeof v === "number") return v;
@@ -346,47 +403,70 @@ footer a { color: inherit; }
     for (const f of filhos) if (f != null) e.append(f);
     return e;
   }
+  function svg(tag, attrs) {
+    const e = document.createElementNS(SVGNS, tag);
+    for (const k in attrs || {}) e.setAttribute(k, attrs[k]);
+    return e;
+  }
   function titulo(nome) {
-    return String(nome || "").toLowerCase().replace(/(^|\s)\S/g, (m) => m.toUpperCase()).replace(/\b(Da|De|Do|Das|Dos|E)\b/g, (m) => m.toLowerCase());
+    return String(nome || "").replace(/\bFLAVIO\b/g, "FLÁVIO").toLowerCase().replace(/(^|\s)\S/g, (m) => m.toUpperCase()).replace(/\b(Da|De|Do|Das|Dos|E)\b/g, (m) => m.toLowerCase());
+  }
+  function iniciais(nome) {
+    const p = String(nome || "").split(/\s+/).filter((x) => x.length > 2);
+    return ((p[0] || "?")[0] + (p.length > 1 ? p[p.length - 1][0] : "")).toUpperCase();
   }
   function lsLer(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } }
   function lsGravar(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sem armazenamento */ } }
 
+  // Selo do partido em forma de bandeira
+  function bandeira(sigla) {
+    const p = PARTIDOS[sigla] || [sigla, "#5b6577", "#9aa6bb", "#ffffff"];
+    return el("span", { class: "bandeira", title: p[0], style: "--p1:" + p[1] + ";--p2:" + p[2] + ";--tx:" + p[3] }, sigla);
+  }
+  function nomePartido(sigla) { return (PARTIDOS[sigla] || [sigla])[0]; }
+
+  // Foto oficial com anel que mostra o % do candidato; sem foto, as iniciais
+  function foto(c, cor, tam) {
+    const dentro = el("div");
+    const ini = el("span", { class: "iniciais" }, iniciais(c && c.nome));
+    if (c && /^\d+$/.test(c.sq || "")) {
+      const img = el("img", { src: "fotos/" + c.sq + ".jpeg", alt: titulo(c.nome), loading: "lazy" });
+      img.addEventListener("error", () => img.replaceWith(ini));
+      dentro.append(img);
+    } else {
+      dentro.append(ini);
+    }
+    const pct = c && Number.isFinite(c.pvap) ? c.pvap : 0;
+    return el("div", { class: "foto", style: "--cor:" + cor + ";--pct:" + pct + "%" + (tam ? ";--tam:" + tam + "px" : "") }, dentro,
+      c && c.n ? el("span", { class: "numero" }, c.n) : null);
+  }
+
   // ---------- Estado da página ----------
-  // Os números chegam pelo banco do painel: um GitHub Action lê o TSE a cada minuto
+  // Os números chegam pelo banco do painel: um GitHub Action lê o TSE a cada 5 s
   // e a sessão do Claude repassa cada atualização para os documentos apuracao/*.
   const st = {
-    pres: {},          // uf|"br"|"zz" -> recorte
-    gov: {},           // uf -> recorte
-    govAusente: {},
-    primeiro: {},      // uf|"br" -> {a, b, va, vb}
-    hist: {},          // "p:br" -> [{t, pst, c:[{n, pvap}]}]
+    pres: {}, gov: {}, primeiro: {}, hist: {},
     sel: lsLer("apuracao-uf") || "sp",
     eixo: "hora",
     ordem: { col: "uf", dir: 1 },
-    repassadoEm: 0,
-    ok: false,
-    semBanco: false,
+    recebidoEm: 0, ok: false, semBanco: false,
   };
   if (!ESTADOS[st.sel]) st.sel = "sp";
-
-  function momento(p) { return p.t; }
+  let escopoEvo = "br";
 
   function recortePresidente(r) {
     const cand = (k) => r[k + "_nome"] ? {
-      n: String(r[k + "_numero"] || ""), nome: r[k + "_nome"], partido: r[k + "_partido"] || "",
+      n: String(r[k + "_numero"] || ""), sq: String(r[k + "_sq"] || ""), nome: r[k + "_nome"], partido: r[k + "_partido"] || "",
       vap: num(r[k + "_votos"]) || 0, pvap: num(r[k + "_pct"]), eleito: !!r[k + "_eleito"], lado: k,
     } : null;
     return {
-      dg: r.dg || "", hg: r.hg || "", andamento: r.pst >= 100 ? "Final" : "Parcial",
-      pst: num(r.pst) || 0, st: num(r.secoes_apuradas), ts: num(r.secoes_total),
+      dg: r.dg || "", hg: r.hg || "", pst: num(r.pst) || 0, st: num(r.secoes_apuradas), ts: num(r.secoes_total),
       eleitorado: num(r.eleitorado), comparecimento: num(r.comparecimento), pComparecimento: num(r.p_comparecimento),
       abstencao: num(r.abstencao), pAbstencao: num(r.p_abstencao), validos: num(r.validos),
       brancos: num(r.brancos), pBrancos: num(r.p_brancos), nulos: num(r.nulos), pNulos: num(r.p_nulos),
       cands: [cand("a"), cand("b")].filter(Boolean),
     };
   }
-
   function receberPresidente(doc) {
     st.pres = {};
     st.primeiro = {};
@@ -397,25 +477,22 @@ footer a { color: inherit; }
     }
     st.ok = !!st.pres.br;
   }
-
   function receberGovernadores(doc) {
     st.gov = {};
     for (const r of doc.rows || []) {
       const uf = String(r.uf || "").toLowerCase();
       const rec = st.gov[uf] || (st.gov[uf] = { pst: num(r.pst) || 0, hg: r.hora || "", cands: [] });
-      rec.cands.push({ n: String(r.numero || ""), nome: r.nome, partido: r.partido || "", vap: num(r.votos) || 0, pvap: num(r.pct), eleito: !!r.eleito, ordem: r.ordem || 0 });
+      rec.cands.push({ n: String(r.numero || ""), sq: String(r.sq || ""), nome: r.nome, partido: r.partido || "", vap: num(r.votos) || 0, pvap: num(r.pct), eleito: !!r.eleito, ordem: r.ordem || 0 });
     }
     for (const uf in st.gov) st.gov[uf].cands.sort((x, y) => x.ordem - y.ordem);
-    for (const uf of UFS) if (!st.gov[uf]) st.govAusente[uf] = 1;
   }
-
   // historico: {cols: ["uf","t","pst","a","b"], rows: [[...], ...]}
   function receberHistorico(doc) {
     st.hist = {};
     for (const r of doc.rows || []) {
       const [uf, t, pst, a, b] = r;
-      const chave = "p:" + String(uf).toLowerCase();
-      (st.hist[chave] || (st.hist[chave] = [])).push({ t: Date.parse(t), pst: num(pst), c: [{ n: "13", pvap: num(a) }, { n: "22", pvap: num(b) }] });
+      const k = String(uf).toLowerCase();
+      (st.hist[k] || (st.hist[k] = [])).push({ t: Date.parse(t), pst: num(pst), a: num(a), b: num(b) });
     }
     for (const k in st.hist) st.hist[k].sort((x, y) => x.t - y.t);
   }
@@ -432,7 +509,7 @@ footer a { color: inherit; }
       if (!snap.exists) { desenhar(); return; }
       const d = snap.data();
       receber(d);
-      if (id === "presidente") st.repassadoEm = Date.parse(d.repassado_em || "") || 0;
+      if (id === "presidente") st.recebidoEm = Date.parse(d.repassado_em || "") || 0;
       mostrarErro(st.ok ? "" : "Aguardando a primeira leitura do TSE.");
       desenhar();
     }, (e) => mostrarErro("A conexão com os dados caiu (" + e.code + "). Recarregue a página para voltar a receber as atualizações."));
@@ -440,52 +517,70 @@ footer a { color: inherit; }
     assinar("governadores", receberGovernadores);
     assinar("historico", receberHistorico);
   }
-
   function mostrarErro(texto) {
     const e = $("erro");
     e.hidden = !texto;
     e.textContent = texto || "";
   }
 
-  // ---------- Desenho ----------
-  function corLado(c, i) {
-    if (c && c.lado === "a") return "var(--a)";
-    if (c && c.lado === "b") return "var(--b)";
-    return i === 0 ? "var(--g1)" : "var(--g2)";
-  }
+  // ---------- Ajudas de desenho ----------
   function par(rec) {
-    const c = rec && rec.cands || [];
-    const a = c.find((x) => x.lado === "a") || c[0];
-    const b = c.find((x) => x.lado === "b") || c.find((x) => x !== a);
-    return [a, b];
+    const c = (rec && rec.cands) || [];
+    return [c.find((x) => x.lado === "a") || c[0], c.find((x) => x.lado === "b") || c[1]];
+  }
+  function cor(c) { return c && c.lado === "b" ? "var(--b)" : "var(--a)"; }
+  // Governador: cor do partido; se os dois partidos tiverem cores parecidas, o segundo usa a cor de apoio
+  function coresGov(cands) {
+    const c1 = (PARTIDOS[cands[0] && cands[0].partido] || [0, "#c27a1a"])[1];
+    let c2 = (PARTIDOS[cands[1] && cands[1].partido] || [0, "#0f8b7a"])[1];
+    const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+    const d = rgb(c1).reduce((t, v, i) => t + Math.abs(v - rgb(c2)[i]), 0);
+    if (d < 120) c2 = "var(--g2)";
+    return [c1, c2];
+  }
+  function lider(rec) {
+    const [a, b] = par(rec);
+    if (!a || !b || !(rec.pst > 0) || a.vap === b.vap) return null;
+    return a.vap > b.vap ? a : b;
+  }
+  function corMargem(rec) {
+    const [a, b] = par(rec);
+    if (!a || !b || !(rec && rec.pst > 0)) return { fill: "var(--mapa-base)", claro: false };
+    const m = a.pvap - b.pvap, f = Math.abs(m);
+    const nivel = f < 5 ? 1 : f < 15 ? 2 : f < 30 ? 3 : 4;
+    const pct = [0, 32, 55, 78, 100][nivel];
+    return { fill: "color-mix(in srgb, " + (m >= 0 ? "var(--a)" : "var(--b)") + " " + pct + "%, var(--mapa-base))", claro: nivel >= 3 };
   }
 
+  // ---------- Desenho ----------
   function desenhar() {
     desenharTopo();
     desenharPlacar();
+    desenharMapa();
+    desenharEstado();
     desenharCenarios();
     desenharEvolucao();
-    desenharMapa();
     desenharRegioes();
-    desenharEstado();
     desenharTabela();
     desenharGovernadores();
   }
 
   function desenharTopo() {
     const br = st.pres.br;
-    $("atualizacao").textContent = br ? "TSE: " + br.dg + " às " + br.hg + " (Brasília)" : (st.semBanco ? "Sem acesso aos dados" : "Aguardando os dados…");
+    $("t-tse").innerHTML = "";
+    if (br) $("t-tse").append("TSE ", el("b", null, br.hg), " · ", el("b", null, fmtPct(br.pst)), " totalizado");
+    else $("t-tse").textContent = st.semBanco ? "Sem acesso aos dados" : "Aguardando o TSE…";
     const final = br && br.pst >= 100;
     $("aovivo").classList.toggle("parado", !br || final);
     $("aovivo").textContent = final ? "FINAL" : "AO VIVO";
-    const n = st.hist["p:br"] ? st.hist["p:br"].length : 0;
-    $("rodape-hist").textContent = n ? "Histórico: " + n + " leituras do Brasil desde o início da coleta." : "";
-    desenharRelogio();
+    const n = st.hist.br ? st.hist.br.length : 0;
+    $("rodape").textContent = n ? "Histórico com " + n + " leituras do Brasil desde o início da coleta." : "";
+    relogio();
   }
-  function desenharRelogio() {
-    if (!st.repassadoEm) { $("proxima").textContent = ""; return; }
-    const s = Math.max(0, Math.round((Date.now() - st.repassadoEm) / 1000));
-    $("proxima").textContent = "dados recebidos há " + (s < 90 ? s + " s" : Math.round(s / 60) + " min") + " · atualiza sozinho";
+  function relogio() {
+    if (!st.recebidoEm) { $("t-recebido").textContent = ""; return; }
+    const s = Math.max(0, Math.round((Date.now() - st.recebidoEm) / 1000));
+    $("t-recebido").textContent = "recebido há " + (s < 90 ? s + " s" : Math.round(s / 60) + " min");
   }
 
   function desenharPlacar() {
@@ -493,66 +588,185 @@ footer a { color: inherit; }
     const placar = $("placar");
     placar.textContent = "";
     if (!br) {
-      placar.append(el("div", { class: "card", style: "grid-column:1/-1" }, st.ok ? "O arquivo do Brasil ainda não lista candidatos." : "Carregando a apuração…"));
+      placar.append(el("div", { class: "card", style: "grid-column:1/-1" }, "Carregando a apuração…"));
       return;
     }
+    $("pst").textContent = fmtPct(br.pst);
+    $("pst-barra").style.width = Math.min(100, br.pst) + "%";
+    $("secoes").textContent = fmtInt(br.st) + " de " + fmtInt(br.ts) + " seções";
     const [a, b] = par(br);
-    const bloco = (c, dir, i) => {
-      if (!c) return el("div", { class: "cand" });
-      const lider = (a && b) && c.vap === Math.max(a.vap, b.vap) && a.vap !== b.vap;
-      return el("div", { class: "cand" + (dir ? " dir" : ""), style: "--cor:" + corLado(c, i) },
-        c.eleito ? el("span", { class: "selo" }, "Eleito") : (lider ? el("span", { class: "label", style: "color:" + corLado(c, i) }, "À frente") : el("span", { class: "label" }, " ")),
-        el("div", { class: "nome" }, c.nome),
-        el("div", { class: "partido" }, c.partido + " · " + c.n),
-        el("div", { class: "pct" }, fmtPct(c.pvap)),
-        el("div", { class: "votos" }, fmtInt(c.vap) + " votos"));
+    const lid = lider(br);
+    const p1 = st.primeiro.br || {};
+    const bloco = (c, dir) => {
+      if (!c) return el("div");
+      const selo = c.eleito ? el("span", { class: "selo eleito" }, "✓ Eleito")
+        : el("span", { class: "selo" + (lid === c ? "" : " vazio") }, "À frente");
+      return el("article", { class: "cand" + (dir ? " dir" : ""), style: "--cor:" + cor(c) },
+        foto(c, cor(c)),
+        el("div", { class: "dados" },
+          selo,
+          el("div", { class: "nome" }, titulo(c.nome)),
+          el("div", { class: "partido" }, bandeira(c.partido), el("span", null, nomePartido(c.partido))),
+          el("div", { class: "pct" }, fmtPct(c.pvap)),
+          el("div", { class: "votos" }, fmtInt(c.vap) + " votos"),
+          el("div", { class: "p1" }, "1º turno: " + fmtPct(c.lado === "a" ? p1.a : p1.b))));
     };
-    placar.append(bloco(a, false, 0), anel(br), bloco(b, true, 1));
+    const dif = a && b ? Math.abs(a.vap - b.vap) : NaN;
+    placar.append(bloco(a, false),
+      el("div", { class: "vs" },
+        el("span", { class: "rotulo" }, "Diferença"),
+        el("div", { class: "dif" }, fmtInt(dif), el("small", null, "votos")),
+        el("div", { class: "dif", style: "font-size:1.3rem" }, a && b ? fmtPp(Math.abs(a.pvap - b.pvap)) : "–")),
+      bloco(b, true));
 
-    const barra = $("barra-br");
-    barra.querySelectorAll(".seg").forEach((x) => x.remove());
-    const pa = a ? a.pvap : 0, pb = b ? b.pvap : 0;
-    barra.prepend(el("div", { class: "seg", style: "width:" + pa + "%;background:" + corLado(a, 0) }));
-    barra.insertBefore(el("div", { class: "seg", style: "width:" + pb + "%;background:" + corLado(b, 1) }), barra.querySelector(".metade"));
-    const dif = $("diferenca-br");
-    dif.textContent = "";
+    const cabo = $("cabo-br");
+    cabo.textContent = "";
     if (a && b) {
-      const lider = a.vap >= b.vap ? a : b;
-      dif.append(
-        el("span", null, "Diferença: " + fmtInt(Math.abs(a.vap - b.vap)) + " votos para " + titulo(lider.nome)),
-        el("span", null, fmtPp(Math.abs(a.pvap - b.pvap))),
-        el("span", { class: "muted" }, "Linha central = 50% dos válidos"));
+      cabo.append(
+        el("div", { class: "seg a", style: "width:" + a.pvap + "%;background:var(--a)" }, fmtPct(a.pvap)),
+        el("div", { class: "seg b", style: "width:" + b.pvap + "%;background:var(--b)" }, fmtPct(b.pvap)),
+        el("div", { class: "meio" }));
+      $("cabo-esq").textContent = titulo(a.nome);
+      $("cabo-dir").textContent = titulo(b.nome);
     }
-    $("pres-status").textContent = (br.andamento ? br.andamento + " · " : "") + "% dos votos válidos";
 
     const k = $("kpis");
     k.textContent = "";
-    const kpi = (rotulo, v, s) => el("div", { class: "kpi" }, el("span", { class: "label" }, rotulo), el("span", { class: "v" }, v), el("span", { class: "s" }, s));
+    const kpi = (r, v, s) => el("div", { class: "kpi" }, el("span", { class: "rotulo" }, r), el("span", { class: "v" }, v), el("span", { class: "s" }, s));
     k.append(
-      kpi("Seções apuradas", fmtInt(br.st), "de " + fmtInt(br.ts)),
-      kpi("Votos válidos", fmtInt(br.validos), br.comparecimento ? fmtPct(br.validos / br.comparecimento * 100) + " de quem votou" : "nominais"),
+      kpi("Votos válidos", fmtInt(br.validos), br.comparecimento ? fmtPct(br.validos / br.comparecimento * 100) + " de quem votou" : ""),
       kpi("Brancos", fmtInt(br.brancos), fmtPct(br.pBrancos)),
       kpi("Nulos", fmtInt(br.nulos), fmtPct(br.pNulos)),
-      kpi("Comparecimento", fmtInt(br.comparecimento), fmtPct(br.pComparecimento) + " do eleitorado"),
+      kpi("Comparecimento", fmtInt(br.comparecimento), fmtPct(br.pComparecimento) + " das seções apuradas"),
       kpi("Abstenção", fmtInt(br.abstencao), fmtPct(br.pAbstencao)),
-      kpi("Eleitorado", fmtInt(br.eleitorado), "aptos a votar"));
+      kpi("Eleitorado", fmtInt(br.eleitorado), "aptos a votar no país"));
   }
 
-  function anel(rec) {
-    const r = 50, c = 2 * Math.PI * r, p = Math.max(0, Math.min(100, rec.pst));
-    const ns = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(ns, "svg");
-    svg.setAttribute("viewBox", "0 0 120 120");
-    svg.setAttribute("class", "anel");
-    svg.setAttribute("role", "img");
-    svg.setAttribute("aria-label", fmtPct(p) + " das urnas apuradas");
-    svg.innerHTML = '<circle cx="60" cy="60" r="50" fill="none" stroke="var(--line)" stroke-width="12"/>' +
-      '<circle cx="60" cy="60" r="50" fill="none" stroke="var(--fg)" stroke-width="12" stroke-linecap="butt" transform="rotate(-90 60 60)" stroke-dasharray="' + (c * p / 100) + " " + c + '"/>';
-    return el("div", { class: "meio" }, svg, el("div", { class: "apurado" }, fmtPct(p)), el("div", { class: "label" }, "urnas apuradas"));
+  // ---------- Mapa ----------
+  let mapaPronto = false;
+  const caminhos = {}, rotulos = {};
+  function montarMapa() {
+    const box = $("mapa-box");
+    const s = svg("svg", { viewBox: "0 0 " + (MAPA.w + 70) + " " + MAPA.h, role: "group", "aria-label": "Mapa do Brasil por estado" });
+    const gPaths = svg("g"), gRot = svg("g");
+    for (const uf of UFS) {
+      const g = MAPA.uf[uf];
+      const p = svg("path", { d: g.d, tabindex: "0", role: "button", "aria-label": ESTADOS[uf] });
+      p.addEventListener("click", () => selecionar(uf));
+      p.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selecionar(uf); } });
+      p.addEventListener("mousemove", (e) => dica(uf, e));
+      p.addEventListener("mouseleave", () => dica(null));
+      gPaths.append(p);
+      caminhos[uf] = p;
+      const fora = ROTULO_FORA[uf];
+      const [x, y] = fora || ROTULO_AJUSTE[uf] || [g.cx, g.cy];
+      // Fora do mapa: uma linha só ("PE 71,3%"), ligada ao estado
+      if (fora) gRot.append(svg("line", { x1: g.cx, y1: g.cy, x2: x - 4, y2: y - 4 }));
+      const t1 = svg("text", fora ? { x, y, class: "uf", style: "text-anchor:start" } : { x, y: y - 2, class: "uf" });
+      t1.textContent = uf.toUpperCase();
+      const t2 = svg("text", fora ? { x: x + 24, y, style: "text-anchor:start" } : { x, y: y + 11 });
+      gRot.append(t1, t2);
+      rotulos[uf] = [t1, t2, !!fora];
+    }
+    s.append(gPaths, gRot);
+    box.append(s);
+    const leg = $("legenda-mapa");
+    const item = (corVar, pct) => { const i = el("i"); i.style.background = "color-mix(in srgb, " + corVar + " " + pct + "%, var(--mapa-base))"; return i; };
+    leg.append(el("span", { id: "leg-a" }, "Lula"), item("var(--a)", 100), item("var(--a)", 78), item("var(--a)", 55), item("var(--a)", 32),
+      item("var(--b)", 32), item("var(--b)", 55), item("var(--b)", 78), item("var(--b)", 100), el("span", { id: "leg-b" }, "Flávio"),
+      el("span", { style: "flex-basis:100%;text-align:center" }, "vantagem: até 5, 5 a 15, 15 a 30 e acima de 30 p.p."));
+    mapaPronto = true;
+  }
+  function desenharMapa() {
+    if (!MAPA) return;
+    if (!mapaPronto) montarMapa();
+    for (const uf of UFS) {
+      const rec = st.pres[uf];
+      const c = corMargem(rec);
+      const p = caminhos[uf];
+      p.style.fill = c.fill;
+      p.classList.toggle("sel", uf === st.sel);
+      const lid = rec ? lider(rec) : null;
+      p.setAttribute("aria-label", ESTADOS[uf] + (lid ? ": " + titulo(lid.nome) + " " + fmtPct(lid.pvap) : ": sem votos apurados"));
+      const [t1, t2, fora] = rotulos[uf];
+      const cl = !fora && c.claro ? "#ffffff" : "var(--fg)";
+      t1.style.fill = cl;
+      t2.style.fill = cl;
+      t2.textContent = lid ? fmtPct(lid.pvap, 1) : "";
+    }
+    const [a, b] = par(st.pres.br);
+    if (a) $("leg-a").textContent = titulo(a.nome);
+    if (b) $("leg-b").textContent = titulo(b.nome);
+    // Mantém a seleção por cima das bordas vizinhas
+    const sel = caminhos[st.sel];
+    if (sel && sel.parentNode.lastChild !== sel) sel.parentNode.append(sel);
+  }
+  function dica(uf, e) {
+    const box = $("mapa-box");
+    let d = box.querySelector(".dica");
+    if (!uf) { if (d) d.remove(); return; }
+    if (!d) { d = el("div", { class: "dica" }); box.append(d); }
+    const rec = st.pres[uf];
+    const [a, b] = par(rec);
+    d.textContent = "";
+    d.append(el("b", null, ESTADOS[uf]), el("span", { class: "muted" }, rec ? fmtPct(rec.pst) + " das seções totalizadas" : "sem dados"));
+    if (a && b) {
+      d.append(el("div", { class: "l" }, el("span", { style: "color:var(--a);font-weight:700" }, titulo(a.nome)), el("span", null, fmtPct(a.pvap))),
+        el("div", { class: "l" }, el("span", { style: "color:var(--b);font-weight:700" }, titulo(b.nome)), el("span", null, fmtPct(b.pvap))));
+    }
+    if (st.gov[uf]) d.append(el("span", { class: "muted" }, "Tem 2º turno para governador"));
+    const r = box.getBoundingClientRect();
+    let x = e.clientX - r.left + 14, y = e.clientY - r.top + 14;
+    if (x + 210 > r.width) x = e.clientX - r.left - 214;
+    if (y + 140 > r.height) y = e.clientY - r.top - 140;
+    d.style.left = Math.max(0, x) + "px";
+    d.style.top = Math.max(0, y) + "px";
   }
 
-  // Votos que ainda faltam e projeção simples: cada estado (e o exterior) mantém a proporção
-  // de votos válidos por seção e a divisão entre os candidatos que já apurou
+  function linhaCand(c, corC, tamFoto) {
+    return el("div", { class: "linha-cand", style: "--cor:" + corC },
+      foto(c, corC, tamFoto || 56),
+      el("span", { class: "n" }, titulo(c.nome), bandeira(c.partido), c.eleito ? el("span", { class: "selo eleito", style: "--cor:var(--ok)" }, "✓ Eleito") : null),
+      el("span", { class: "p" }, fmtPct(c.pvap)),
+      el("div", { class: "barra" }, el("div", { style: "width:" + (c.pvap || 0) + "%" })),
+      el("span", { class: "vv" }, fmtInt(c.vap) + " votos"));
+  }
+
+  function desenharEstado() {
+    const uf = st.sel;
+    const box = $("estado");
+    box.textContent = "";
+    const rec = st.pres[uf];
+    box.append(el("div", { class: "titulo" }, el("h3", null, ESTADOS[uf]),
+      el("span", { class: "muted num" }, rec ? fmtPct(rec.pst) + " totalizado · TSE " + rec.hg : "sem dados")));
+    if (rec) box.append(el("div", { class: "trilho" }, el("div", { style: "width:" + Math.min(100, rec.pst) + "%" })));
+    box.append(el("span", { class: "rotulo" }, "Presidente"));
+    const [a, b] = par(rec);
+    if (a && b) {
+      box.append(linhaCand(a, cor(a)), linhaCand(b, cor(b)));
+      const p1 = st.primeiro[uf] || {};
+      box.append(el("div", { class: "notas" },
+        el("span", null, "Diferença: " + fmtInt(Math.abs(a.vap - b.vap)) + " votos (" + fmtPp(Math.abs(a.pvap - b.pvap)) + ")"),
+        el("span", null, "Brancos " + fmtPct(rec.pBrancos) + " · Nulos " + fmtPct(rec.pNulos) + " · Abstenção " + fmtPct(rec.pAbstencao)),
+        el("span", null, "1º turno: " + titulo(a.nome) + " " + fmtPct(p1.a) + " · " + titulo(b.nome) + " " + fmtPct(p1.b))));
+    } else {
+      box.append(el("p", { class: "muted" }, "Ainda sem votos apurados neste estado."));
+    }
+    const gv = st.gov[uf];
+    if (gv && gv.cands.length >= 2) {
+      const cores = coresGov(gv.cands);
+      box.append(el("div", { class: "bloco-gov" },
+        el("span", { class: "rotulo" }, "Governador · 2º turno · " + fmtPct(gv.pst) + " totalizado"),
+        linhaCand(gv.cands[0], cores[0], 48), linhaCand(gv.cands[1], cores[1], 48)));
+    }
+    const graf = el("div", { class: "grafico" });
+    box.append(el("span", { class: "rotulo" }, "Evolução no estado"), graf);
+    grafico(graf, st.hist[uf] || [], [a, b], st.eixo, 220, "uf");
+  }
+
+  // ---------- Cenários ----------
+  // Votos que faltam e projeção simples: cada estado (e o exterior) mantém a média de votos
+  // válidos por seção e a divisão entre os candidatos que já apurou
   function projecao() {
     let faltam = 0, fa = 0, fb = 0, base = 0;
     for (const uf of UFS.concat("zz")) {
@@ -567,264 +781,188 @@ footer a { color: inherit; }
     }
     return { faltam, a: fa / (fa + fb) * 100, b: fb / (fa + fb) * 100, base };
   }
-
   function desenharCenarios() {
-    const box = $("cenarios");
+    const box = $("lista-cenarios");
     box.textContent = "";
     const br = st.pres.br;
-    if (!br) return;
     const [a, b] = par(br);
-    if (!a || !b) return;
-    const cen = (t, v, p) => el("div", { class: "cenario" }, el("span", { class: "t" }, t), el("span", { class: "v" }, v), el("p", null, p));
-    const lider = a.vap >= b.vap ? a : b, atras = lider === a ? b : a;
+    if (!br || !a || !b) return;
+    const cen = (t, v, p, extra) => el("div", { class: "cenario" + (extra ? " " + extra : "") }, el("span", { class: "t" }, t), el("span", { class: "v" }, v), el("p", null, p));
+    const lid = a.vap >= b.vap ? a : b, atras = lid === a ? b : a;
     const proj = projecao();
     const resto = br.pst >= 100 ? 0 : proj.faltam;
-    const dif = lider.vap - atras.vap;
-
-    box.append(cen("Votos válidos que faltam", br.pst >= 100 ? "0" : "≈ " + fmtInt(resto),
-      "Soma por estado, mantendo em cada um a média de votos válidos por seção já apurada (" + fmtPct(br.pst) + " das urnas no Brasil)."));
+    const dif = lid.vap - atras.vap;
     if (br.pst < 100 && proj.base) {
       box.append(cen("Se cada estado seguir como está", fmtPct(proj.a) + " × " + fmtPct(proj.b),
-        "Projeção simples: cada estado termina com a mesma divisão que já apurou. " + titulo(a.nome) + " × " + titulo(b.nome) + ". Não é projeção oficial."));
+        "Projeção simples: cada estado termina com a divisão que já apurou. " + titulo(a.nome) + " × " + titulo(b.nome) + ".", "destaque"));
     }
-
+    box.append(cen("Votos válidos que faltam", br.pst >= 100 ? "0" : "≈ " + fmtInt(resto),
+      "Soma por estado, mantendo em cada um a média de votos válidos por seção já apurada."));
     if (br.pst < 100 && resto > 0) {
       const precisa = (resto + dif) / (2 * resto) * 100;
       box.append(cen("Para " + titulo(atras.nome) + " virar", precisa > 100 ? "Impossível" : fmtPct(precisa),
-        precisa > 100 ? "A diferença atual é maior que os votos que faltam, pela estimativa." : "dos votos válidos restantes é o que precisa ter, daqui até o fim."));
-      box.append(cen("Para " + titulo(lider.nome) + " garantir", fmtPct(Math.max(0, (resto - dif) / (2 * resto) * 100)),
-        "dos votos válidos restantes bastam para manter a liderança."));
+        precisa > 100 ? "A diferença atual é maior que os votos que faltam, pela estimativa." : "dos votos válidos que ainda faltam."));
+      box.append(cen("Para " + titulo(lid.nome) + " garantir", fmtPct(Math.max(0, (resto - dif) / (2 * resto) * 100)),
+        "dos votos válidos que ainda faltam bastam para manter a liderança."));
     }
-
     const ufs = UFS.filter((u) => st.pres[u]);
-    const venceA = ufs.filter((u) => { const [x, y] = par(st.pres[u]); return x && y && x.vap > y.vap; }).length;
-    const venceB = ufs.filter((u) => { const [x, y] = par(st.pres[u]); return x && y && y.vap > x.vap; }).length;
-    box.append(cen("Estados na frente", venceA + " × " + venceB,
-      titulo(a.nome) + " lidera em " + venceA + " e " + titulo(b.nome) + " em " + venceB + " das " + ufs.length + " unidades da federação."));
-
+    const vA = ufs.filter((u) => lider(st.pres[u]) === par(st.pres[u])[0]).length;
+    const vB = ufs.filter((u) => lider(st.pres[u]) === par(st.pres[u])[1]).length;
+    box.append(cen("Estados na frente", vA + " × " + vB, titulo(a.nome) + " lidera em " + vA + " e " + titulo(b.nome) + " em " + vB + " das 27 unidades da federação."));
     const p1 = st.primeiro.br;
-    if (p1 && Number.isFinite(p1.a)) {
-      const ga = a.vap - p1.va, gb = b.vap - p1.vb;
-      box.append(cen("No 1º turno", fmtPct(p1.a) + " × " + fmtPct(p1.b),
-        "% dos válidos de " + titulo(a.nome) + " e " + titulo(b.nome) + " no 1º turno, quando havia outros candidatos." +
-        (br.pst >= 100 ? " Votos agora menos 1º turno: " + titulo(a.nome) + " " + (ga >= 0 ? "+" : "") + fmtInt(ga) + ", " + titulo(b.nome) + " " + (gb >= 0 ? "+" : "") + fmtInt(gb) + "." : "")));
-    }
-
+    if (p1 && Number.isFinite(p1.a)) box.append(cen("No 1º turno", fmtPct(p1.a) + " × " + fmtPct(p1.b), "% dos válidos de cada um no 1º turno, quando havia outros candidatos."));
     const zz = st.pres.zz;
     if (zz) {
       const [xa, xb] = par(zz);
-      if (xa && xb) box.append(cen("Exterior", fmtPct(xa.pvap) + " × " + fmtPct(xb.pvap),
-        fmtInt(xa.vap + xb.vap) + " votos válidos, " + fmtPct(zz.pst) + " das urnas no exterior apuradas."));
+      if (xa && xb) box.append(cen("Exterior", fmtPct(xa.pvap) + " × " + fmtPct(xb.pvap), fmtInt(xa.vap + xb.vap) + " votos válidos, " + fmtPct(zz.pst) + " das seções no exterior."));
     }
-
-    let maisA = null, maisB = null, apertado = null;
+    let mA = null, mB = null, ap = null;
     for (const u of ufs) {
       const [x, y] = par(st.pres[u]);
       if (!x || !y || !(st.pres[u].pst > 0)) continue;
       const m = x.pvap - y.pvap;
-      if (!maisA || m > maisA.m) maisA = { u, m, p: x.pvap };
-      if (!maisB || m < maisB.m) maisB = { u, m, p: y.pvap };
-      if (!apertado || Math.abs(m) < Math.abs(apertado.m)) apertado = { u, m };
+      if (!mA || m > mA.m) mA = { u, m, p: x.pvap };
+      if (!mB || m < mB.m) mB = { u, m, p: y.pvap };
+      if (!ap || Math.abs(m) < Math.abs(ap.m)) ap = { u, m };
     }
-    if (maisA) box.append(cen("Maiores vitórias até agora", maisA.u.toUpperCase() + " · " + maisB.u.toUpperCase(),
-      titulo(a.nome) + " tem " + fmtPct(maisA.p) + " em " + ESTADOS[maisA.u] + "; " + titulo(b.nome) + " tem " + fmtPct(maisB.p) + " em " + ESTADOS[maisB.u] + "."));
-    if (apertado) box.append(cen("Disputa mais apertada", ESTADOS[apertado.u], "Diferença de " + fmtPp(Math.abs(apertado.m)) + " com " + fmtPct(st.pres[apertado.u].pst) + " das urnas apuradas."));
+    if (mA) box.append(cen("Maiores vitórias até agora", mA.u.toUpperCase() + " · " + mB.u.toUpperCase(),
+      titulo(a.nome) + " tem " + fmtPct(mA.p) + " em " + ESTADOS[mA.u] + "; " + titulo(b.nome) + " tem " + fmtPct(mB.p) + " em " + ESTADOS[mB.u] + "."));
+    if (ap) box.append(cen("Disputa mais apertada", ESTADOS[ap.u], "Diferença de " + fmtPp(Math.abs(ap.m)) + " com " + fmtPct(st.pres[ap.u].pst) + " das seções totalizadas."));
   }
 
-  // Gráfico de linhas em SVG: série de % válidos de cada candidato
-  function graficoLinhas(alvo, serie, rotulos, cores, eixo, alto) {
+  // ---------- Gráfico de evolução ----------
+  function grafico(alvo, pontos, cands, eixo, alto, prefixo) {
     alvo.textContent = "";
-    const pts = (serie || []).filter((p) => p.c && p.c.length >= 2 && p.pst > 0);
-    if (pts.length < 1) {
-      alvo.append(el("p", { class: "muted" }, "As linhas aparecem a partir da primeira leitura com urnas apuradas. Cada atualização do TSE vira um ponto."));
+    const pts = (pontos || []).filter((p) => p.pst > 0 && Number.isFinite(p.a) && Number.isFinite(p.b));
+    if (!pts.length) {
+      alvo.append(el("p", { class: "muted" }, "As linhas aparecem com a primeira leitura com votos apurados."));
       return;
     }
-    // Desenha na largura real do contêiner para o texto não encolher no celular
-    const W = Math.max(300, Math.round(alvo.clientWidth || 760)), H = Math.round(Math.min(alto || 300, W * 0.62)), ml = 40, mr = 62, mt = 14, mb = 30;
-    const xs = pts.map((p) => eixo === "pst" ? p.pst : momento(p));
-    let x0 = Math.min(...xs), x1 = Math.max(...xs);
+    const W = Math.max(300, Math.round(alvo.clientWidth || 760));
+    const H = Math.round(Math.min(alto, W * 0.62)), ml = 40, mr = 92, mt = 16, mb = 30;
+    const xv = (p) => eixo === "pst" ? p.pst : p.t;
+    let x0 = Math.min(...pts.map(xv)), x1 = Math.max(...pts.map(xv));
     if (eixo === "pst") { x0 = 0; x1 = 100; }
     if (x1 === x0) { x0 -= 60000; x1 += 60000; }
-    const vals = [];
-    pts.forEach((p) => p.c.slice(0, 2).forEach((c) => vals.push(c.pvap)));
+    const vals = pts.flatMap((p) => [p.a, p.b]);
     let y0 = Math.min(...vals, 50), y1 = Math.max(...vals, 50);
-    const pad = Math.max(1, (y1 - y0) * 0.12);
+    const pad = Math.max(0.6, (y1 - y0) * 0.15);
     y0 = Math.max(0, Math.floor(y0 - pad)); y1 = Math.min(100, Math.ceil(y1 + pad));
     const X = (v) => ml + (v - x0) / (x1 - x0) * (W - ml - mr);
     const Y = (v) => mt + (y1 - v) / (y1 - y0) * (H - mt - mb);
-    let s = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Evolução dos percentuais">';
-    const passoY = (y1 - y0) > 20 ? 5 : (y1 - y0) > 8 ? 2 : 1;
-    for (let v = Math.ceil(y0 / passoY) * passoY; v <= y1; v += passoY) {
-      s += '<line class="grade" x1="' + ml + '" x2="' + (W - mr) + '" y1="' + Y(v) + '" y2="' + Y(v) + '"/>';
-      s += '<text x="' + (ml - 6) + '" y="' + (Y(v) + 4) + '" text-anchor="end">' + v + "%</text>";
+    const s = svg("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": "Evolução do percentual de cada candidato" });
+    const defs = svg("defs");
+    s.append(defs);
+    const passo = (y1 - y0) > 20 ? 5 : (y1 - y0) > 8 ? 2 : (y1 - y0) > 3 ? 1 : 0.5;
+    for (let v = Math.ceil(y0 / passo) * passo; v <= y1 + 1e-9; v += passo) {
+      s.append(svg("line", { class: v === 50 ? "meia" : "grade", x1: ml, x2: W - mr, y1: Y(v), y2: Y(v) }));
+      const t = svg("text", { x: ml - 6, y: Y(v) + 4, "text-anchor": "end" });
+      t.textContent = (Number.isInteger(v) ? v : v.toLocaleString("pt-BR")) + "%";
+      s.append(t);
     }
-    if (y0 <= 50 && y1 >= 50) s += '<line class="meia" x1="' + ml + '" x2="' + (W - mr) + '" y1="' + Y(50) + '" y2="' + Y(50) + '"/>';
-    const nTicks = W < 500 ? 3 : 6;
-    for (let i = 0; i <= nTicks; i++) {
-      const v = x0 + (x1 - x0) * i / nTicks;
-      const rot = eixo === "pst" ? Math.round(v) + "%" : new Date(v).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
-      s += '<text x="' + X(v) + '" y="' + (H - 10) + '" text-anchor="middle">' + rot + "</text>";
+    const nT = W < 500 ? 3 : 6;
+    const fmtX = (v) => eixo === "pst" ? Math.round(v) + "%" : new Date(v).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+    for (let i = 0; i <= nT; i++) {
+      const v = x0 + (x1 - x0) * i / nT;
+      const t = svg("text", { x: X(v), y: H - 8, "text-anchor": "middle" });
+      t.textContent = fmtX(v);
+      s.append(t);
     }
-    for (let k = 0; k < 2; k++) {
-      const d = pts.map((p, i) => (i ? "L" : "M") + X(xs[i]).toFixed(1) + " " + Y(p.c[k].pvap).toFixed(1)).join(" ");
-      s += '<path d="' + d + '" fill="none" stroke="' + cores[k] + '" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>';
-      const u = pts[pts.length - 1];
-      const ux = X(xs[xs.length - 1]), uy = Y(u.c[k].pvap);
-      s += '<circle cx="' + ux + '" cy="' + uy + '" r="5" fill="' + cores[k] + '"/>';
-      s += '<text x="' + (ux + 8) + '" y="' + (uy + 4) + '" style="fill:' + cores[k] + ';font-weight:700">' + fmtPct(u.c[k].pvap) + "</text>";
-    }
-    s += "</svg>";
-    alvo.innerHTML = s;
-    alvo.title = rotulos.join(" × ");
+    const cores = ["var(--a)", "var(--b)"];
+    ["a", "b"].forEach((k, i) => {
+      const d = pts.map((p, j) => (j ? "L" : "M") + X(xv(p)).toFixed(1) + " " + Y(p[k]).toFixed(1)).join(" ");
+      s.append(svg("path", { d, fill: "none", stroke: cores[i], "stroke-width": 3, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    });
+    // Fotos no fim de cada linha, afastadas se ficarem uma sobre a outra
+    const u = pts[pts.length - 1];
+    let ya = Y(u.a), yb = Y(u.b);
+    if (Math.abs(ya - yb) < 30) { const m = (ya + yb) / 2, s2 = ya <= yb ? -1 : 1; ya = m + s2 * 15; yb = m - s2 * 15; }
+    [[cands[0], ya, u.a, 0], [cands[1], yb, u.b, 1]].forEach(([c, yy, v, i]) => {
+      const ux = X(xv(u));
+      s.append(svg("circle", { cx: ux, cy: Y(v), r: 4.5, fill: cores[i] }));
+      const id = prefixo + "-clip-" + i;
+      const cp = svg("clipPath", { id });
+      cp.append(svg("circle", { cx: ux + 22, cy: yy, r: 13 }));
+      defs.append(cp);
+      s.append(svg("circle", { cx: ux + 22, cy: yy, r: 15, fill: cores[i] }));
+      if (c && /^\d+$/.test(c.sq || "")) {
+        s.append(svg("image", { href: "fotos/" + c.sq + ".jpeg", x: ux + 9, y: yy - 13, width: 26, height: 26, "clip-path": "url(#" + id + ")", preserveAspectRatio: "xMidYMin slice" }));
+      }
+      const t = svg("text", { x: ux + 41, y: yy + 5, style: "fill:" + cores[i] + ";font-weight:800;font-size:13px" });
+      t.textContent = fmtPct(v);
+      s.append(t);
+    });
+    // Régua com os valores do ponto mais próximo do cursor
+    const regua = svg("line", { class: "regua", y1: mt, y2: H - mb, visibility: "hidden" });
+    s.append(regua);
+    const area = svg("rect", { x: ml, y: mt, width: W - ml - mr, height: H - mt - mb, fill: "transparent" });
+    s.append(area);
+    alvo.append(s);
+    const tip = el("div", { class: "dica", hidden: "" });
+    alvo.append(tip);
+    area.addEventListener("mousemove", (e) => {
+      const r = s.getBoundingClientRect();
+      const vx = x0 + ((e.clientX - r.left) * W / r.width - ml) / (W - ml - mr) * (x1 - x0);
+      let best = pts[0];
+      for (const p of pts) if (Math.abs(xv(p) - vx) < Math.abs(xv(best) - vx)) best = p;
+      const px = X(xv(best));
+      regua.setAttribute("x1", px); regua.setAttribute("x2", px); regua.setAttribute("visibility", "visible");
+      tip.hidden = false;
+      tip.textContent = "";
+      tip.append(el("b", null, new Date(best.t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "America/Sao_Paulo" })),
+        el("span", { class: "muted" }, fmtPct(best.pst) + " das seções"),
+        el("div", { class: "l" }, el("span", { style: "color:var(--a);font-weight:700" }, cands[0] ? titulo(cands[0].nome) : "A"), el("span", null, fmtPct(best.a))),
+        el("div", { class: "l" }, el("span", { style: "color:var(--b);font-weight:700" }, cands[1] ? titulo(cands[1].nome) : "B"), el("span", null, fmtPct(best.b))));
+      const left = px * r.width / W;
+      tip.style.left = Math.max(0, Math.min(r.width - 200, left + 12)) + "px";
+      tip.style.top = "8px";
+    });
+    area.addEventListener("mouseleave", () => { tip.hidden = true; regua.setAttribute("visibility", "hidden"); });
   }
 
-  // Ordena os candidatos de cada ponto do histórico pelo número, igual ao placar
-  function serieOrdenada(chave) {
-    return (st.hist[chave] || []).map((p) => ({ ...p, c: p.c.slice().sort((x, y) => Number(x.n) - Number(y.n)) }))
-      .sort((x, y) => momento(x) - momento(y));
-  }
-
-  let escopoEvo = "br";
   function desenharEvolucao() {
     const rec = st.pres[escopoEvo];
-    const [a, b] = par(rec);
-    const cores = [corLado(a, 0), corLado(b, 1)];
-    const nomes = [a ? titulo(a.nome) : "", b ? titulo(b.nome) : ""];
     $("evo-escopo").textContent = escopoEvo === "br" ? "Brasil" : ESTADOS[escopoEvo];
     $("evo-br").hidden = escopoEvo === "br";
-    const leg = $("evo-legenda");
-    leg.textContent = "";
-    if (a && b) leg.append(el("span", { style: "--cor:" + cores[0] }, nomes[0]), el("span", { style: "--cor:" + cores[1] }, nomes[1]));
-    const serie = serieOrdenada("p:" + escopoEvo);
-    graficoLinhas($("evo-svg"), serie, nomes, cores, st.eixo, 300);
-    $("evo-nota").textContent = serie.length + " leituras. Um ponto por atualização do TSE (nos estados, a cada 1 ponto percentual de urnas apuradas).";
+    const serie = st.hist[escopoEvo] || [];
+    grafico($("evo"), serie, par(rec), st.eixo, 340, "br");
+    $("evo-nota").textContent = serie.length + " leituras · um ponto por atualização do TSE (nos estados, a cada 1 ponto percentual de seções totalizadas).";
   }
 
-  function corMargem(m, maxAbs) {
-    // m > 0: vantagem do lado "a"; intensidade em 4 faixas
-    if (!Number.isFinite(m)) return { bg: "var(--line)", escuro: false };
-    const f = Math.abs(m);
-    const nivel = f < 5 ? 1 : f < 15 ? 2 : f < 30 ? 3 : 4;
-    const cor = m > 0 ? "var(--a)" : "var(--b)";
-    const pct = [0, 30, 55, 78, 100][nivel];
-    return { bg: "color-mix(in srgb, " + cor + " " + pct + "%, var(--surface))", escuro: nivel >= 3 };
+  function caboCurto(a, b, va, vb) {
+    const tot = va + vb;
+    const pa = tot ? va / tot * 100 : 0, pb = tot ? vb / tot * 100 : 0;
+    return el("div", { class: "cabo" },
+      el("div", { class: "seg a", style: "width:" + pa + "%;background:var(--a)" }, tot ? fmtPct(pa, 1) : ""),
+      el("div", { class: "seg b", style: "width:" + pb + "%;background:var(--b)" }, tot ? fmtPct(pb, 1) : ""),
+      el("div", { class: "meio" }));
   }
-
-  function desenharMapa() {
-    const mapa = $("mapa");
-    mapa.textContent = "";
-    for (const uf of UFS) {
-      const [r, c] = GRADE[uf];
-      const rec = st.pres[uf];
-      const [a, b] = par(rec);
-      const m = a && b && rec.pst > 0 ? a.pvap - b.pvap : NaN;
-      const cor = corMargem(m);
-      const lider = Number.isFinite(m) ? (m >= 0 ? a : b) : null;
-      const t = el("div", {
-        class: "tile" + (cor.escuro ? " escuro" : "") + (st.sel === uf ? " sel" : ""),
-        style: "grid-row:" + (r + 1) + ";grid-column:" + (c + 1) + ";background:" + cor.bg,
-        tabindex: "0", role: "button",
-        "aria-label": ESTADOS[uf] + (lider ? ": " + titulo(lider.nome) + " " + fmtPct(lider.pvap) : ": sem dados"),
-        title: ESTADOS[uf] + (rec ? " · " + fmtPct(rec.pst) + " apurado" : ""),
-        onclick: () => selecionar(uf),
-        onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selecionar(uf); } },
-      }, el("b", null, uf.toUpperCase()), el("small", null, lider ? fmtPct(lider.pvap, 1) : "–"));
-      mapa.append(t);
-    }
-    const esc = $("escala");
-    esc.textContent = "";
-    {
-      const [a, b] = par(st.pres.br);
-      const item = (m) => { const i = el("i"); i.style.background = corMargem(m).bg; return i; };
-      esc.append(el("span", null, a ? titulo(a.nome) : "A"), item(40), item(20), item(10), item(2), item(-2), item(-10), item(-20), item(-40), el("span", null, b ? titulo(b.nome) : "B"));
-      esc.append(el("span", { style: "flex-basis:100%;text-align:center" }, "vantagem: até 5, 5 a 15, 15 a 30, acima de 30 p.p."));
-    }
-  }
-
   function desenharRegioes() {
-    const box = $("regioes");
+    const box = $("lista-regioes");
     box.textContent = "";
-    box.append(el("div", { class: "label" }, "Presidente por região (soma dos estados)"));
-    const linha = (nome, va, vb, apur, a, b) => {
-      const tot = va + vb;
-      const pa = tot ? va / tot * 100 : NaN, pb = tot ? vb / tot * 100 : NaN;
-      return el("div", { class: "regiao" },
-        el("div", { class: "linha" }, el("span", null, nome), el("span", { class: "muted", style: "font-weight:400" }, apur)),
-        el("div", { class: "barra-dupla" },
-          el("div", { style: "width:" + (pa || 0) + "%;background:" + corLado(a, 0) }),
-          el("div", { style: "width:" + (pb || 0) + "%;background:" + corLado(b, 1) }),
-          el("div", { class: "metade" })),
-        el("div", { class: "linha" }, el("span", { style: "color:" + corLado(a, 0) }, fmtPct(pa) + " · " + fmtInt(va)), el("span", { style: "color:" + corLado(b, 1) }, fmtInt(vb) + " · " + fmtPct(pb))));
-    };
     const [a0, b0] = par(st.pres.br);
+    const bloco = (nome, va, vb, apur) => el("div", { class: "regiao" },
+      el("div", { class: "l" }, el("span", null, nome), el("span", { class: "muted", style: "font-weight:400" }, apur)),
+      caboCurto(a0, b0, va, vb),
+      el("div", { class: "l", style: "font-weight:600;font-size:.86rem" }, el("span", { style: "color:var(--a)" }, fmtInt(va) + " votos"), el("span", { style: "color:var(--b)" }, fmtInt(vb) + " votos")));
     for (const nome in REGIOES) {
-      let va = 0, vb = 0, st0 = 0, ts0 = 0;
+      let va = 0, vb = 0, s0 = 0, t0 = 0;
       for (const uf of REGIOES[nome]) {
         const rec = st.pres[uf];
         const [a, b] = par(rec);
         if (!a || !b) continue;
-        va += a.vap; vb += b.vap;
-        st0 += rec.st || 0; ts0 += rec.ts || 0;
+        va += a.vap; vb += b.vap; s0 += rec.st || 0; t0 += rec.ts || 0;
       }
-      box.append(linha(nome, va, vb, ts0 ? fmtPct(st0 / ts0 * 100) + " das seções" : "", a0, b0));
+      box.append(bloco(nome, va, vb, t0 ? fmtPct(s0 / t0 * 100) + " das seções" : ""));
     }
     const zz = st.pres.zz;
-    if (zz) {
-      const [a, b] = par(zz);
-      if (a && b) box.append(linha("Exterior", a.vap, b.vap, fmtPct(zz.pst) + " das seções", a, b));
-    }
-  }
-
-  function blocoCandidatos(rec, chaveCor) {
-    const frag = document.createDocumentFragment();
-    rec.cands.slice(0, 2).forEach((c, i) => {
-      const cor = chaveCor === "gov" ? (i === 0 ? "var(--g1)" : "var(--g2)") : corLado(c, i);
-      frag.append(el("div", { class: "mini-cand", style: "--cor:" + cor },
-        el("span", { class: "n" }, titulo(c.nome) + " ", el("span", { class: "muted", style: "font-weight:400" }, c.partido), c.eleito ? el("span", { class: "selo", style: "margin-left:6px" }, "Eleito") : null),
-        el("span", { class: "p", style: "color:" + cor }, fmtPct(c.pvap)),
-        el("div", { class: "barra" }, el("div", { style: "width:" + (c.pvap || 0) + "%" })),
-        el("span", { class: "vv" }, fmtInt(c.vap) + " votos")));
-    });
-    return frag;
-  }
-
-  function desenharEstado() {
-    const uf = st.sel;
-    const rec = st.pres[uf];
-    $("t-uf").textContent = ESTADOS[uf];
-    $("uf-status").textContent = rec ? fmtPct(rec.pst) + " das urnas apuradas · TSE " + rec.hg : "sem dados ainda";
-    const p = $("uf-pres");
-    p.textContent = "";
-    p.append(el("div", { class: "label" }, "Presidente"));
-    if (rec && rec.cands.length) {
-      p.append(blocoCandidatos(rec));
-      const [a, b] = par(rec);
-      const p1 = st.primeiro[uf];
-      const linhas = [
-        "Diferença: " + fmtInt(Math.abs(a.vap - b.vap)) + " votos (" + fmtPp(Math.abs(a.pvap - b.pvap)) + ")",
-        "Brancos " + fmtPct(rec.pBrancos) + " · Nulos " + fmtPct(rec.pNulos) + " · Abstenção " + fmtPct(rec.pAbstencao),
-      ];
-      if (p1) linhas.push("1º turno: " + titulo(a.nome) + " " + fmtPct(p1.a) + " · " + titulo(b.nome) + " " + fmtPct(p1.b));
-      for (const l of linhas) p.append(el("div", { class: "muted num", style: "font-size:.9rem" }, l));
-    } else {
-      p.append(el("p", { class: "muted" }, "Ainda sem votos apurados neste estado."));
-    }
-    const g = $("uf-gov");
-    const gr = st.gov[uf];
-    g.hidden = !gr;
-    g.textContent = "";
-    if (gr) {
-      g.append(el("div", { class: "label" }, "Governador · 2º turno · " + fmtPct(gr.pst) + " apurado"), blocoCandidatos(gr, "gov"));
-    }
-    const [a, b] = par(rec);
-    graficoLinhas($("uf-svg"), serieOrdenada("p:" + uf), [], [corLado(a, 0), corLado(b, 1)], st.eixo, 260);
+    const [a, b] = par(zz);
+    if (a && b) box.append(bloco("Exterior", a.vap, b.vap, fmtPct(zz.pst) + " das seções"));
   }
 
   const COLUNAS = [
-    { id: "uf", rot: "UF" }, { id: "nome", rot: "Estado" }, { id: "pst", rot: "Apurado" },
-    { id: "pa", rot: "A %" }, { id: "pb", rot: "B %" }, { id: "mg", rot: "Margem" },
-    { id: "va", rot: "Votos A" }, { id: "vb", rot: "Votos B" },
-    { id: "p1a", rot: "1º T A" }, { id: "p1b", rot: "1º T B" }, { id: "abs", rot: "Abstenção" },
+    { id: "nome", rot: "Estado" }, { id: "pst", rot: "Totalizado" }, { id: "pa", rot: "A" }, { id: "barra", rot: "" }, { id: "pb", rot: "B" },
+    { id: "mg", rot: "Vantagem" }, { id: "va", rot: "Votos A" }, { id: "vb", rot: "Votos B" }, { id: "p1a", rot: "1º T A" }, { id: "p1b", rot: "1º T B" },
   ];
   function desenharTabela() {
     const [a0, b0] = par(st.pres.br);
@@ -832,61 +970,64 @@ footer a { color: inherit; }
     const cab = $("tab-cab");
     cab.textContent = "";
     for (const c of COLUNAS) {
-      const th = el("th", { scope: "col", tabindex: "0", onclick: () => ordenar(c.id), onkeydown: (e) => { if (e.key === "Enter") ordenar(c.id); } },
-        c.rot.replace(/\bA\b/, na).replace(/\bB\b/, nb));
-      if (st.ordem.col === c.id) th.setAttribute("aria-sort", st.ordem.dir > 0 ? "ascending" : "descending");
+      const th = el("th", { scope: "col" }, c.rot.replace(/\bA\b/, na).replace(/\bB\b/, nb));
+      if (c.id !== "barra") {
+        th.tabIndex = 0;
+        th.addEventListener("click", () => ordenar(c.id));
+        th.addEventListener("keydown", (e) => { if (e.key === "Enter") ordenar(c.id); });
+        if (st.ordem.col === c.id || (c.id === "nome" && st.ordem.col === "uf")) th.setAttribute("aria-sort", st.ordem.dir > 0 ? "ascending" : "descending");
+      }
       cab.append(th);
     }
     const linhas = UFS.map((uf) => {
       const rec = st.pres[uf];
       const [a, b] = par(rec);
       const p1 = st.primeiro[uf] || {};
-      return {
-        uf, nome: ESTADOS[uf], pst: rec ? rec.pst : NaN,
-        pa: a ? a.pvap : NaN, pb: b ? b.pvap : NaN, mg: a && b ? a.pvap - b.pvap : NaN,
-        va: a ? a.vap : NaN, vb: b ? b.vap : NaN, p1a: p1.a, p1b: p1.b, abs: rec ? rec.pAbstencao : NaN, a, b,
-      };
+      return { uf, nome: ESTADOS[uf], pst: rec ? rec.pst : NaN, pa: a ? a.pvap : NaN, pb: b ? b.pvap : NaN, mg: a && b ? a.pvap - b.pvap : NaN,
+        va: a ? a.vap : NaN, vb: b ? b.vap : NaN, p1a: p1.a, p1b: p1.b, a, b, rec };
     });
     const { col, dir } = st.ordem;
-    linhas.sort((x, y) => {
-      const vx = x[col], vy = y[col];
-      if (typeof vx === "string") return vx.localeCompare(vy) * dir;
-      return ((Number.isFinite(vx) ? vx : -1e9) - (Number.isFinite(vy) ? vy : -1e9)) * dir;
-    });
+    const chave = col === "uf" ? "nome" : col;
+    linhas.sort((x, y) => typeof x[chave] === "string" ? x[chave].localeCompare(y[chave]) * dir
+      : ((Number.isFinite(x[chave]) ? x[chave] : -1e9) - (Number.isFinite(y[chave]) ? y[chave] : -1e9)) * dir);
     const corpo = $("tab-corpo");
     corpo.textContent = "";
     for (const l of linhas) {
-      const lider = Number.isFinite(l.mg) && l.mg !== 0 ? (l.mg > 0 ? l.a : l.b) : null;
-      corpo.append(el("tr", { class: st.sel === l.uf ? "sel" : "", tabindex: "0", onclick: () => selecionar(l.uf), onkeydown: (e) => { if (e.key === "Enter") selecionar(l.uf); } },
-        el("td", null, el("b", null, l.uf.toUpperCase())),
-        el("td", null, l.nome),
+      const lid = l.rec ? lider(l.rec) : null;
+      const tr = el("tr", { class: st.sel === l.uf ? "sel" : "", tabindex: "0" },
+        el("td", null, el("span", { class: "uf-cel" }, el("b", null, l.uf.toUpperCase()), l.nome)),
         el("td", null, el("span", { class: "mini-apu" }, el("div", { style: "width:" + (l.pst || 0) + "%" })), fmtPct(l.pst)),
-        el("td", { style: "color:" + corLado(a0, 0) + ";font-weight:700" }, fmtPct(l.pa)),
-        el("td", { style: "color:" + corLado(b0, 1) + ";font-weight:700" }, fmtPct(l.pb)),
-        el("td", null, lider ? el("span", { class: "chip", style: "--cor:" + corLado(lider) }, "+" + fmtPp(Math.abs(l.mg)).replace(" p.p.", "")) : "–"),
+        el("td", { style: "color:var(--a);font-weight:800" }, fmtPct(l.pa)),
+        el("td", null, el("span", { class: "mini-cabo" }, el("span", { style: "width:" + (l.pa || 0) + "%;background:var(--a)" }), el("span", { style: "width:" + (l.pb || 0) + "%;background:var(--b)" }))),
+        el("td", { style: "color:var(--b);font-weight:800" }, fmtPct(l.pb)),
+        el("td", null, lid ? el("span", { class: "chip", style: "--cor:" + cor(lid) }, "+" + fmtPp(Math.abs(l.mg)).replace(" p.p.", "")) : "–"),
         el("td", null, fmtInt(l.va)), el("td", null, fmtInt(l.vb)),
-        el("td", { class: "muted" }, fmtPct(l.p1a)), el("td", { class: "muted" }, fmtPct(l.p1b)),
-        el("td", { class: "muted" }, fmtPct(l.abs))));
+        el("td", { class: "muted" }, fmtPct(l.p1a)), el("td", { class: "muted" }, fmtPct(l.p1b)));
+      tr.addEventListener("click", () => selecionar(l.uf));
+      tr.addEventListener("keydown", (e) => { if (e.key === "Enter") selecionar(l.uf); });
+      corpo.append(tr);
     }
   }
-  function ordenar(col) {
-    st.ordem = st.ordem.col === col ? { col, dir: -st.ordem.dir } : { col, dir: col === "uf" || col === "nome" ? 1 : -1 };
+  function ordenar(c) {
+    st.ordem = st.ordem.col === c ? { col: c, dir: -st.ordem.dir } : { col: c, dir: c === "nome" ? 1 : -1 };
     desenharTabela();
   }
 
   function desenharGovernadores() {
     const box = $("govs");
     box.textContent = "";
-    const ufs = UFS.filter((u) => st.gov[u]);
-    const verificados = UFS.filter((u) => st.gov[u] || st.govAusente[u]).length;
-    $("gov-status").textContent = ufs.length
-      ? ufs.length + " estados com 2º turno para governador"
-      : verificados >= UFS.length ? "Nenhum arquivo de 2º turno para governador encontrado no TSE." : "Procurando estados com 2º turno…";
+    const ufs = UFS.filter((u) => st.gov[u] && st.gov[u].cands.length >= 2);
+    $("gov-status").textContent = ufs.length ? ufs.length + " estados decidem o governador hoje" : "Nenhum estado com 2º turno para governador encontrado ainda.";
     for (const uf of ufs) {
       const rec = st.gov[uf];
-      box.append(el("article", { class: "gov", tabindex: "0", onclick: () => selecionar(uf), onkeydown: (e) => { if (e.key === "Enter") selecionar(uf); } },
-        el("div", { class: "cab" }, el("h3", null, ESTADOS[uf]), el("span", { class: "muted num" }, fmtPct(rec.pst) + " apurado")),
-        blocoCandidatos(rec, "gov")));
+      const cores = coresGov(rec.cands);
+      const card = el("article", { class: "card gov", tabindex: "0" },
+        el("div", { class: "t" }, el("h3", null, ESTADOS[uf]), el("span", { class: "muted num" }, fmtPct(rec.pst) + " totalizado")),
+        el("div", { class: "trilho" }, el("div", { style: "width:" + Math.min(100, rec.pst) + "%" })),
+        linhaCand(rec.cands[0], cores[0], 64), linhaCand(rec.cands[1], cores[1], 64));
+      card.addEventListener("click", () => selecionar(uf));
+      card.addEventListener("keydown", (e) => { if (e.key === "Enter") selecionar(uf); });
+      box.append(card);
     }
   }
 
@@ -898,20 +1039,24 @@ footer a { color: inherit; }
     desenharEstado();
     desenharTabela();
     desenharEvolucao();
-    $("sec-estado").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    const alvo = matchMedia("(max-width: 960px)").matches ? $("estado") : $("mapa");
+    alvo.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
   }
 
   // ---------- Controles ----------
-  $("x-hora").addEventListener("click", () => { st.eixo = "hora"; $("x-hora").setAttribute("aria-pressed", "true"); $("x-pst").setAttribute("aria-pressed", "false"); desenharEvolucao(); desenharEstado(); });
-  $("x-pst").addEventListener("click", () => { st.eixo = "pst"; $("x-pst").setAttribute("aria-pressed", "true"); $("x-hora").setAttribute("aria-pressed", "false"); desenharEvolucao(); desenharEstado(); });
+  function eixo(v) {
+    st.eixo = v;
+    $("x-hora").setAttribute("aria-pressed", String(v === "hora"));
+    $("x-pst").setAttribute("aria-pressed", String(v === "pst"));
+    desenharEvolucao();
+    desenharEstado();
+  }
+  $("x-hora").addEventListener("click", () => eixo("hora"));
+  $("x-pst").addEventListener("click", () => eixo("pst"));
   $("evo-br").addEventListener("click", () => { escopoEvo = "br"; desenharEvolucao(); });
-  setInterval(desenharRelogio, 5000);
-
-  let redimensionar = 0;
-  addEventListener("resize", () => {
-    clearTimeout(redimensionar);
-    redimensionar = setTimeout(() => { desenharEvolucao(); desenharEstado(); }, 200);
-  });
+  setInterval(relogio, 1000);
+  let redim = 0;
+  addEventListener("resize", () => { clearTimeout(redim); redim = setTimeout(() => { desenharEvolucao(); desenharEstado(); }, 200); });
 
   desenhar();
   iniciar();

@@ -148,6 +148,7 @@ async function baixarFotos(lista) {
 }
 
 const semGovernador = new Map();
+let ultimaGov = 0;
 async function rodada() {
   const presidente = {};
   const governadores = {};
@@ -158,7 +159,10 @@ async function rodada() {
       if (j) presidente[uf] = lerRecorte(j);
     } catch (e) { falhas++; console.log("falha presidente " + uf + ": " + e.message); }
   }));
-  await Promise.all(UFS.map(async (uf) => {
+  // Governadores a cada 10 s; o presidente a cada rodada
+  const lerGov = Date.now() - ultimaGov >= 10000;
+  if (lerGov) ultimaGov = Date.now();
+  await Promise.all((lerGov ? UFS : []).map(async (uf) => {
     const miss = semGovernador.get(uf);
     if (miss && Date.now() - miss < 10 * 60 * 1000) return;
     try {
@@ -170,16 +174,22 @@ async function rodada() {
     } catch (e) { console.log("falha governador " + uf + ": " + e.message); }
   }));
 
+  // Os servidores do TSE às vezes entregam uma cópia mais velha do arquivo:
+  // uma leitura anterior à que já está gravada é descartada
+  const naoRecua = (gravado, r) => !gravado || momento(r) >= gravado;
+
   // presidente.json: uma linha por recorte (Brasil, exterior, estados)
   const antigoPres = lerJson("presidente.json", { rows: [] });
   const porUf = Object.fromEntries((antigoPres.rows || []).map((r) => [r.uf, r]));
-  for (const uf in presidente) {
+  for (const uf of Object.keys(presidente)) {
     const r = presidente[uf];
+    const UF = uf.toUpperCase();
+    if (!naoRecua(porUf[UF] && porUf[UF].atualizado_em, r)) { delete presidente[uf]; continue; }
     const a = r.cands.find((c) => c.n === "13") || r.cands[0];
     const b = r.cands.find((c) => c.n === "22") || r.cands[1];
     const { cands, ...resto } = r;
-    porUf[uf] = {
-      uf: uf.toUpperCase(), estado: ESTADOS[uf], regiao: REGIAO[uf], atualizado_em: momento(r), ...resto,
+    porUf[UF] = {
+      uf: UF, estado: ESTADOS[uf], regiao: REGIAO[uf], atualizado_em: momento(r), ...resto,
       a_sq: a ? a.sq : null, b_sq: b ? b.sq : null,
       a_nome: a ? a.nome : null, a_partido: a ? a.partido : null, a_numero: a ? a.n : null, a_votos: a ? a.vap : null, a_pct: a ? a.pvap : null, a_eleito: a ? a.eleito : false,
       b_nome: b ? b.nome : null, b_partido: b ? b.partido : null, b_numero: b ? b.n : null, b_votos: b ? b.vap : null, b_pct: b ? b.pvap : null, b_eleito: b ? b.eleito : false,
@@ -214,6 +224,10 @@ async function rodada() {
 
   // governadores.json: uma linha por candidato nos estados com 2º turno
   const antigoGov = lerJson("governadores.json", { rows: [] });
+  for (const r of antigoGov.rows || []) {
+    const uf = r.uf.toLowerCase();
+    if (governadores[uf] && !naoRecua(r.atualizado_em, governadores[uf])) delete governadores[uf];
+  }
   const linhasGov = (antigoGov.rows || []).filter((r) => !governadores[r.uf.toLowerCase()]);
   for (const uf in governadores) {
     const r = governadores[uf];
