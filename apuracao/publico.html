@@ -165,6 +165,16 @@ section { display: grid; gap: 14px; min-width: 0; }
 .bloco-gov { border-top: 1px dashed var(--line); padding-top: 12px; display: grid; gap: 12px; }
 
 /* Cenários */
+/* Projeção */
+.proj { display: grid; gap: 14px; }
+.proj-numeros { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.proj-barra { display: flex; height: 34px; border-radius: 8px; overflow: hidden; background: var(--line); }
+.proj-barra > div { display: flex; align-items: center; justify-content: center; color: #fff; font: 800 .9rem var(--display); white-space: nowrap; overflow: hidden; transition: width .8s ease; }
+.proj-barra .falta { background: repeating-linear-gradient(45deg, var(--line), var(--line) 6px, var(--surface-2) 6px, var(--surface-2) 12px); color: var(--fg); }
+.proj-legenda { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: .84rem; color: var(--muted); }
+.veredito { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.veredito .cenario .v.ok { color: var(--ok); }
+.veredito .cenario .v.alerta-v { color: var(--live); }
 .cenarios { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
 .cenario { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
 .cenario .t { font-weight: 700; font-size: .92rem; }
@@ -269,6 +279,14 @@ img { max-width: 100%; }
       <div class="cabo-legenda"><span id="cabo-esq"></span><span>50%</span><span id="cabo-dir"></span></div>
     </div>
     <div class="kpis" id="kpis"></div>
+  </section>
+
+  <section id="projecao" aria-labelledby="h-proj">
+    <div class="cab">
+      <h2 id="h-proj">Projeção</h2>
+      <span class="muted">Contas sobre os números do TSE, estado por estado. Não é projeção oficial.</span>
+    </div>
+    <div class="card proj" id="proj"></div>
   </section>
 
   <section id="mapa" aria-labelledby="h-mapa">
@@ -651,9 +669,103 @@ img { max-width: 100%; }
   }
 
   // ---------- Desenho ----------
+  // Projeção: cada estado (e o exterior) termina com a mesma média de votos válidos por seção
+  // e a mesma divisão entre os candidatos que já apurou
+  const mi = (n) => Number.isFinite(n) ? (n / 1e6).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " mi" : "–";
+  function calcularProjecao() {
+    let V = 0, A = 0, B = 0, Vn = 0, An = 0, Bn = 0, Cf = 0, semDados = 0;
+    for (const uf of UFS.concat("zz")) {
+      const rec = st.pres[uf];
+      const [a, b] = par(rec);
+      if (!rec || !a || !b || !(rec.pst > 0)) { semDados++; continue; }
+      const f = 100 / rec.pst;
+      V += rec.validos * f; A += a.vap * f; B += b.vap * f;
+      Vn += rec.validos; An += a.vap; Bn += b.vap;
+      Cf += (rec.comparecimento || 0) * f;
+    }
+    return { V, A, B, Vn, An, Bn, Cf, semDados };
+  }
+  function desenharProjecao() {
+    const box = $("proj");
+    box.textContent = "";
+    const br = st.pres.br;
+    const [a, b] = par(br);
+    if (!br || !a || !b) { box.append(el("p", { class: "muted" }, "Aguardando os primeiros votos.")); return; }
+    const p = calcularProjecao();
+    const resto = Math.max(0, p.V - p.Vn);
+    const liderA = p.An >= p.Bn;
+    const lid = liderA ? a : b, atras = liderA ? b : a;
+    const dif = Math.abs(p.An - p.Bn);
+    const corL = cor(lid), corT = cor(atras);
+    const num = (r, v, s) => el("div", { class: "kpi" }, el("span", { class: "rotulo" }, r), el("span", { class: "v" }, v), el("span", { class: "s" }, s));
+
+    box.append(el("div", { class: "proj-numeros" },
+      num("Eleitorado", mi(br.eleitorado), fmtInt(br.eleitorado) + " aptos a votar"),
+      num("Votos válidos estimados", mi(p.V), "total esperado ao fim da apuração"),
+      num("Já apurados", mi(p.Vn), fmtPct(p.Vn / p.V * 100) + " dos válidos estimados"),
+      num("Faltam apurar", "≈ " + mi(resto), "≈ " + fmtInt(resto) + " votos válidos"),
+      num("Diferença hoje", mi(dif), fmtInt(dif) + " votos para " + titulo(lid.nome))));
+
+    // Barra: votos de cada um, o que falta e o tamanho da diferença
+    const pc = (x) => Math.max(0, x / p.V * 100);
+    box.append(el("div", { class: "proj-barra", role: "img", "aria-label": "Votos apurados de cada candidato e votos que faltam" },
+      el("div", { style: "width:" + pc(p.An) + "%;background:var(--a)" }, pc(p.An) > 8 ? mi(p.An) : ""),
+      el("div", { style: "width:" + pc(p.Bn) + "%;background:var(--b)" }, pc(p.Bn) > 8 ? mi(p.Bn) : ""),
+      el("div", { class: "falta", style: "width:" + pc(resto) + "%" }, pc(resto) > 8 ? "faltam " + mi(resto) : "")),
+      el("div", { class: "proj-legenda" },
+        el("span", { style: "color:var(--a);font-weight:700" }, titulo(a.nome) + ": " + fmtInt(p.An)),
+        el("span", { style: "color:var(--b);font-weight:700" }, titulo(b.nome) + ": " + fmtInt(p.Bn)),
+        el("span", null, "Faltam ≈ " + fmtInt(resto)),
+        el("span", null, "Diferença = " + fmtPct(resto > 0 ? dif / resto * 100 : 100, 1) + " do que falta")));
+
+    const cards = el("div", { class: "veredito" });
+    const card = (t, v, txt, classe) => el("div", { class: "cenario" }, el("span", { class: "t" }, t), el("span", { class: "v" + (classe ? " " + classe : "") }, v), el("p", null, txt));
+
+    // Resultado projetado
+    const pa = p.A / (p.A + p.B) * 100, pb = 100 - pa;
+    cards.append(card("Resultado projetado", fmtPct(pa) + " × " + fmtPct(pb),
+      titulo(a.nome) + " × " + titulo(b.nome) + " se cada estado seguir como está. Diferença final estimada: " + mi(Math.abs(p.A - p.B)) + " de votos."));
+
+    // Possibilidade de virada
+    const precisa = resto > 0 ? (resto + dif) / (2 * resto) * 100 : Infinity;
+    const atrasFinal = liderA ? p.B : p.A, atrasAgora = liderA ? p.Bn : p.An;
+    const ritmo = resto > 0 ? (atrasFinal - atrasAgora) / resto * 100 : NaN;
+    let vir, virTxt, virCls;
+    if (br.pst >= 100 || resto <= 0) { vir = "Não"; virTxt = "Apuração encerrada."; virCls = "ok"; }
+    else if (precisa > 100) { vir = "Impossível"; virCls = "ok"; virTxt = "A diferença (" + mi(dif) + ") já é maior que todos os votos que faltam (" + mi(resto) + "). Nem com 100% do que falta " + titulo(atras.nome) + " vira."; }
+    else if (ritmo >= precisa) { vir = "Possível"; virCls = "alerta-v"; virTxt = titulo(atras.nome) + " precisa de " + fmtPct(precisa, 1) + " dos votos que faltam e, nos estados ainda em apuração, está com cerca de " + fmtPct(ritmo, 1) + "."; }
+    else { vir = "Improvável"; virCls = ""; virTxt = titulo(atras.nome) + " precisaria de " + fmtPct(precisa, 1) + " dos votos que faltam, mas nos estados ainda em apuração está com cerca de " + fmtPct(ritmo, 1) + "."; }
+    cards.append(card("Há chance de virada?", vir, virTxt, virCls));
+
+    // Em que ponto a vitória fica garantida pela matemática (diferença maior que tudo o que falta)
+    let gar, garTxt, garCls = "";
+    if (dif >= resto) {
+      gar = "Já garantida"; garCls = "ok";
+      garTxt = "A diferença de " + titulo(lid.nome) + " já supera todos os votos que faltam apurar.";
+    } else {
+      const f0 = p.Vn / p.V;
+      const dFinal = liderA ? p.A - p.B : p.B - p.A;
+      const k = (dFinal - dif) / (1 - f0);
+      const f = (p.V - dif + k * f0) / (k + p.V);
+      if (dFinal <= 0 || !(f > f0) || f > 1) {
+        gar = "Sem previsão"; garTxt = "Pela tendência dos estados que faltam, a diferença não cresce o bastante para garantir a vitória antes do fim.";
+      } else {
+        gar = "≈ " + fmtPct(f * 100, 1);
+        garTxt = "dos votos válidos apurados. Nesse ponto, se a tendência seguir, a vantagem de " + titulo(lid.nome) + " (≈ " + mi(dif + k * (f - f0)) +
+          ") passa a ser maior que tudo o que falta (≈ " + mi(p.V * (1 - f)) + "), e a vitória fica garantida matematicamente.";
+      }
+    }
+    cards.append(card("Vitória garantida a partir de", gar, garTxt, garCls));
+    cards.append(card("O que " + titulo(atras.nome) + " precisa", precisa > 100 ? "Mais de 100%" : fmtPct(precisa, 1),
+      "dos votos válidos que ainda faltam para empatar e virar. Hoje tem " + fmtPct(atras.pvap) + " do total apurado."));
+    box.append(cards);
+    if (p.semDados) box.append(el("p", { class: "muted", style: "margin:0;font-size:.85rem" }, p.semDados + " recorte(s) ainda sem votos ficaram fora da estimativa."));
+  }
+
   function desenhar() {
     desenharTopo();
     desenharPlacar();
+    desenharProjecao();
     desenharMapa();
     desenharEstado();
     desenharCenarios();
