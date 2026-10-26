@@ -1,0 +1,10 @@
+requests
+python-dotenv
+fal-client
+openai
+replicate
+ffmpeg-python
+Pillow
+boto3
+mysql-connector-python
+playwright
