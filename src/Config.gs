@@ -18,8 +18,8 @@ const CONFIG_PADRAO = {
     fundo: '#F7F3EC',
     superficie: '#FCFAF6',
     texto: '#20211C',
-    fonteTitulos: 'Fraunces',
-    fonteTexto: 'Manrope',
+    fonteTitulos: 'Google Sans',
+    fonteTexto: 'Google Sans',
     raio: 14,
   },
   moeda: 'BRL',
@@ -62,8 +62,9 @@ function config_() {
   const c = padraoConfig_();
   Object.keys(salvo || {}).forEach(function (k) { if (k in c && k !== 'marca') c[k] = salvo[k]; });
   c.marca = Object.assign(c.marca, salvo && salvo.marca || {});
-  // Archivo nos dois era o padrão antigo: vira a dupla nova (Fraunces nos títulos, Manrope no texto).
-  if (c.marca.fonteTitulos === 'Archivo' && c.marca.fonteTexto === 'Archivo') { c.marca.fonteTitulos = 'Fraunces'; c.marca.fonteTexto = 'Manrope'; }
+  // Duplas padrão antigas (Archivo/Archivo e Fraunces/Manrope) viram a do visual Be Flow: Google Sans nos dois.
+  const antigas = ['Archivo|Archivo', 'Fraunces|Manrope'];
+  if (antigas.indexOf(c.marca.fonteTitulos + '|' + c.marca.fonteTexto) >= 0) { c.marca.fonteTitulos = 'Google Sans'; c.marca.fonteTexto = 'Google Sans'; }
   MEMO_.__config = c;
   return c;
 }

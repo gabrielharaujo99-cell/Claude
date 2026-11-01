@@ -196,7 +196,12 @@ const EQUIPE_TESTE = `const EQUIPE_INICIAL = [
   { nome: 'Dé Signer', email: 'design@agencia.dev', cargo: 'Designer', papel: 'colaborador', atividades: ['Criar artes', 'Editar vídeo', 'Capas'] },
 ];`;
 
-function mesesAtras(n) { const d = new Date(); d.setDate(10); d.setMonth(d.getMonth() - n); return d.toISOString().slice(0, 10); }
+// Mesmo fuso do servidor (São Paulo): em UTC, à noite do último dia do mês, o mês já seria o seguinte.
+function mesesAtras(n) {
+  const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+  d.setDate(10); d.setMonth(d.getMonth() - n);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
 
 test('equipe inicial entra no primeiro acesso, com cargo e acesso ao financeiro', () => {
   const c = crm(EQUIPE_TESTE);
