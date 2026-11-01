@@ -1,0 +1,125 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const path = require('path');
+const fs = require('fs');
+const { novoEstado, executar } = require('../../dev/gas.js');
+
+const SRC = path.join(__dirname, '..', 'src');
+const DONO = 'dono@seok.dev';
+
+function app() {
+  const estado = novoEstado();
+  const como = (usuario) => (fn, ...args) => executar(estado, { usuario, dono: DONO, src: SRC }, fn, args);
+  return { estado, dono: como(DONO), equipe: como(''), fora: como('x@fora.dev') };
+}
+
+test('primeiro acesso: dono vira admin e os 6 clientes nascem com os blocos combinados', () => {
+  const a = app();
+  const d = a.dono('carregar');
+  assert.equal(d.eu.papel, 'admin');
+  assert.deepEqual(d.clientes.map((c) => c.nome), ['Metapel', 'Outbox', 'Content Lab', 'Pietro', 'Seok Wellness', 'Nap Griddle']);
+  const ob = d.clientes.find((c) => c.nome === 'Outbox');
+  assert.deepEqual(ob.blocos, ['frequencia', 'eventos', 'temas', 'pedidos']);
+  assert.deepEqual(ob.entregasEvento, ['Story', 'Feed Instagram', 'LinkedIn']);
+  assert.equal(d.clientes.find((c) => c.nome === 'Content Lab').blocos[0], 'cases');
+  assert.equal(a.dono('carregar').clientes.length, 6, 'não semeia de novo');
+});
+
+test('acesso: link aberto deixa a equipe de outro domínio entrar como editora; fechado bloqueia', () => {
+  const a = app();
+  a.dono('carregar');
+  assert.equal(a.equipe('carregar').eu.papel, 'editor');
+  assert.equal(a.fora('carregar').semAcesso, true, 'e-mail conhecido do domínio mas fora da equipe');
+  a.dono('salvarAjustes', { linkAberto: false });
+  assert.equal(a.equipe('carregar').semAcesso, true);
+  assert.throws(() => a.equipe('salvarPost', {}), /acesso/);
+});
+
+test('cliente: frequência e blocos editáveis, nome obrigatório', () => {
+  const a = app();
+  const c = a.dono('carregar').clientes[0];
+  const r = a.dono('salvarCliente', { id: c.id, frequencia: '3,5', blocos: ['estoque', 'inventado', 'estoque', 'cases'] });
+  assert.equal(r.frequencia, 3.5);
+  assert.deepEqual(r.blocos, ['estoque', 'cases']);
+  assert.equal(r.nome, 'Metapel', 'o que não veio não muda');
+  assert.throws(() => a.dono('salvarCliente', { id: c.id, nome: '' }), /nome/);
+});
+
+test('posts: data obrigatória para agendar, links validados, remover solta tema e pedido', () => {
+  const a = app();
+  const c = a.dono('carregar').clientes[1];
+  assert.throws(() => a.dono('salvarPost', { clienteId: c.id, titulo: 'X', status: 'agendado' }), /data/);
+  assert.throws(() => a.dono('salvarPost', { clienteId: c.id, titulo: 'X', linkPost: 'instagram.com/p/1' }), /https/);
+  const t = a.dono('salvarTema', { clienteId: c.id, tipo: 'case', titulo: 'Case Senac' });
+  const r = a.dono('temaParaPauta', t.id, '2026-11-20');
+  assert.equal(r.post.formato, 'Carrossel');
+  assert.throws(() => a.dono('temaParaPauta', t.id, '2026-11-21'), /já está/);
+  assert.equal(a.dono('moverPost', r.post.id, 'agendado').status, 'agendado');
+  a.dono('removerPost', r.post.id);
+  assert.equal(a.dono('carregar').temas[0].status, 'aberto', 'tema volta para a fila');
+});
+
+test('cases: fila ordenável', () => {
+  const a = app();
+  const c = a.dono('carregar').clientes[2];
+  const x = a.dono('salvarTema', { clienteId: c.id, tipo: 'case', titulo: 'A' });
+  const y = a.dono('salvarTema', { clienteId: c.id, tipo: 'case', titulo: 'B' });
+  assert.deepEqual(a.dono('ordenarTemas', [y.id, x.id]).map((t) => [t.titulo, t.ordem]), [['B', 1], ['A', 2]]);
+});
+
+test('pedidos: vira post na pauta e fica feito', () => {
+  const a = app();
+  const c = a.dono('carregar').clientes[0];
+  const p = a.dono('salvarPedido', { clienteId: c.id, titulo: 'Post do novo horário', prioridade: 'alta', prazo: '2026-11-10' });
+  const r = a.dono('pedidoParaPauta', p.id, '2026-11-08');
+  assert.equal(r.pedido.status, 'feito');
+  assert.equal(r.post.pedidoId, p.id);
+});
+
+test('agenda: só eventos com PAX, peças Story/Feed/LinkedIn ligadas ao evento', () => {
+  const a = app();
+  const ob = a.dono('carregar').clientes.find((c) => c.nome === 'Outbox');
+  const dia = (n) => new Date(Date.now() + n * 864e5).toISOString();
+  a.estado.agenda = [
+    { id: 'e1', titulo: 'Treinamento Senac · 25 PAX', inicio: dia(4), local: 'Senac' },
+    { id: 'e2', titulo: 'Reunião interna', inicio: dia(2) },
+    { id: 'e3', titulo: 'Workshop', descricao: 'PAX: 40', inicio: dia(-8) },
+  ];
+  const evs = a.dono('sincronizarAgenda', ob.id);
+  assert.deepEqual(evs.map((e) => e.pax).sort(), [25, 40]);
+  const e1 = evs.find((e) => e.pax === 25);
+  const s = a.dono('criarPeca', e1.id, 'Story');
+  assert.equal(s.post.formato, 'Stories');
+  assert.equal(a.dono('criarPeca', e1.id, 'LinkedIn').post.rede, 'LinkedIn');
+  assert.throws(() => a.dono('criarPeca', e1.id, 'Story'), /já está/);
+  a.dono('removerPost', s.post.id);
+  assert.equal(a.dono('carregar').eventos.find((e) => e.id === e1.id).entregas.Story, undefined, 'peça removida volta a ficar pendente');
+});
+
+test('Reportei: lê o PDF (texto) e salva um relatório por mês, atualizando o mesmo', () => {
+  const a = app();
+  const c = a.dono('carregar').clientes[1];
+  const texto = fs.readFileSync(path.join(__dirname, '..', '..', 'test', 'fixtures', 'reportei-exemplo.txt'), 'utf8');
+  const r = a.dono('lerReportei', texto);
+  assert.equal(r.instagram.alcanceOrganico, 1340);
+  const base = { clienteId: c.id, mes: r.mes, seguidores: r.instagram.seguidores, alcanceOrganico: r.instagram.alcanceOrganico, detalhe: { posts: r.posts, analise: r.analise } };
+  const s1 = a.dono('salvarReport', base);
+  const s2 = a.dono('salvarReport', Object.assign({}, base, { seguidores: 9999 }));
+  assert.equal(s2.id, s1.id);
+  assert.equal(a.dono('carregar').reports.length, 1);
+  assert.equal(a.dono('carregar').reports[0].detalhe.posts.length, 2);
+});
+
+test('tendências: Google Notícias sem a chave, IA com a chave; não repete', () => {
+  const a = app();
+  const c = a.dono('carregar').clientes[0];
+  a.estado.http = [{ contem: 'news.google.com', corpo: '<rss><item><title>Check-up preventivo cresce - Folha</title><link>https://ex.com/a</link><source url="x">Folha</source></item></rss>' }];
+  const r = a.dono('pesquisarTendencias', c.id);
+  assert.equal(r.novos[0].titulo, 'Check-up preventivo cresce');
+  assert.equal(a.dono('pesquisarTendencias', c.id).novos.length, 0);
+  a.dono('salvarAjustes', { chaveIA: 'sk-ant-teste' });
+  a.estado.http = [{ contem: 'api.anthropic.com', corpo: { stop_reason: 'end_turn', content: [{ type: 'text', text: '{"tendencias":[{"titulo":"Longevidade no trabalho","porque":"x","ideia":"Reels"}]}' }] } }];
+  assert.equal(a.dono('pesquisarTendencias', c.id).fonte, 'ia');
+  const nap = a.dono('carregar').clientes.find((x) => x.nome === 'Nap Griddle');
+  assert.throws(() => a.dono('pesquisarTendencias', nap.id), /nicho/);
+});

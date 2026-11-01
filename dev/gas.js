@@ -11,9 +11,11 @@ const vm = require('vm');
 const SRC = path.join(__dirname, '..', 'src');
 
 // ignorar: arquivos .gs a deixar de fora; extra: código a mais (os testes usam para simular EquipeSeok.gs).
-function lerFontes(ignorar, extra) {
-  return fs.readdirSync(SRC).filter((f) => f.endsWith('.gs') && !(ignorar || []).includes(f)).sort()
-    .map((f) => '// ---- ' + f + '\n' + fs.readFileSync(path.join(SRC, f), 'utf8')).join('\n') + (extra ? '\n' + extra : '');
+// pasta: outra pasta de fontes (o app Seok Social usa social/src).
+function lerFontes(ignorar, extra, pasta) {
+  const dir = pasta || SRC;
+  return fs.readdirSync(dir).filter((f) => f.endsWith('.gs') && !(ignorar || []).includes(f)).sort()
+    .map((f) => '// ---- ' + f + '\n' + fs.readFileSync(path.join(dir, f), 'utf8')).join('\n') + (extra ? '\n' + extra : '');
 }
 
 function novoEstado() {
@@ -190,7 +192,7 @@ function criarGlobais(estado, opcoes) {
 function executar(estado, opcoes, fn, args) {
   if (!/^[A-Za-z][A-Za-z0-9]*$/.test(fn)) throw new Error('Função inválida: ' + fn);
   const ctx = vm.createContext(criarGlobais(estado, opcoes));
-  vm.runInContext(lerFontes(opcoes.ignorar, opcoes.extra), ctx, { filename: 'servidor.gs' });
+  vm.runInContext(lerFontes(opcoes.ignorar, opcoes.extra, opcoes.src), ctx, { filename: 'servidor.gs' });
   if (typeof ctx[fn] !== 'function') throw new Error('Função inexistente: ' + fn);
   const r = ctx[fn].apply(null, JSON.parse(JSON.stringify(args || [])));
   return r === undefined ? null : JSON.parse(JSON.stringify(r));
