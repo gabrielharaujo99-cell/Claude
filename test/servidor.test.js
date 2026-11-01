@@ -330,3 +330,37 @@ test('destrave: motivo, próximo passo com data obrigatória', () => {
   assert.equal(r.proximoPassoData, '2026-11-10');
   assert.equal(c.ana('salvarDestrave', op.id, { travaMotivo: 'inventado' }).travaMotivo, '');
 });
+
+test('contatos: e-mail único, tipo válido, só quem criou ou gestor apaga', () => {
+  const c = comEquipe();
+  const a = c.ana('salvarContato', { nome: 'Regina', email: 'regina@cliente.com', tipo: 'Cliente', cargo: 'Diretora de marketing' });
+  assert.equal(a.tipo, 'Cliente');
+  assert.throws(() => c.ana('salvarContato', { nome: 'Outra', email: 'REGINA@cliente.com' }), /Já existe/);
+  assert.equal(c.ana('salvarContato', { nome: 'Zé', tipo: 'Inventado' }).tipo, 'Outro');
+  assert.throws(() => c.leo('salvarContato', { nome: 'X' }), /não permite/);
+  assert.equal(c.ana('listarContatos').length, 2);
+  assert.equal(c.dono('removerContato', a.id), true);
+});
+
+test('revisor de propostas: seções, marcadores, outro cliente, valor e escopo aberto', () => {
+  const c = comEquipe();
+  c.ana('salvarCliente', { nome: 'Café Aurora' });
+  const op = c.ana('salvarOportunidade', { titulo: 'Social media', clienteNome: 'Spa Raízes', valor: 4500 });
+  const p = c.ana('salvarProposta', { oportunidadeId: op.id, titulo: 'Proposta social', valor: 4500 });
+  assert.throws(() => c.ana('revisarProposta', p.id, 'curto'), /texto da proposta/);
+  const ruim = 'Proposta para o Café Aurora. Objetivo: crescer. Escopo: posts ilimitados e stories sempre que necessário, entre outros. ' +
+    'Investimento: R$ 3.900 por mês. Prazo: [preencher]. '.repeat(3);
+  const r = c.ana('revisarProposta', p.id, ruim, false).revisao;
+  assert.ok(r.nota < 60);
+  const tipos = r.achados.map((a) => a.secao);
+  assert.ok(tipos.includes('Marcadores'));
+  assert.ok(tipos.includes('Outro cliente'));
+  assert.ok(tipos.includes('Investimento'));
+  assert.ok(tipos.includes('Escopo'));
+  assert.equal(r.achados[0].sev, 'critico', 'mais graves primeiro');
+  const boa = 'Objetivo e contexto do Spa Raízes. Escopo e entregáveis: 12 posts por mês. Não está incluso: tráfego pago. Prazo: cronograma de 4 semanas. ' +
+    'Investimento: R$ 4.500 mensais. Pagamento via boleto todo dia 10. Duas rodadas de ajuste por peça, com aprovação do cliente. Validade: 15 dias. Próximos passos: aceite e kickoff. '.repeat(2);
+  const b = c.ana('revisarProposta', p.id, boa, false).revisao;
+  assert.equal(b.veredito, 'Pronta para enviar');
+  assert.equal(b.ia, null);
+});

@@ -25,8 +25,8 @@ const SCHEMA = {
   comentarios: { colunas: ['id', 'oportunidadeId', 'autor', 'texto', 'mencoes', 'criadoEm'], json: ['mencoes'] },
   propostas: {
     colunas: ['id', 'oportunidadeId', 'titulo', 'url', 'valor', 'status', 'enviadaEm', 'validade', 'obs', 'criadoPor',
-      'criadoEm', 'atualizadoEm'],
-    num: ['valor'],
+      'criadoEm', 'atualizadoEm', 'revisao'],
+    num: ['valor'], json: ['revisao'],
   },
   horas: { colunas: ['id', 'email', 'data', 'clienteId', 'oportunidadeId', 'horas', 'descricao', 'criadoEm'], num: ['horas'] },
   historico: { colunas: ['id', 'ts', 'email', 'entidade', 'entidadeId', 'acao', 'campo', 'de', 'para'] },
@@ -77,6 +77,10 @@ const SCHEMA = {
     num: ['seguidores', 'novosSeguidores', 'alcance', 'impressoes', 'interacoes', 'engajamento', 'visitasPerfil', 'cliquesLink', 'postsPublicados',
       'alcanceOrganico', 'alcancePago', 'visualizacoes', 'liSeguidores', 'liAlcance', 'liImpressoes', 'liPosts'],
     json: ['detalhe'],
+  },
+  // Contatos: clientes, parceiros, fornecedores e equipe (agenda da agência).
+  contatos: {
+    colunas: ['id', 'nome', 'email', 'telefone', 'empresa', 'clienteId', 'cargo', 'tipo', 'contexto', 'criadoPor', 'criadoEm', 'atualizadoEm'],
   },
   // Tráfego pago: campanhas e os resultados lançados por período (semana, quinzena, mês).
   campanhas: {
