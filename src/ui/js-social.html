@@ -562,8 +562,11 @@ function abrirFormPost(base) {
       '<label class="campo"><span>Responsável</span><select name="responsavel">' + opcoes(equipe.map(function (x) { return { v: x.email, t: x.nome }; }), p.responsavel, 'Sem responsável') + '</select></label>' +
       '<label class="campo"><span>Data de publicação</span><input name="data" type="date" value="' + esc(p.data) + '"><small>Obrigatória para agendar ou publicar.</small></label>' +
       '<label class="campo"><span>Horário</span><input name="hora" type="time" value="' + esc(p.hora) + '"></label>' +
-      '<label class="campo inteira"><span>Link da arte</span><input name="link" type="url" value="' + esc(p.link) + '" placeholder="https://drive.google.com/…">' +
+      '<label class="campo"><span>Link do Drive (arte)</span><input name="link" type="url" value="' + esc(p.link) + '" placeholder="https://drive.google.com/…">' +
         '<small>Drive, Canva, Figma: onde a peça estiver.' + (linkOk ? ' <a href="' + esc(p.link) + '" target="_blank" rel="noopener">Abrir arte</a>' : '') + '</small></label>' +
+      '<label class="campo"><span>Link da publicação</span><input name="linkPost" type="url" value="' + esc(p.linkPost) + '" placeholder="https://www.instagram.com/p/…">' +
+        '<small>Instagram, LinkedIn: o post no ar.' + (/^https?:\/\//i.test(p.linkPost || '') ? ' <a href="' + esc(p.linkPost) + '" target="_blank" rel="noopener">Abrir post</a>' : '') + '</small></label>' +
+      '<label class="campo inteira"><span>Por que este post</span><input name="porque" maxlength="600" value="' + esc(p.porque) + '" placeholder="Ex.: reforça a autoridade da clínica em check-up, pilar Educação"><small>Aparece na apresentação da reunião mensal.</small></label>' +
       '<label class="campo inteira"><span>Legenda</span><textarea name="legenda" maxlength="3000" rows="5" placeholder="Texto do post, hashtags, chamada para ação…">' + esc(p.legenda) + '</textarea><small class="sm-contador" id="sm-cont"></small></label>' +
       '<label class="campo inteira"><span>Observações</span><textarea name="obs" maxlength="1000" placeholder="Referências, pedidos do cliente, ajustes…">' + esc(p.obs) + '</textarea></label>' +
       '</fieldset></form>' +

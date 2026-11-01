@@ -23,11 +23,16 @@ function salvarPost(d) {
       link: url_(d.link),
       obs: texto_(d.obs, 1000),
       pilar: texto_(d.pilar, 40),
+      linkPost: url_(d.linkPost),
+      porque: texto_(d.porque, 600),
+      eventoId: texto_(d.eventoId, 120),
+      temaId: texto_(d.temaId, 40),
       atualizadoEm: agora_(),
     };
     if (!p.titulo) throw new Error('Dê um título para o conteúdo.');
     if (!p.clienteId || !achar_('clientes', p.clienteId)) throw new Error('Escolha o cliente.');
     if (texto_(d.link, 1000) && !p.link) throw new Error('O link precisa começar com http:// ou https://');
+    if (texto_(d.linkPost, 1000) && !p.linkPost) throw new Error('O link da publicação precisa começar com http:// ou https://');
     if ((p.status === 'agendado' || p.status === 'publicado') && !p.data) throw new Error('Informe a data de publicação.');
     if (!d.id) {
       Object.assign(p, { id: novoId_('po'), criadoPor: eu.email, criadoEm: p.atualizadoEm });
@@ -35,6 +40,8 @@ function salvarPost(d) {
       return inserir_('posts', p);
     }
     if (!achar_('posts', d.id)) throw new Error('Conteúdo não encontrado. Recarregue a página.');
+    // Ligações com evento e tema só mudam quando vêm (o formulário comum não as manda).
+    ['eventoId', 'temaId'].forEach(function (k) { if (!Object.prototype.hasOwnProperty.call(d, k)) delete p[k]; });
     return atualizar_('posts', d.id, p).depois;
   });
 }

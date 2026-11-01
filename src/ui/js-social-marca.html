@@ -134,7 +134,7 @@
  * e os reports mensais (com leitura do PDF do Instagram e apresentação para a reunião).
  */
 const SM_JOR = { feedback: 'Feedback', ajuste: 'Ajuste', overdelivering: 'Overdelivering', reuniao: 'Reunião', marco: 'Marco', alerta: 'Alerta' };
-const SM_ABAS = [['estrategia', 'Estratégia'], ['conteudo', 'Conteúdo'], ['pedidos', 'Pedidos'], ['jornada', 'Jornada'], ['reports', 'Resultados']];
+const SM_ABAS = [['quadro', 'Quadro'], ['estrategia', 'Estratégia'], ['conteudo', 'Conteúdo'], ['pedidos', 'Pedidos'], ['jornada', 'Jornada'], ['reports', 'Resultados']];
 const SM_PRIO = { alta: 'Alta', normal: 'Normal', baixa: 'Baixa' };
 const SM_REP = [['seguidores', 'Seguidores'], ['novosSeguidores', 'Novos seguidores'], ['alcance', 'Alcance total'], ['alcanceOrganico', 'Alcance orgânico'],
   ['alcancePago', 'Alcance pago'], ['visualizacoes', 'Visualizações'], ['impressoes', 'Impressões'], ['interacoes', 'Interações'], ['engajamento', 'Engajamento (%)'],
@@ -347,7 +347,8 @@ function smCliqueExtra(e) {
   const t = e.target, f = S.filtrosSocial;
   const sel = function (s) { return t.closest(s); };
   let x;
-  if ((x = sel('[data-abrir-cli]'))) { smAbrirCliente(x.dataset.abrirCli); return true; }
+  if (typeof sqClique === 'function' && sqClique(e)) return true;
+  if ((x = sel('[data-abrir-cli]'))) { f.aba = 'quadro'; smAbrirCliente(x.dataset.abrirCli); return true; }
   if ((x = sel('[data-abrir-res]'))) { f.aba = 'reports'; smAbrirCliente(x.dataset.abrirRes); return true; }
   if ((x = sel('[data-statuscli]'))) { f.statusCli = x.dataset.statuscli; smAtualizar(); return true; }
   if ((x = sel('[data-novo-pedido]'))) { abrirFormPedido({ clienteId: x.dataset.novoPedido || f.pagina || f.cliente }); return true; }
@@ -418,7 +419,7 @@ function smPaginaCliente(id) {
 
 function smPaginaCorpo(id) {
   const f = S.filtrosSocial, m = smMarca(id), c = cliente(id);
-  const aba = f.aba === 'conteudo' ? smAbaConteudo(id, m, c) : f.aba === 'pedidos' ? smPedidosVista(id) : f.aba === 'jornada' ? smAbaJornada(id) : f.aba === 'reports' ? smResultados(id, m) : smAbaEstrategia(id, m, c);
+  const aba = f.aba === 'quadro' ? smQuadro(id, m, c) : f.aba === 'conteudo' ? smAbaConteudo(id, m, c) : f.aba === 'pedidos' ? smPedidosVista(id) : f.aba === 'jornada' ? smAbaJornada(id) : f.aba === 'reports' ? smResultados(id, m) : smAbaEstrategia(id, m, c);
   return '<div class="conteudo">' + aba + '</div>';
 }
 

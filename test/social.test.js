@@ -223,3 +223,63 @@ test('Reportei: conserta as palavras que o pdf.js quebra nas ligaduras', () => {
   assert.equal(b.stories.length, 1);
   assert.equal(b.stories[0].visitasPerfil, 2);
 });
+
+test('quadro: blocos por cliente, frequência editável e configuração da agenda', () => {
+  const c = agencia();
+  const m = c.soc('salvarMarca', { clienteId: c.cliente.id });
+  assert.deepEqual(m.blocos, ['frequencia', 'estoque', 'pedidos'], 'blocos padrão');
+  assert.deepEqual(m.entregasEvento, ['Story', 'Feed Instagram', 'LinkedIn']);
+  const m2 = c.soc('salvarMarca', { clienteId: c.cliente.id, blocos: ['eventos', 'temas', 'inventado', 'temas'], nicho: 'RH e treinamento corporativo', frequencia: 3 });
+  assert.deepEqual(m2.blocos, ['eventos', 'temas']);
+  assert.equal(m2.nicho, 'RH e treinamento corporativo');
+  assert.equal(m2.frequencia, 3);
+  assert.deepEqual(c.soc('salvarMarca', { clienteId: c.cliente.id, frequencia: 5 }).blocos, ['eventos', 'temas'], 'mudar a frequência não mexe nos blocos');
+});
+
+test('temas e cases: fila ordenada, reordenar e levar para a pauta', () => {
+  const c = agencia();
+  const a = c.soc('salvarTema', { clienteId: c.cliente.id, tipo: 'case', titulo: 'Case Senac' });
+  const b = c.soc('salvarTema', { clienteId: c.cliente.id, tipo: 'case', titulo: 'Case Sesi' });
+  const t = c.soc('salvarTema', { clienteId: c.cliente.id, tipo: 'tema', titulo: 'Liderança em times remotos' });
+  assert.deepEqual([a.ordem, b.ordem, t.ordem], [1, 2, 1], 'cada tipo tem a sua fila');
+  const ord = c.soc('ordenarTemas', [b.id, a.id]);
+  assert.deepEqual(ord.map((x) => x.titulo), ['Case Sesi', 'Case Senac']);
+  const r = c.soc('usarTema', a.id, '2026-11-20');
+  assert.equal(r.tema.status, 'usado');
+  assert.equal(r.post.temaId, a.id);
+  assert.equal(r.post.formato, 'Carrossel');
+  assert.throws(() => c.soc('usarTema', a.id, '2026-11-21'), /já está/);
+  assert.equal(c.soc('carregar').temas.length, 3);
+  assert.throws(() => c.tra('salvarTema', { clienteId: c.cliente.id, titulo: 'x' }), /Social media/);
+});
+
+test('agenda: só eventos com PAX entram, com as peças de cada evento ligadas a posts', () => {
+  const c = agencia();
+  c.soc('salvarMarca', { clienteId: c.cliente.id, agendaFiltro: '' });
+  const dia = (n) => new Date(Date.now() + n * 864e5).toISOString();
+  c.estado.agenda = [
+    { id: 'e1', titulo: 'Treinamento Senac · 25 PAX', inicio: dia(5), fim: dia(5), local: 'Senac SP' },
+    { id: 'e2', titulo: 'Reunião interna', inicio: dia(2), fim: dia(2) },
+    { id: 'e3', titulo: 'Workshop liderança', descricao: 'PAX: 40', inicio: dia(-10), fim: dia(-10) },
+  ];
+  const evs = c.soc('sincronizarAgenda', c.cliente.id);
+  assert.deepEqual(evs.map((e) => e.pax).sort((x, y) => x - y), [25, 40]);
+  const e1 = evs.find((e) => e.pax === 25);
+  const r = c.soc('criarEntregaEvento', e1.id, 'Story');
+  assert.equal(r.post.formato, 'Stories');
+  assert.equal(r.post.eventoId, e1.id);
+  assert.equal(r.evento.entregas.Story, r.post.id);
+  const li = c.soc('criarEntregaEvento', e1.id, 'LinkedIn').post;
+  assert.equal(li.rede, 'LinkedIn');
+  assert.throws(() => c.soc('criarEntregaEvento', e1.id, 'Story'), /já está/);
+  // editar o post pelo formulário comum (sem eventoId) não solta a ligação; o link da publicação fica guardado
+  const ed = c.soc('salvarPost', Object.assign({}, li, { eventoId: undefined, linkPost: 'https://www.linkedin.com/posts/x', status: 'publicado' }));
+  assert.equal(ed.eventoId, e1.id);
+  assert.equal(ed.linkPost, 'https://www.linkedin.com/posts/x');
+  // sincronizar de novo mantém as peças
+  assert.equal(c.soc('sincronizarAgenda', c.cliente.id).find((e) => e.id === e1.id).entregas.Story, r.post.id);
+  // filtro por texto
+  c.soc('salvarMarca', { clienteId: c.cliente.id, agendaFiltro: 'senac' });
+  c.estado.agenda.push({ id: 'e4', titulo: 'Outro cliente 12 pax', inicio: dia(3) });
+  assert.ok(!c.soc('sincronizarAgenda', c.cliente.id).some((e) => e.titulo.startsWith('Outro')));
+});

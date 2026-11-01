@@ -35,7 +35,7 @@ function carregar() {
   const social = temArea_(eu, 'social'), trafego = temArea_(eu, 'trafego');
   const contagem = {};
   if (comercial) ler_('comentarios').forEach(function (c) { contagem[c.oportunidadeId] = (contagem[c.oportunidadeId] || 0) + 1; });
-  const soc = social ? dadosSocial_() : { marcas: [], pedidos: [], jornada: [], reports: [], igDiario: false, igUltimaRodada: '' };
+  const soc = social ? dadosSocial_() : { marcas: [], pedidos: [], jornada: [], reports: [], temas: [], eventos: [], igDiario: false, igUltimaRodada: '' };
   const fin = eu.financeiro ? dadosFinanceiro_() : { contratos: [], ajustes: [] };
   const rec = recorte_(eu, cfg);
   return {
@@ -57,7 +57,8 @@ function carregar() {
       tarefas: rec.antigos.tarefas.length, oportunidades: rec.antigos.oportunidades.length, posts: rec.antigos.posts.length,
       desde: rec.desde,
     },
-    marcas: soc.marcas, pedidos: soc.pedidos, jornada: soc.jornada, reports: soc.reports, igDiario: soc.igDiario, igUltimaRodada: soc.igUltimaRodada,
+    marcas: soc.marcas, pedidos: soc.pedidos, jornada: soc.jornada, reports: soc.reports, temas: soc.temas, eventos: soc.eventos,
+    igDiario: soc.igDiario, igUltimaRodada: soc.igUltimaRodada,
     campanhas: trafego ? ler_('campanhas') : [],
     resultados: trafego ? ler_('resultados') : [],
     contratos: fin.contratos,

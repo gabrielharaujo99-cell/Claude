@@ -17,7 +17,7 @@ function lerFontes(ignorar, extra) {
 }
 
 function novoEstado() {
-  return { abas: {}, props: {}, gatilhos: [], emails: [], chats: [], cache: {} };
+  return { abas: {}, props: {}, gatilhos: [], emails: [], chats: [], cache: {}, agenda: [] };
 }
 
 function criarPlanilha(estado) {
@@ -148,6 +148,18 @@ function criarGlobais(estado, opcoes) {
       base64Encode: (s) => Buffer.from(String(s), 'utf8').toString('base64'),
       base64Decode: (s) => Array.from(Buffer.from(String(s), 'base64')),
     },
+    // Google Agenda: estado.agenda = [{ id, titulo, inicio, fim, descricao, local, agenda }] (agenda vazia = a padrão).
+    CalendarApp: (function () {
+      const cal = function (id) {
+        return {
+          getEvents: (ini, fim) => (estado.agenda || []).filter((e) => (e.agenda || '') === (id || '') && new Date(e.inicio) >= ini && new Date(e.inicio) <= fim).map((e) => ({
+            getId: () => e.id, getTitle: () => e.titulo, getDescription: () => e.descricao || '', getLocation: () => e.local || '',
+            getStartTime: () => new Date(e.inicio), getEndTime: () => new Date(e.fim || e.inicio),
+          })),
+        };
+      };
+      return { getDefaultCalendar: () => cal(''), getCalendarById: (id) => ((estado.agenda || []).some((e) => e.agenda === id) ? cal(id) : null) };
+    })(),
     ScriptApp: {
       getService: () => ({ getUrl: () => 'http://localhost:8080/' }),
       getProjectTriggers: () => estado.gatilhos.map((g) => ({

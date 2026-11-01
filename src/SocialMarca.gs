@@ -59,6 +59,10 @@ function salvarMarca(d) {
       pilares: has('pilares') ? limparPilares_(d.pilares) : (atual ? atual.pilares : []),
       formatosMeta: has('formatosMeta') ? limparFormatosMeta_(d.formatosMeta) : (atual ? atual.formatosMeta : {}),
       inicio: has('inicio') ? dataIso_(d.inicio) : (atual ? atual.inicio : ''),
+      blocos: has('blocos') ? limparBlocos_(d.blocos) : (atual && atual.blocos && atual.blocos.length ? atual.blocos : BLOCOS_PADRAO.slice()),
+      nicho: pega('nicho', 200), agendaId: pega('agendaId', 200), agendaFiltro: pega('agendaFiltro', 80),
+      entregasEvento: has('entregasEvento') ? lista_(d.entregasEvento, 8) : (atual && atual.entregasEvento && atual.entregasEvento.length ? atual.entregasEvento : ENTREGAS_PADRAO.slice()),
+      antecedencia: has('antecedencia') ? Math.round(numero_(d.antecedencia, 0, 60)) : (atual && atual.antecedencia ? atual.antecedencia : 7),
       atualizadoEm: agora_(), atualizadoPor: eu.email,
     };
     if (!atual) {
@@ -317,7 +321,7 @@ function ligarVerificacaoInstagram(ligar) {
 function dadosSocial_() {
   const cfg = achar_('config', 'igUltimaRodada');
   return {
-    marcas: ler_('marcas'), pedidos: ler_('pedidos'), jornada: ler_('jornada'), reports: ler_('reports'),
+    marcas: ler_('marcas'), pedidos: ler_('pedidos'), jornada: ler_('jornada'), reports: ler_('reports'), temas: ler_('temas'), eventos: ler_('eventos'),
     igDiario: gatilhoInstagramAtivo_(), igUltimaRodada: cfg ? cfg.valor : '',
   };
 }

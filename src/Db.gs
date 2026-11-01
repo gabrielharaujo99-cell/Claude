@@ -32,15 +32,29 @@ const SCHEMA = {
   // Social media: cada peça de conteúdo, da pauta à publicação.
   posts: {
     colunas: ['id', 'clienteId', 'titulo', 'formato', 'rede', 'status', 'data', 'hora', 'responsavel', 'legenda', 'link', 'obs',
-      'criadoPor', 'criadoEm', 'atualizadoEm', 'pilar'],
+      'criadoPor', 'criadoEm', 'atualizadoEm', 'pilar',
+      // link: arte (Drive, Canva); linkPost: a publicação no ar (Instagram, LinkedIn); porque: por que este post existe
+      'linkPost', 'porque', 'eventoId', 'temaId'],
+  },
+  // Temas mapeados, cases em fila (com ordem) e tendências de cada cliente na social.
+  temas: {
+    colunas: ['id', 'clienteId', 'tipo', 'titulo', 'descricao', 'ordem', 'status', 'fonte', 'link', 'postId', 'criadoPor', 'criadoEm', 'atualizadoEm'],
+    num: ['ordem'],
+  },
+  // Eventos do Google Agenda (treinamentos com PAX) e as peças que cada um rende.
+  eventos: {
+    colunas: ['id', 'clienteId', 'titulo', 'inicio', 'fim', 'pax', 'local', 'descricao', 'entregas', 'sincronizadoEm'],
+    num: ['pax'], json: ['entregas'],
   },
   // Perfil de marca de cada cliente na social media (uma linha por cliente).
   marcas: {
     colunas: ['clienteId', 'status', 'fase', 'objetivo', 'persona', 'tomVoz', 'diretrizes', 'cultura', 'publico', 'diferenciais',
       'palavrasUsar', 'palavrasEvitar', 'referencias', 'concorrentes', 'hashtags', 'aprovador', 'redes', 'linkDrive', 'logoUrl',
       'corPrimaria', 'corSecundaria', 'frequencia', 'pilares', 'formatosMeta', 'inicio', 'igUltimoPost', 'igPostsMes', 'igSeguidores',
-      'igVerificadoEm', 'igErro', 'atualizadoEm', 'atualizadoPor'],
-    chave: 'clienteId', num: ['frequencia', 'igSeguidores'], json: ['pilares', 'formatosMeta'],
+      'igVerificadoEm', 'igErro', 'atualizadoEm', 'atualizadoPor',
+      // Quadro do cliente: blocos ligados, nicho (tendências), agenda dos eventos e as peças de cada evento
+      'blocos', 'nicho', 'agendaId', 'agendaFiltro', 'entregasEvento', 'antecedencia'],
+    chave: 'clienteId', num: ['frequencia', 'igSeguidores', 'antecedencia'], json: ['pilares', 'formatosMeta', 'blocos', 'entregasEvento'],
   },
   // Pedidos de próximos posts (do cliente ou ideias da equipe) até serem alocados no calendário.
   pedidos: {

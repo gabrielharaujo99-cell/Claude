@@ -1,0 +1,294 @@
+<style>
+/* Quadro do cliente na social: blocos ligáveis (frequência, estoque, eventos, temas, cases, tendências, pedidos). */
+.sq-topo { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.sq-topo .t { flex: 1; min-width: 220px; color: var(--suave); font-size: 13px; }
+.sq-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.sq-bloco { padding: 18px 20px; display: grid; gap: 12px; align-content: start; }
+.sq-bloco.largo { grid-column: 1 / -1; }
+.sq-cab { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sq-cab h3 { margin: 0; font-size: 15px; font-weight: 700; margin-right: auto; display: flex; align-items: center; gap: 8px; }
+.sq-cab h3 svg { width: 18px; height: 18px; color: var(--destaque); }
+.sq-num { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.sq-num b { font-size: 30px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.sq-num span { color: var(--suave); font-size: 13px; }
+.sq-freq { display: flex; align-items: center; gap: 8px; }
+.sq-freq input { width: 84px; }
+.sq-linhas { display: grid; gap: 8px; }
+.sq-linha { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--afundado); font-size: 13px; }
+.sq-linha .x { flex: 1; min-width: 0; }
+.sq-linha .x b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sq-linha .x small { color: var(--suave); }
+.sq-linha .n { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 12px; background: var(--superficie); border: 1px solid var(--linha); flex: none; }
+.sq-acoes { display: flex; gap: 4px; flex: none; }
+.sq-alerta { padding: 10px 12px; border-radius: 12px; font-size: 13px; background: color-mix(in srgb, var(--acento) 12%, var(--superficie)); color: var(--texto); }
+.sq-alerta.ok { background: color-mix(in srgb, var(--destaque) 10%, var(--superficie)); }
+.sq-ev { display: grid; gap: 8px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--linha); background: var(--superficie); }
+.sq-ev .topo-ev { display: flex; align-items: flex-start; gap: 10px; }
+.sq-ev .dia { width: 46px; flex: none; text-align: center; border-radius: 10px; background: var(--afundado); padding: 5px 0; line-height: 1.1; }
+.sq-ev .dia b { display: block; font-size: 18px; font-weight: 700; }
+.sq-ev .dia small { font-size: 10.5px; color: var(--suave); text-transform: uppercase; letter-spacing: .08em; }
+.sq-ev .tx { flex: 1; min-width: 0; }
+.sq-ev .tx b { display: block; font-weight: 600; }
+.sq-ev .tx small { color: var(--suave); }
+.sq-pecas { display: flex; flex-wrap: wrap; gap: 6px; }
+.sq-peca { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 100px; font-size: 12px; border: 1px dashed var(--linha-forte); background: none; color: var(--suave); cursor: pointer; font-family: inherit; }
+.sq-peca.tem { border-style: solid; color: var(--texto); background: var(--afundado); cursor: default; }
+.sq-peca.feita { background: color-mix(in srgb, var(--destaque) 12%, var(--superficie)); border-color: transparent; }
+.sq-peca a { color: var(--destaque); font-weight: 600; text-decoration: none; }
+.sq-peca a:hover { text-decoration: underline; }
+.sq-sub { font: 600 10.5px/1.3 var(--fonte); letter-spacing: .14em; text-transform: uppercase; color: var(--suave); margin-top: 4px; }
+.sq-vazio { color: var(--suave); font-size: 13px; margin: 0; }
+.sq-cfg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; }
+.sq-cfg label.chk { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+@media (max-width: 1100px) { .sq-grade { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<script>
+/**
+ * Quadro de cada cliente na social. A agência liga os blocos que fazem sentido para cada um:
+ * Metapel (frequência, estoque, tendências, pedidos), Outbox (frequência, eventos da agenda com PAX, temas, pedidos),
+ * Content Lab (cases em ordem, frequência, tendências), Pietro (estoque, tendências, frequência)…
+ */
+const SQ_BLOCOS = [
+  ['frequencia', 'Frequência de postagem', 'calendario'], ['estoque', 'Estoque de posts', 'arquivo'], ['eventos', 'Eventos da agenda (PAX)', 'calendario'],
+  ['temas', 'Temas mapeados', 'balao'], ['cases', 'Fila de cases', 'propostas'], ['tendencias', 'Tendências do nicho', 'trafego'], ['pedidos', 'Pedidos do cliente', 'tarefas'],
+];
+function sqTemas(id, tipo) {
+  return ((S.dados && S.dados.temas) || []).filter(function (t) { return t.clienteId === id && t.tipo === tipo; }).sort(function (a, b) { return a.ordem - b.ordem; });
+}
+function sqEventos(id) { return ((S.dados && S.dados.eventos) || []).filter(function (e) { return e.clienteId === id; }); }
+
+// Estoque: o que já está pronto (aprovação ou agendado, com data a partir de hoje), até quando cobre e quando produzir o próximo lote.
+function sqEstoque(id, m) {
+  const hoje = S.dados.hoje, ps = smPosts().filter(function (p) { return p.clienteId === id && p.data && p.data >= hoje; });
+  const prontos = ps.filter(function (p) { return p.status === 'aprovacao' || p.status === 'agendado'; });
+  const agendados = ps.filter(function (p) { return p.status === 'agendado'; });
+  const producao = ps.filter(function (p) { return p.status === 'producao' || p.status === 'pauta'; });
+  const max = function (l) { return l.reduce(function (a, p) { return p.data > a ? p.data : a; }, ''); };
+  const ate = max(prontos), ateAg = max(agendados), antec = Number(m && m.antecedencia) || 7;
+  const produzirAte = ate ? smSomaDias(ate, -antec) : hoje;
+  const meta = Number(m && m.frequencia) || 0;
+  const diasCobertos = ate ? Math.max(0, Math.round((smData(ate) - smData(hoje)) / 864e5)) : 0;
+  return { prontos: prontos.length, agendados: agendados.length, producao: producao.length, ate: ate, ateAg: ateAg, produzirAte: produzirAte, diasCobertos: diasCobertos,
+    precisa: meta ? Math.max(0, Math.ceil(meta * 2) - prontos.length) : 0, urgente: produzirAte <= smSomaDias(hoje, 3), meta: meta };
+}
+
+function sqBlocoFrequencia(id, m) {
+  const x = smMetricas(id);
+  return '<div class="cartao sq-bloco"><div class="sq-cab"><h3>' + icone('calendario') + 'Frequência</h3></div>' +
+    '<div class="sq-num"><b>' + smNumBr(x.freq, 1) + '</b><span>posts por semana nos últimos 30 dias</span></div>' +
+    (pode('colaborador') ? '<div class="sq-freq"><span class="mudo pequeno">Meta por semana</span><input class="entrada" type="number" min="0" max="50" step="0.5" id="sq-meta" value="' + esc(m.frequencia || '') + '"><button class="btn btn-peq" data-sq-meta="' + esc(id) + '">Salvar</button></div>'
+      : '<p class="sq-vazio">Meta: ' + smNumBr(m.frequencia, 1) + ' por semana</p>') +
+    smSemanas(x) + '</div>';
+}
+
+function sqBlocoEstoque(id, m) {
+  const e = sqEstoque(id, m);
+  return '<div class="cartao sq-bloco"><div class="sq-cab"><h3>' + icone('arquivo') + 'Estoque de posts</h3></div>' +
+    '<div class="kpis" style="margin:0;grid-template-columns:repeat(3,minmax(0,1fr))">' +
+      kpi('Prontos', String(e.prontos), 'aprovação + agendados') + kpi('Agendados', String(e.agendados), e.ateAg ? 'até ' + dataBr(e.ateAg) : 'nenhum agendado') +
+      kpi('Em produção', String(e.producao), 'pauta + produção') + '</div>' +
+    (e.ate ? '<div class="sq-alerta' + (e.urgente ? '' : ' ok') + '">Posts prontos até <b>' + dataBr(e.ate) + '</b> (' + e.diasCobertos + ' dias). ' +
+      (e.urgente ? '<b>Produza o próximo lote até ' + dataBr(e.produzirAte) + '.</b>' : 'Próximo lote: comece até ' + dataBr(e.produzirAte) + '.') +
+      (e.precisa ? ' Para 2 semanas de meta faltam ' + e.precisa + ' post(s).' : '') + '</div>'
+      : '<div class="sq-alerta">Nenhum post pronto para os próximos dias. <b>Produza hoje.</b></div>') + '</div>';
+}
+
+function sqPeca(e, tipo) {
+  const pid = (e.entregas || {})[tipo], p = pid ? smPost(pid) : null;
+  if (!p) return pode('colaborador') ? '<button class="sq-peca" data-sq-peca="' + esc(e.id) + '" data-tipo="' + esc(tipo) + '">' + icone('mais') + esc(tipo) + '</button>' : '<span class="sq-peca">' + esc(tipo) + '</span>';
+  const links = (p.linkPost ? '<a href="' + esc(p.linkPost) + '" target="_blank" rel="noopener">' + (/linkedin/i.test(p.linkPost) ? 'LinkedIn' : 'Instagram') + '</a>' : '') +
+    (p.link ? '<a href="' + esc(p.link) + '" target="_blank" rel="noopener">Drive</a>' : '');
+  return '<span class="sq-peca tem' + (p.status === 'publicado' ? ' feita' : '') + '"><b>' + esc(tipo) + '</b> · ' + esc(SM_NOME[p.status] || p.status) + (links ? ' · ' + links : '') +
+    ' <button class="btn btn-fantasma btn-peq btn-icone" data-post="' + esc(p.id) + '" title="Abrir o post">' + icone('editar') + '</button></span>';
+}
+
+function sqEventoHtml(e, m) {
+  const d = new Date(e.inicio), pecas = (m.entregasEvento && m.entregasEvento.length ? m.entregasEvento : ['Story', 'Feed Instagram', 'LinkedIn']);
+  return '<div class="sq-ev"><div class="topo-ev"><span class="dia"><b>' + d.getDate() + '</b><small>' + d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '') + '</small></span>' +
+    '<span class="tx"><b>' + esc(e.titulo) + '</b><small>' + d.toLocaleDateString('pt-BR', { weekday: 'long' }) + ' · ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + (e.local ? ' · ' + esc(e.local) : '') + '</small></span>' +
+    '<span class="pilula destaque">' + esc(String(e.pax)) + ' PAX</span></div>' +
+    '<div class="sq-pecas">' + pecas.map(function (t) { return sqPeca(e, t); }).join('') + '</div></div>';
+}
+
+function sqBlocoEventos(id, m) {
+  const hoje = S.dados.hoje, evs = sqEventos(id).sort(function (a, b) { return a.inicio < b.inicio ? -1 : 1; });
+  const prox = evs.filter(function (e) { return e.inicio.slice(0, 10) >= hoje; }), pass = evs.filter(function (e) { return e.inicio.slice(0, 10) < hoje; }).reverse();
+  const mes = hoje.slice(0, 7), noMes = prox.filter(function (e) { return e.inicio.slice(0, 7) === mes; }).length;
+  const ultima = evs.reduce(function (a, e) { return e.sincronizadoEm > a ? e.sincronizadoEm : a; }, '');
+  return '<div class="cartao sq-bloco largo"><div class="sq-cab"><h3>' + icone('calendario') + 'Eventos da agenda</h3>' +
+      '<span class="mudo pequeno">' + (ultima ? 'sincronizado ' + esc(quando(ultima)) : 'ainda não sincronizado') + '</span>' +
+      (pode('colaborador') ? '<button class="btn btn-peq" data-sq-agenda="' + esc(id) + '">' + icone('recarregar') + 'Sincronizar agenda</button>' : '') + '</div>' +
+    '<p class="sq-vazio">Entram os eventos com número de PAX' + (m.agendaFiltro ? ' que citam "' + esc(m.agendaFiltro) + '"' : '') + ' da ' + (m.agendaId ? 'agenda ' + esc(m.agendaId) : 'agenda principal de quem publicou o CRM') +
+      '. Cada evento rende ' + esc((m.entregasEvento || []).join(', ') || 'Story, Feed Instagram, LinkedIn') + '.</p>' +
+    '<div class="sq-sub">Próximos · ' + noMes + ' neste mês</div>' +
+    (prox.length ? '<div class="sq-linhas">' + prox.slice(0, 8).map(function (e) { return sqEventoHtml(e, m); }).join('') + '</div>' : '<p class="sq-vazio">Nenhum evento com PAX nos próximos 90 dias.</p>') +
+    '<div class="sq-sub">Já aconteceram</div>' +
+    (pass.length ? '<div class="sq-linhas">' + pass.slice(0, 6).map(function (e) { return sqEventoHtml(e, m); }).join('') + '</div>' : '<p class="sq-vazio">Nenhum evento nos últimos 60 dias.</p>') + '</div>';
+}
+
+function sqTemaHtml(t, i, total, fila) {
+  return '<div class="sq-linha">' + (fila ? '<span class="n">' + (i + 1) + '</span>' : '') +
+    '<span class="x"><b>' + esc(t.titulo) + '</b>' + (t.descricao || t.fonte ? '<small>' + esc([t.descricao, t.fonte].filter(Boolean).join(' · ')) + '</small>' : '') + '</span>' +
+    (t.link ? '<a class="btn btn-fantasma btn-peq btn-icone" href="' + esc(t.link) + '" target="_blank" rel="noopener" title="Abrir a fonte">' + icone('link') + '</a>' : '') +
+    (pode('colaborador') ? '<span class="sq-acoes">' +
+      (fila ? '<button class="btn btn-fantasma btn-peq btn-icone" data-sq-sobe="' + esc(t.id) + '" title="Subir"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+        '<button class="btn btn-fantasma btn-peq btn-icone" data-sq-desce="' + esc(t.id) + '" title="Descer"' + (i === total - 1 ? ' disabled' : '') + '>↓</button>' : '') +
+      '<button class="btn btn-peq" data-sq-usar="' + esc(t.id) + '" title="Levar para a pauta do calendário">Pauta</button>' +
+      '<button class="btn btn-fantasma btn-peq btn-icone" data-sq-ed-tema="' + esc(t.id) + '" title="Editar">' + icone('editar') + '</button></span>' : '') + '</div>';
+}
+
+function sqBlocoTemas(id, tipo, titulo, ic, vazio, novo) {
+  const todos = sqTemas(id, tipo), abertos = todos.filter(function (t) { return t.status === 'mapeado'; }), usados = todos.filter(function (t) { return t.status === 'usado'; }).length;
+  const fila = tipo === 'case';
+  return '<div class="cartao sq-bloco"><div class="sq-cab"><h3>' + icone(ic) + esc(titulo) + '</h3><span class="mudo pequeno">' + abertos.length + ' na fila · ' + usados + ' já na pauta</span>' +
+      (pode('colaborador') ? '<button class="btn btn-peq" data-sq-novo-tema="' + tipo + '">' + icone('mais') + esc(novo) + '</button>' : '') + '</div>' +
+    (abertos.length ? '<div class="sq-linhas">' + abertos.map(function (t, i) { return sqTemaHtml(t, i, abertos.length, fila); }).join('') + '</div>' : '<p class="sq-vazio">' + esc(vazio) + '</p>') + '</div>';
+}
+
+function sqBlocoTendencias(id, m) {
+  const todos = sqTemas(id, 'tendencia').filter(function (t) { return t.status === 'mapeado'; });
+  return '<div class="cartao sq-bloco"><div class="sq-cab"><h3>' + icone('trafego') + 'Tendências do nicho</h3>' +
+      (pode('colaborador') ? '<button class="btn btn-peq" data-sq-tend="' + esc(id) + '">' + icone('busca') + 'Pesquisar agora</button>' : '') + '</div>' +
+    '<p class="sq-vazio">Nicho: <b>' + esc(m.nicho || 'defina em Configurar quadro') + '</b>. A pesquisa olha redes sociais, blogs, YouTube e notícias e traz assuntos em alta com ideia de post.</p>' +
+    (todos.length ? '<div class="sq-linhas">' + todos.slice(0, 8).map(function (t, i) { return sqTemaHtml(t, i, todos.length, false); }).join('') + '</div>' : '') + '</div>';
+}
+
+function sqBlocoPedidos(id) {
+  const ps = smPedidos().filter(function (p) { return p.clienteId === id && p.status === 'pendente'; });
+  return '<div class="cartao sq-bloco"><div class="sq-cab"><h3>' + icone('tarefas') + 'Pedidos do cliente</h3>' +
+      (pode('colaborador') ? '<button class="btn btn-peq" data-novo-pedido="' + esc(id) + '">' + icone('mais') + 'Pedido</button>' : '') + '</div>' +
+    (ps.length ? '<div class="sq-linhas">' + ps.map(function (p) {
+      return '<div class="sq-linha"><span class="x"><b>' + esc(p.titulo) + '</b><small>' + esc([p.origem === 'cliente' ? 'pedido do cliente' : 'ideia da equipe', p.prazo ? 'prazo ' + dataBr(p.prazo) : '', p.formato].filter(Boolean).join(' · ')) + '</small></span>' +
+        (pode('colaborador') ? '<span class="sq-acoes"><button class="btn btn-peq" data-alocar="' + esc(p.id) + '">Pauta</button><button class="btn btn-fantasma btn-peq btn-icone" data-ed-pedido="' + esc(p.id) + '">' + icone('editar') + '</button></span>' : '') + '</div>';
+    }).join('') + '</div>' : '<p class="sq-vazio">Nenhum pedido pendente.</p>') + '</div>';
+}
+
+function smQuadro(id, m, c) {
+  if (!m) return smAbaEstrategia(id, m, c);
+  const b = m.blocos && m.blocos.length ? m.blocos : ['frequencia', 'estoque', 'pedidos'];
+  const mapa = {
+    frequencia: function () { return sqBlocoFrequencia(id, m); }, estoque: function () { return sqBlocoEstoque(id, m); }, eventos: function () { return sqBlocoEventos(id, m); },
+    temas: function () { return sqBlocoTemas(id, 'tema', 'Temas mapeados', 'balao', 'Nenhum tema mapeado. Anote aqui os temas que o cliente vê valor para os próximos posts.', 'Tema'); },
+    cases: function () { return sqBlocoTemas(id, 'case', 'Fila de cases', 'propostas', 'Nenhum case na fila. Adicione na ordem em que devem ser publicados.', 'Case'); },
+    tendencias: function () { return sqBlocoTendencias(id, m); }, pedidos: function () { return sqBlocoPedidos(id); },
+  };
+  return '<div class="sq-topo"><span class="t">' + (m.objetivo ? 'Objetivo: <b>' + esc(m.objetivo) + '</b> · fase ' + esc(m.fase) : 'Defina o objetivo no perfil de marca.') + '</span>' +
+      (pode('colaborador') ? '<button class="btn" data-sq-cfg="' + esc(id) + '">' + icone('admin') + 'Configurar quadro</button>' : '') + '</div>' +
+    '<div class="sq-grade">' + SQ_BLOCOS.filter(function (x) { return b.indexOf(x[0]) >= 0; }).map(function (x) { return mapa[x[0]](); }).join('') + '</div>';
+}
+
+// ---------- ações ----------
+function sqConfigurar(id) {
+  const m = smMarca(id), b = m.blocos && m.blocos.length ? m.blocos : ['frequencia', 'estoque', 'pedidos'];
+  const md = modal({
+    titulo: 'Quadro de ' + nomeCliente(id),
+    corpo: '<p class="mudo" style="margin-top:0">Escolha o que aparece no quadro deste cliente.</p><div class="sq-cfg">' +
+      SQ_BLOCOS.map(function (x) { return '<label class="chk"><input type="checkbox" name="b_' + x[0] + '"' + (b.indexOf(x[0]) >= 0 ? ' checked' : '') + '>' + esc(x[1]) + '</label>'; }).join('') + '</div>' +
+      '<form id="sq-f" class="grade" style="margin-top:16px" autocomplete="off">' +
+      '<label class="campo"><span>Meta de posts por semana</span><input name="frequencia" type="number" min="0" max="50" step="0.5" value="' + esc(m.frequencia || '') + '"></label>' +
+      '<label class="campo"><span>Antecedência de produção (dias)</span><input name="antecedencia" type="number" min="0" max="60" value="' + esc(m.antecedencia || 7) + '"></label>' +
+      '<label class="campo inteira"><span>Nicho para as tendências</span><input name="nicho" maxlength="200" value="' + esc(m.nicho) + '" placeholder="Ex.: saúde e medicina preventiva; creator economy; RH e treinamento corporativo"></label>' +
+      '<label class="campo"><span>Agenda dos eventos (ID)</span><input name="agendaId" maxlength="200" value="' + esc(m.agendaId) + '" placeholder="vazio = agenda principal"><small>Configurações da agenda › Integrar agenda › ID da agenda.</small></label>' +
+      '<label class="campo"><span>Só eventos que citam</span><input name="agendaFiltro" maxlength="80" value="' + esc(m.agendaFiltro) + '" placeholder="Ex.: Outbox (opcional)"><small>Sempre precisa ter o número de PAX.</small></label>' +
+      '<label class="campo inteira"><span>Peças de cada evento</span><input name="entregasEvento" value="' + esc((m.entregasEvento || ['Story', 'Feed Instagram', 'LinkedIn']).join(', ')) + '"><small>Separe por vírgula.</small></label></form>',
+    pe: '<button class="btn btn-fantasma" data-fechar>Cancelar</button><button class="btn btn-primario" data-ok>Salvar quadro</button>',
+  });
+  md.el.querySelector('[data-ok]').onclick = function () {
+    const f = lerForm(md.el.querySelector('#sq-f'));
+    const d = { clienteId: id, blocos: SQ_BLOCOS.map(function (x) { return x[0]; }).filter(function (k) { return md.el.querySelector('[name="b_' + k + '"]').checked; }),
+      frequencia: f.frequencia, antecedencia: f.antecedencia, nicho: f.nicho, agendaId: f.agendaId, agendaFiltro: f.agendaFiltro,
+      entregasEvento: String(f.entregasEvento || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean) };
+    ocupado(md.el.querySelector('[data-ok]'), async function () {
+      const r = await gravar('salvarMarca', [d], 'Quadro salvo.');
+      if (r) { trocar('marcas', r, 'clienteId'); md.fechar(); smRedesenhar(); }
+    });
+  };
+}
+
+function sqFormTema(base) {
+  const t = Object.assign({ tipo: 'tema' }, base || {}), novo = !t.id;
+  const nome = { tema: 'tema', case: 'case', tendencia: 'tendência' }[t.tipo];
+  const md = modal({
+    titulo: (novo ? 'Novo ' : 'Editar ') + nome + ' · ' + nomeCliente(t.clienteId),
+    corpo: '<form id="sq-t" class="grade" autocomplete="off"><label class="campo inteira"><span>Título</span><input name="titulo" required maxlength="200" value="' + esc(t.titulo) + '"></label>' +
+      '<label class="campo inteira"><span>Descrição</span><textarea name="descricao" rows="3" maxlength="2000">' + esc(t.descricao) + '</textarea></label>' +
+      '<label class="campo"><span>Fonte</span><input name="fonte" maxlength="120" value="' + esc(t.fonte) + '" placeholder="Ex.: RH do cliente, reunião de outubro"></label>' +
+      '<label class="campo"><span>Link</span><input name="link" type="url" value="' + esc(t.link) + '" placeholder="https://…"></label></form>',
+    pe: (!novo ? '<div class="esq"><button class="btn btn-fantasma btn-peq" data-desc>Descartar</button></div>' : '') + '<button class="btn btn-fantasma" data-fechar>Cancelar</button><button class="btn btn-primario" data-ok>Salvar</button>',
+  });
+  const salvar = function (extra) {
+    const f = Object.assign(lerForm(md.el.querySelector('#sq-t')), { clienteId: t.clienteId, tipo: t.tipo }, extra || {});
+    if (t.id) f.id = t.id;
+    if (!f.titulo) return md.el.querySelector('[name=titulo]').focus();
+    ocupado(md.el.querySelector('[data-ok]'), async function () {
+      const r = await gravar('salvarTema', [f], extra ? 'Descartado.' : 'Salvo.');
+      if (r) { trocar('temas', r); md.fechar(); smRedesenhar(); }
+    });
+  };
+  md.el.querySelector('[data-ok]').onclick = function () { salvar(); };
+  const desc = md.el.querySelector('[data-desc]');
+  if (desc) desc.onclick = function () { salvar({ status: 'descartado' }); };
+}
+
+async function sqMover(id, passo) {
+  const t = ((S.dados.temas) || []).find(function (x) { return x.id === id; });
+  if (!t) return;
+  const fila = sqTemas(t.clienteId, t.tipo).filter(function (x) { return x.status === 'mapeado'; });
+  const i = fila.indexOf(t), j = i + passo;
+  if (j < 0 || j >= fila.length) return;
+  fila.splice(i, 1); fila.splice(j, 0, t);
+  const r = await gravar('ordenarTemas', [fila.map(function (x) { return x.id; })]);
+  if (r) { r.forEach(function (x) { trocar('temas', x); }); smRedesenhar(); }
+}
+
+function sqUsar(id) {
+  const t = ((S.dados.temas) || []).find(function (x) { return x.id === id; });
+  const md = modal({
+    titulo: 'Levar para a pauta', estreito: true,
+    corpo: '<p class="mudo" style="margin-top:0">' + esc(t.titulo) + '</p><label class="campo"><span>Dia no calendário</span><input type="date" id="sq-dia" value="' + esc(smSomaDias(S.dados.hoje, 7)) + '"></label>',
+    pe: '<button class="btn btn-fantasma" data-fechar>Cancelar</button><button class="btn btn-primario" data-ok>Levar para a pauta</button>',
+  });
+  md.el.querySelector('[data-ok]').onclick = function () {
+    ocupado(md.el.querySelector('[data-ok]'), async function () {
+      const r = await gravar('usarTema', [id, md.el.querySelector('#sq-dia').value], 'Na pauta do calendário.');
+      if (r) { trocar('temas', r.tema); S.dados.posts.push(r.post); md.fechar(); smRedesenhar(); }
+    });
+  };
+}
+
+// Cliques do quadro (chamado antes dos cliques gerais da social).
+function sqClique(e) {
+  const t = e.target, sel = function (s) { return t.closest(s); };
+  let x;
+  if ((x = sel('[data-sq-cfg]'))) { sqConfigurar(x.dataset.sqCfg); return true; }
+  if ((x = sel('[data-sq-meta]'))) {
+    const v = document.getElementById('sq-meta').value;
+    gravar('salvarMarca', [{ clienteId: x.dataset.sqMeta, frequencia: v }], 'Meta de frequência salva.').then(function (r) { if (r) { trocar('marcas', r, 'clienteId'); smRedesenhar(); } });
+    return true;
+  }
+  if ((x = sel('[data-sq-agenda]'))) {
+    ocupado(x, async function () {
+      const r = await gravar('sincronizarAgenda', [x.dataset.sqAgenda]);
+      if (!r) return;
+      S.dados.eventos = ((S.dados.eventos) || []).filter(function (ev) { return ev.clienteId !== x.dataset.sqAgenda; }).concat(r);
+      toast(r.length ? r.length + ' evento(s) com PAX na agenda.' : 'Nenhum evento com PAX encontrado.');
+      smRedesenhar();
+    });
+    return true;
+  }
+  if ((x = sel('[data-sq-peca]'))) {
+    ocupado(x, async function () {
+      const r = await gravar('criarEntregaEvento', [x.dataset.sqPeca, x.dataset.tipo], x.dataset.tipo + ' na pauta.');
+      if (r) { trocar('eventos', r.evento); S.dados.posts.push(r.post); smRedesenhar(); }
+    });
+    return true;
+  }
+  if ((x = sel('[data-sq-novo-tema]'))) { sqFormTema({ clienteId: S.filtrosSocial.pagina, tipo: x.dataset.sqNovoTema }); return true; }
+  if ((x = sel('[data-sq-ed-tema]'))) { sqFormTema(((S.dados.temas) || []).find(function (y) { return y.id === x.dataset.sqEdTema; })); return true; }
+  if ((x = sel('[data-sq-sobe]'))) { sqMover(x.dataset.sqSobe, -1); return true; }
+  if ((x = sel('[data-sq-desce]'))) { sqMover(x.dataset.sqDesce, 1); return true; }
+  if ((x = sel('[data-sq-usar]'))) { sqUsar(x.dataset.sqUsar); return true; }
+  if ((x = sel('[data-sq-tend]'))) { if (typeof sqPesquisarTendencias === 'function') sqPesquisarTendencias(x.dataset.sqTend, x); else toast('A pesquisa de tendências chega na próxima atualização.'); return true; }
+  return false;
+}
+</script>
