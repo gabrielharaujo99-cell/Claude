@@ -55,8 +55,12 @@ const SCHEMA = {
   reports: {
     colunas: ['id', 'clienteId', 'mes', 'seguidores', 'novosSeguidores', 'alcance', 'impressoes', 'interacoes', 'engajamento',
       'visitasPerfil', 'cliquesLink', 'postsPublicados', 'destaques', 'resultados', 'ajustes', 'proximosPassos', 'arquivoUrl', 'arquivoNome',
-      'criadoPor', 'criadoEm', 'atualizadoEm'],
-    num: ['seguidores', 'novosSeguidores', 'alcance', 'impressoes', 'interacoes', 'engajamento', 'visitasPerfil', 'cliquesLink', 'postsPublicados'],
+      'criadoPor', 'criadoEm', 'atualizadoEm',
+      // Reportei: alcance orgânico x pago, visualizações, LinkedIn e o detalhe (posts, stories, cidades, análise escrita)
+      'alcanceOrganico', 'alcancePago', 'visualizacoes', 'liSeguidores', 'liAlcance', 'liImpressoes', 'liPosts', 'fonte', 'periodoIni', 'periodoFim', 'detalhe'],
+    num: ['seguidores', 'novosSeguidores', 'alcance', 'impressoes', 'interacoes', 'engajamento', 'visitasPerfil', 'cliquesLink', 'postsPublicados',
+      'alcanceOrganico', 'alcancePago', 'visualizacoes', 'liSeguidores', 'liAlcance', 'liImpressoes', 'liPosts'],
+    json: ['detalhe'],
   },
   // Tráfego pago: campanhas e os resultados lançados por período (semana, quinzena, mês).
   campanhas: {

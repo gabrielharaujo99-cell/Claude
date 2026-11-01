@@ -174,3 +174,52 @@ test('ping: com o carimbo da tela devolve o do servidor; sem ele, só a lista (p
   assert.equal(r.build, 'dev');
   assert.ok(Array.isArray(r.online));
 });
+
+test('Reportei: lê o PDF (texto) com Instagram, LinkedIn, posts, stories e a análise', () => {
+  const c = agencia();
+  const texto = require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'reportei-exemplo.txt'), 'utf8');
+  const r = c.soc('lerReportei', texto);
+  assert.equal(r.periodoIni, '2026-09-09');
+  assert.equal(r.mes, '2026-09', 'mês com mais dias no período');
+  assert.deepEqual([r.instagram.seguidores, r.instagram.alcanceOrganico, r.instagram.alcancePago, r.instagram.alcance], [5210, 1340, 11060, 12400]);
+  assert.equal(r.instagram.visualizacoes, 48900);
+  assert.equal(r.posts.length, 2);
+  assert.equal(r.posts[0].salvos, 20);
+  assert.equal(r.posts[0].taxa, 14.19);
+  assert.equal(r.reels.length, 1);
+  assert.equal(r.reels[0].data, '2026-09-15');
+  assert.equal(r.stories.length, 1);
+  assert.equal(r.cidades[1].cidade, 'Campinas, São Paulo (estado)');
+  assert.equal(r.analise.length, 2);
+  assert.equal(r.analise[0].acoes.length, 2);
+  assert.match(r.analise[1].texto, /^Nos conteúdos analisados/);
+  assert.equal(r.linkedin.seguidores, 820);
+  assert.equal(r.linkedin.postagens.length, 2);
+  assert.equal(r.linkedin.postagens[0].taxa, 5.48);
+  assert.throws(() => c.soc('lerReportei', 'um texto qualquer'), /Reportei/);
+  assert.throws(() => c.tra('lerReportei', texto), /Social media/);
+
+  // Salvar com o detalhe: números novos e a análise guardados no report.
+  const salvo = c.soc('salvarReport', { clienteId: c.cliente.id, mes: r.mes, fonte: 'reportei', periodoIni: r.periodoIni, periodoFim: r.periodoFim,
+    seguidores: r.instagram.seguidores, alcance: r.instagram.alcance, alcanceOrganico: r.instagram.alcanceOrganico, alcancePago: r.instagram.alcancePago,
+    liSeguidores: r.linkedin.seguidores, detalhe: { posts: r.posts, reels: r.reels, stories: r.stories, cidades: r.cidades, analise: r.analise, linkedin: r.linkedin.postagens } });
+  assert.equal(salvo.fonte, 'reportei');
+  assert.equal(salvo.alcanceOrganico, 1340);
+  assert.equal(salvo.liSeguidores, 820);
+  assert.equal(salvo.detalhe.posts.length, 2);
+  assert.equal(salvo.detalhe.analise[0].acoes.length, 2);
+  assert.equal(c.soc('carregar').reports[0].detalhe.linkedin.length, 2);
+});
+
+test('Reportei: conserta as palavras que o pdf.js quebra nas ligaduras', () => {
+  const c = agencia();
+  const limpo = require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'reportei-exemplo.txt'), 'utf8');
+  const quebrado = limpo.replace(/Interações/g, 'Int erações').replace(/Compartilhamentos/g, 'Compart ilhament os').replace(/Data:/g, 'Dat a:')
+    .replace(/Visitas do perfil/g, 'Visitas do per\u0000\u0000l').replace(/Visitas ao Perfil/g, 'Visit as ao Perf il').replace(/Postagem/g, 'Post agem')
+    .replace(/Curtidas/g, 'Curt idas').replace(/Comentários/g, 'Coment ários').replace(/Retenção/g, 'Ret enção');
+  const a = c.soc('lerReportei', limpo), b = c.soc('lerReportei', quebrado);
+  assert.deepEqual(b.instagram, a.instagram);
+  assert.equal(b.posts.length, a.posts.length);
+  assert.equal(b.stories.length, 1);
+  assert.equal(b.stories[0].visitasPerfil, 2);
+});

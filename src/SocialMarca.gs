@@ -171,7 +171,23 @@ function removerPedido(id) {
 }
 
 // ---------- reports mensais ----------
-const CAMPOS_REPORT_NUM = ['seguidores', 'novosSeguidores', 'alcance', 'impressoes', 'interacoes', 'engajamento', 'visitasPerfil', 'cliquesLink', 'postsPublicados'];
+const CAMPOS_REPORT_NUM = ['seguidores', 'novosSeguidores', 'alcance', 'impressoes', 'interacoes', 'engajamento', 'visitasPerfil', 'cliquesLink', 'postsPublicados',
+  'alcanceOrganico', 'alcancePago', 'visualizacoes', 'liSeguidores', 'liAlcance', 'liImpressoes', 'liPosts'];
+
+// O detalhe da Reportei (posts, reels, stories, cidades, análise, posts do LinkedIn), limpo e com tamanho limitado para caber numa célula.
+function limparDetalheReport_(d) {
+  if (!d || typeof d !== 'object') return {};
+  const nums = function (o, campos) { const x = {}; campos.forEach(function (c) { x[c] = numero_(o && o[c], 0); }); return x; };
+  const POST = ['visualizacoes', 'alcance', 'interacoes', 'taxa', 'curtidas', 'comentarios', 'salvos', 'compartilhamentos', 'impressoes', 'cliques'];
+  const post = function (p) { return Object.assign(nums(p, POST), { legenda: texto_(p && p.legenda, 160), tipo: texto_(p && p.tipo, 20), data: dataIso_(p && p.data) }); };
+  const lista = function (l, max, f) { return (Array.isArray(l) ? l : []).slice(0, max).map(f); };
+  return {
+    posts: lista(d.posts, 40, post), reels: lista(d.reels, 40, post), linkedin: lista(d.linkedin, 30, post),
+    stories: lista(d.stories, 40, function (s) { return Object.assign(nums(s, ['visualizacoes', 'alcance', 'interacoes', 'visitasPerfil', 'respostas', 'compartilhamentos', 'retencao']), { data: dataIso_(s && s.data) }); }),
+    cidades: lista(d.cidades, 10, function (c) { return { cidade: texto_(c && c.cidade, 80), seguidores: numero_(c && c.seguidores, 0) }; }),
+    analise: lista(d.analise, 4, function (a) { return { texto: texto_(a && a.texto, 2500), acoes: lista(a && a.acoes, 8, function (x) { return texto_(x, 600); }) }; }),
+  };
+}
 
 // Salva os números do mês (lidos do PDF e conferidos pela equipe) e a análise. O PDF vai para o Drive, se der.
 function salvarReport(d) {
@@ -185,6 +201,12 @@ function salvarReport(d) {
     if (!r.mes) throw new Error('Informe o mês do report.');
     CAMPOS_REPORT_NUM.forEach(function (c) { r[c] = numero_(d[c], 0); });
     ['destaques', 'resultados', 'ajustes', 'proximosPassos'].forEach(function (c) { r[c] = texto_(d[c], 3000); });
+    // Fonte e período só mudam quando vêm (editar os números à mão não apaga que veio da Reportei).
+    const tem = function (k) { return Object.prototype.hasOwnProperty.call(d, k); };
+    if (tem('fonte') || !d.id) r.fonte = umDe_(d.fonte, ['reportei', 'instagram', 'manual'], 'manual');
+    if (tem('periodoIni')) r.periodoIni = dataIso_(d.periodoIni);
+    if (tem('periodoFim')) r.periodoFim = dataIso_(d.periodoFim);
+    if (Object.prototype.hasOwnProperty.call(d, 'detalhe')) r.detalhe = limparDetalheReport_(d.detalhe);
     r.atualizadoEm = agora_();
     if (arquivo) { r.arquivoUrl = arquivo.url; r.arquivoNome = arquivo.nome; }
     const igual = ler_('reports').filter(function (x) { return x.clienteId === r.clienteId && x.mes === r.mes && x.id !== d.id; })[0];

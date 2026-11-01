@@ -134,10 +134,12 @@
  * e os reports mensais (com leitura do PDF do Instagram e apresentação para a reunião).
  */
 const SM_JOR = { feedback: 'Feedback', ajuste: 'Ajuste', overdelivering: 'Overdelivering', reuniao: 'Reunião', marco: 'Marco', alerta: 'Alerta' };
-const SM_ABAS = [['estrategia', 'Estratégia'], ['conteudo', 'Conteúdo'], ['pedidos', 'Pedidos'], ['jornada', 'Jornada'], ['reports', 'Reports']];
+const SM_ABAS = [['estrategia', 'Estratégia'], ['conteudo', 'Conteúdo'], ['pedidos', 'Pedidos'], ['jornada', 'Jornada'], ['reports', 'Resultados']];
 const SM_PRIO = { alta: 'Alta', normal: 'Normal', baixa: 'Baixa' };
-const SM_REP = [['seguidores', 'Seguidores'], ['novosSeguidores', 'Novos seguidores'], ['alcance', 'Contas alcançadas'], ['impressoes', 'Impressões'],
-  ['interacoes', 'Interações'], ['engajamento', 'Engajamento (%)'], ['visitasPerfil', 'Visitas ao perfil'], ['cliquesLink', 'Cliques no link'], ['postsPublicados', 'Posts publicados']];
+const SM_REP = [['seguidores', 'Seguidores'], ['novosSeguidores', 'Novos seguidores'], ['alcance', 'Alcance total'], ['alcanceOrganico', 'Alcance orgânico'],
+  ['alcancePago', 'Alcance pago'], ['visualizacoes', 'Visualizações'], ['impressoes', 'Impressões'], ['interacoes', 'Interações'], ['engajamento', 'Engajamento (%)'],
+  ['visitasPerfil', 'Visitas ao perfil'], ['cliquesLink', 'Cliques no link'], ['postsPublicados', 'Posts publicados'],
+  ['liSeguidores', 'LinkedIn · seguidores'], ['liImpressoes', 'LinkedIn · impressões'], ['liAlcance', 'LinkedIn · alcance'], ['liPosts', 'LinkedIn · posts']];
 
 // ---------- dados ----------
 function smMarcas() { return (S.dados && S.dados.marcas) || []; }
@@ -234,7 +236,8 @@ function smGeral(lista) {
       }).join('') + '</div>' +
       (pode('colaborador') && semPerfil.length ? '<button class="btn btn-peq" data-nova-marca>' + icone('mais') + 'Cliente na social</button>' : '') +
       '<span class="mudo">Clique em um cliente para ver persona, estratégia, conteúdo, jornada e reports.</span></div>' + cards +
-    '<div class="smg-tabs">' + filas('aprovacao', 'Aguardando aprovação', 'com o cliente') + filas('producao', 'Em produção', 'sendo criados pela equipe') + '</div>';
+    '<div class="smg-tabs">' + filas('aprovacao', 'Aguardando aprovação', 'com o cliente') + filas('producao', 'Em produção', 'sendo criados pela equipe') + '</div>' +
+    smResultadosGeral();
 }
 
 // ---------- pedidos ----------
@@ -345,6 +348,7 @@ function smCliqueExtra(e) {
   const sel = function (s) { return t.closest(s); };
   let x;
   if ((x = sel('[data-abrir-cli]'))) { smAbrirCliente(x.dataset.abrirCli); return true; }
+  if ((x = sel('[data-abrir-res]'))) { f.aba = 'reports'; smAbrirCliente(x.dataset.abrirRes); return true; }
   if ((x = sel('[data-statuscli]'))) { f.statusCli = x.dataset.statuscli; smAtualizar(); return true; }
   if ((x = sel('[data-novo-pedido]'))) { abrirFormPedido({ clienteId: x.dataset.novoPedido || f.pagina || f.cliente }); return true; }
   if ((x = sel('[data-alocar]'))) { abrirAlocar(x.dataset.alocar); return true; }
@@ -414,7 +418,7 @@ function smPaginaCliente(id) {
 
 function smPaginaCorpo(id) {
   const f = S.filtrosSocial, m = smMarca(id), c = cliente(id);
-  const aba = f.aba === 'conteudo' ? smAbaConteudo(id, m, c) : f.aba === 'pedidos' ? smPedidosVista(id) : f.aba === 'jornada' ? smAbaJornada(id) : f.aba === 'reports' ? smAbaReports(id, m) : smAbaEstrategia(id, m, c);
+  const aba = f.aba === 'conteudo' ? smAbaConteudo(id, m, c) : f.aba === 'pedidos' ? smPedidosVista(id) : f.aba === 'jornada' ? smAbaJornada(id) : f.aba === 'reports' ? smResultados(id, m) : smAbaEstrategia(id, m, c);
   return '<div class="conteudo">' + aba + '</div>';
 }
 
@@ -663,13 +667,11 @@ function abrirFormMarca(id) {
 }
 
 // ---------- reports ----------
-function smAbaReports(id, m) {
+// Lista de todos os meses importados (cartões com os números e a variação).
+function smListaReports(id) {
   const reps = smReports(id).slice().reverse();
   const ant = function (r) { const l = smReports(id), i = l.indexOf(r); return i > 0 ? l[i - 1] : null; };
-  return '<div class="cartao smx-bloco" style="margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="flex:1;min-width:240px"><h3>Reports mensais do Instagram</h3>' +
-      '<p class="mudo pequeno">Importe o PDF do report: os números são lidos sozinhos, você confere, escreve a análise e gera a apresentação da reunião com a identidade da agência e do cliente. Os números alimentam o dashboard de conteúdo.</p></div>' +
-      (pode('colaborador') ? '<button class="btn btn-primario" data-novo-report>' + icone('arquivo') + 'Importar report</button>' : '') + '</div>' +
-    (reps.length ? '<div class="smr-lista">' + reps.map(function (r) {
+  return (reps.length ? '<div class="smr-lista">' + reps.map(function (r) {
       const a = ant(r);
       const v = function (campo) {
         if (!a || !a[campo]) return '';
@@ -692,12 +694,12 @@ function smMesPassado() { const d = smData(S.dados.hoje); d.setDate(1); d.setMon
 function abrirFormReport(base) {
   base = base || {};
   const r = Object.assign({ mes: smMesPassado() }, base), novo = !r.id;
-  let pdf = null;
+  let pdf = null, extra = null;
   const num = function (k, rot) { return '<label class="campo"><span>' + rot + '</span><input name="' + k + '" type="number" min="0" step="any" value="' + esc(r[k] != null && r[k] !== '' ? r[k] : '') + '"></label>'; };
   const area = function (k, rot, ph) { return '<label class="campo inteira"><span>' + rot + '</span><textarea name="' + k + '" rows="3" placeholder="' + esc(ph) + '">' + esc(r[k]) + '</textarea></label>'; };
   const m = modal({
     titulo: (novo ? 'Importar report' : 'Report') + ' · ' + nomeCliente(r.clienteId),
-    corpo: (novo || !r.arquivoUrl ? '<div class="smr-drop" id="smr-drop" tabindex="0"><b>Solte aqui o PDF do report do Instagram</b>ou clique para escolher. Os números são lidos sozinhos para você conferir.<input type="file" accept="application/pdf" hidden id="smr-arq"><div class="smr-lido" id="smr-lido"></div></div>' : '') +
+    corpo: (novo || !r.arquivoUrl ? '<div class="smr-drop" id="smr-drop" tabindex="0"><b>Solte aqui o PDF da Reportei</b>ou clique para escolher (também lê o report do Instagram). Os números, os posts e a análise entram sozinhos para você conferir.<input type="file" accept="application/pdf" hidden id="smr-arq"><div class="smr-lido" id="smr-lido"></div></div>' : '') +
       '<form id="f-rep" class="grade" autocomplete="off" style="margin-top:16px">' +
       '<label class="campo"><span>Mês</span><input type="month" name="mes" value="' + esc(r.mes) + '" required></label><span></span>' +
       SM_REP.map(function (k) { return num(k[0], k[1]); }).join('') +
@@ -716,11 +718,18 @@ function abrirFormReport(base) {
       if (file.size > 12 * 1024 * 1024) return toast('PDF grande demais (máximo 12 MB).', { erro: true });
       lido.style.color = ''; lido.textContent = 'Lendo ' + file.name + '…';
       try {
-        const texto = await smTextoPdf(file), achado = smExtrairReport(texto);
+        const texto = await smTextoPdf(file);
+        // Relatório da Reportei: o servidor devolve tudo estruturado; senão, a leitura simples do report do Instagram.
+        let rep = null;
+        try { rep = await chamar('lerReportei', texto); } catch (x) { rep = null; }
+        const achado = rep ? srCamposReportei(rep) : smExtrairReport(texto);
+        extra = rep ? achado.extra : null;
         Object.keys(achado.valores).forEach(function (k) { if (form.elements[k]) form.elements[k].value = achado.valores[k]; });
         if (achado.mes) form.mes.value = achado.mes;
+        Object.keys(achado.textos || {}).forEach(function (k) { if (form.elements[k] && !form.elements[k].value.trim() && achado.textos[k]) form.elements[k].value = achado.textos[k]; });
         const n = Object.keys(achado.valores).length;
-        lido.textContent = n ? '✓ ' + n + ' número(s) lidos de ' + file.name + '. Confira antes de salvar.' : 'Não achei os números neste PDF. Preencha à mão (o arquivo será guardado mesmo assim).';
+        const det = rep ? ' · ' + (rep.posts.length + rep.reels.length) + ' post(s), ' + rep.stories.length + ' story(s)' + (rep.linkedin ? ', LinkedIn' : '') + (rep.analise.length ? ' e a análise' : '') : '';
+        lido.textContent = n ? '✓ ' + n + ' número(s) lidos de ' + file.name + det + '. Confira antes de salvar.' : 'Não achei os números neste PDF. Preencha à mão (o arquivo será guardado mesmo assim).';
         if (!n) lido.style.color = 'var(--alerta)';
       } catch (e) { lido.textContent = 'Não consegui ler o PDF (' + e.message + '). Preencha à mão.'; lido.style.color = 'var(--alerta)'; }
       const leitor = new FileReader();
@@ -748,7 +757,14 @@ function abrirFormReport(base) {
     d.clienteId = r.clienteId;
     if (r.id) d.id = r.id;
     if (pdf) d.pdf = pdf;
+    if (extra) Object.assign(d, extra);
     ocupado(ok, async function () {
+      // Já existe report desse mês: importar de novo atualiza o mesmo (em vez de dar erro).
+      const existe = !r.id && smReports(r.clienteId).find(function (x) { return x.mes === d.mes; });
+      if (existe) {
+        if (!(await confirmar('Atualizar ' + smMesNome(d.mes) + '?', 'Já existe um report deste mês para ' + nomeCliente(r.clienteId) + '. Os números e a análise do PDF vão substituir os de lá.', 'Atualizar'))) return;
+        d.id = existe.id;
+      }
       const salvo = await gravar('salvarReport', [d], 'Report salvo.' + (pdf ? '' : ''));
       if (!salvo) return;
       trocar('reports', salvo);

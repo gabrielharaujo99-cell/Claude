@@ -1,0 +1,230 @@
+<style>
+/* Resultados (Reportei) por cliente e na visão geral da social. */
+:root { --s-org: #1E6B33; --s-pago: #D9944F; }
+:root[data-tema="escuro"], :root[data-tema="floresta"] { --s-org: #237A3C; --s-pago: #C9813F; }
+.sres-topo { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 18px 20px; margin-bottom: 16px; }
+.sres-topo .t { flex: 1; min-width: 240px; }
+.sres-topo h3 { margin: 0 0 4px; font-size: 17px; font-weight: 700; }
+.sres-topo p { margin: 0; color: var(--suave); font-size: 13px; }
+.sres-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.sres-bloco { padding: 18px 20px; }
+.sres-bloco h3 { margin: 0 0 12px; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.sres-bloco h3 small { font-weight: 500; color: var(--suave); font-size: 12px; }
+.sres-leg { display: flex; gap: 14px; font-size: 12px; color: var(--suave); margin-bottom: 8px; }
+.sres-leg i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.sres-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.sres-svg text { font: 500 11px var(--fonte); fill: var(--suave); }
+.sres-svg .v { fill: var(--texto); font-weight: 700; }
+.sres-svg .grade { stroke: var(--linha); stroke-width: 1; }
+.sres-svg .alvo { fill: transparent; cursor: default; }
+.sres-svg .alvo:hover + .ponto, .sres-svg g:hover rect { opacity: .85; }
+.sres-post { display: grid; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--linha); }
+.sres-post:last-child { border-bottom: 0; }
+.sres-post .l { display: flex; align-items: baseline; gap: 8px; }
+.sres-post .l b { font-weight: 600; flex: 1; min-width: 0; }
+.sres-post .nums { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; color: var(--suave); }
+.sres-post .nums b { color: var(--texto); font-weight: 700; }
+.sres-motivos { display: flex; flex-wrap: wrap; gap: 6px; }
+.sres-motivo { font-size: 12px; padding: 4px 10px; border-radius: 100px; background: var(--afundado); color: var(--texto); }
+.sres-motivo.bom { background: color-mix(in srgb, var(--s-org) 12%, var(--superficie)); }
+.sres-motivo.ruim { background: color-mix(in srgb, var(--s-pago) 16%, var(--superficie)); }
+.sres-motivo::before { margin-right: 5px; font-weight: 700; }
+.sres-motivo.bom::before { content: '✓'; color: var(--s-org); }
+.sres-motivo.ruim::before { content: '!'; color: var(--s-pago); }
+.sres-analise p { margin: 0 0 10px; line-height: 1.6; font-size: 13.5px; }
+.sres-acoes { margin: 0; padding-left: 18px; display: grid; gap: 8px; font-size: 13.5px; line-height: 1.5; }
+.sres-barra { height: 10px; border-radius: 100px; display: flex; overflow: hidden; gap: 2px; background: var(--afundado); margin: 8px 0 6px; }
+.sres-barra i { display: block; height: 100%; }
+.sres-tab td, .sres-tab th { font-size: 13px; }
+.sres-tab tr[data-abrir-res] { cursor: pointer; }
+.sres-tab tr[data-abrir-res]:hover td { background: var(--afundado); }
+@media (max-width: 1100px) { .sres-grade { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<script>
+/**
+ * Resultados de social media a partir dos relatórios da Reportei (PDF importado na aba Resultados de cada cliente):
+ * números do mês, evolução de seguidores e do alcance orgânico x pago, posts que deram certo e que não funcionaram
+ * (com o porquê), a leitura escrita pela Reportei, como crescer o orgânico e o LinkedIn.
+ */
+function srN(v, casas) { return Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: casas == null ? 0 : casas }); }
+function srPct(a, b) { return b ? Math.round(a * 1000 / b) / 10 : 0; }
+function srVar(atual, ant) {
+  if (ant == null || !ant) return '';
+  const p = Math.round((atual - ant) * 1000 / ant) / 10;
+  return (p >= 0 ? '▲ ' : '▼ ') + srN(Math.abs(p), 1) + '% vs mês anterior';
+}
+
+// Posts do mês (feed + reels) com a nota relativa e os motivos.
+function srPostsAvaliados(r) {
+  const d = r.detalhe || {};
+  const lista = (d.posts || []).concat(d.reels || []).filter(function (p) { return p.alcance || p.visualizacoes; });
+  if (!lista.length) return [];
+  const med = function (k) { const v = lista.map(function (p) { return Number(p[k]) || 0; }).sort(function (a, b) { return a - b; }); const m = Math.floor(v.length / 2); return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
+  const mTaxa = med('taxa') || 0.01, mAlc = med('alcance') || 1;
+  return lista.map(function (p) {
+    const bons = [], ruins = [];
+    if (lista.length > 1 && p.taxa >= mTaxa * 1.25) bons.push('Taxa de interação de ' + srN(p.taxa, 1) + '%, acima da mediana (' + srN(mTaxa, 1) + '%)');
+    if (lista.length > 1 && p.alcance >= mAlc * 1.5) bons.push('Alcance ' + srN(p.alcance) + ', bem acima da mediana: o algoritmo distribuiu');
+    if (p.salvos >= 3) bons.push(srN(p.salvos) + ' salvamentos: conteúdo útil, que as pessoas guardam');
+    if (p.compartilhamentos >= 3) bons.push(srN(p.compartilhamentos) + ' compartilhamentos: fácil de enviar para alguém');
+    if (p.comentarios >= 3) bons.push(srN(p.comentarios) + ' comentários: puxou conversa');
+    if (lista.length > 1 && p.taxa <= mTaxa * 0.6) ruins.push('Taxa de interação de ' + srN(p.taxa, 1) + '%, abaixo da mediana (' + srN(mTaxa, 1) + '%)');
+    if (lista.length > 1 && p.alcance <= mAlc * 0.5) ruins.push('Alcance baixo (' + srN(p.alcance) + '): pouca distribuição');
+    if (!p.salvos && !p.compartilhamentos) ruins.push('Nenhum salvamento nem compartilhamento: pouco motivo para guardar ou enviar');
+    if (!p.comentarios && p.alcance >= 50) ruins.push('Sem comentários: falta uma pergunta ou chamada para conversar');
+    const nota = (p.taxa / mTaxa + p.alcance / mAlc) / 2 + (p.salvos + p.compartilhamentos) / Math.max(20, p.alcance) * 5;
+    return Object.assign({}, p, { nota: nota, bons: bons, ruins: ruins });
+  }).sort(function (a, b) { return b.nota - a.nota; });
+}
+
+function srPostHtml(p, modo) {
+  const motivos = (modo === 'bom' ? p.bons : p.ruins).slice(0, 3);
+  if (!motivos.length) motivos.push(modo === 'bom' ? 'Melhor resultado do mês entre os posts analisados' : 'Menor resultado do mês entre os posts analisados');
+  return '<div class="sres-post"><div class="l"><b>' + esc(p.legenda || 'Post sem legenda') + '</b><span class="pilula">' + esc(p.tipo || 'Post') + '</span></div>' +
+    '<div class="nums"><span>Alcance <b>' + srN(p.alcance) + '</b></span><span>Interações <b>' + srN(p.interacoes) + '</b></span><span>Taxa <b>' + srN(p.taxa, 1) + '%</b></span>' +
+      '<span>Salvos <b>' + srN(p.salvos) + '</b></span><span>Compart. <b>' + srN(p.compartilhamentos) + '</b></span><span>Coment. <b>' + srN(p.comentarios) + '</b></span></div>' +
+    '<div class="sres-motivos">' + motivos.map(function (m) { return '<span class="sres-motivo ' + modo + '">' + esc(m) + '</span>'; }).join('') + '</div></div>';
+}
+
+// Linha de uma série (seguidores por mês), com o último valor rotulado e dica em cada ponto.
+function srLinha(meses, valores, formato) {
+  const W = 520, H = 170, pe = 22, topo = 18, n = valores.length;
+  if (n < 2) return '<p class="mudo pequeno">A evolução aparece a partir do segundo mês importado.</p>';
+  const min = Math.min.apply(null, valores), max = Math.max.apply(null, valores), faixa = max - min || 1;
+  const x = function (i) { return 10 + i * (W - 60) / (n - 1); }, y = function (v) { return topo + (H - topo - pe) * (1 - (v - min) / faixa); };
+  const pts = valores.map(function (v, i) { return x(i) + ',' + y(v); }).join(' ');
+  return '<svg class="sres-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Seguidores por mês">' +
+    '<line class="grade" x1="0" x2="' + W + '" y1="' + (H - pe) + '" y2="' + (H - pe) + '"/>' +
+    '<polyline points="' + pts + '" fill="none" stroke="var(--s-org)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
+    valores.map(function (v, i) {
+      return '<g><title>' + esc(smMesNome(meses[i]) + ': ' + formato(v)) + '</title><circle class="alvo" cx="' + x(i) + '" cy="' + y(v) + '" r="14"/>' +
+        '<circle cx="' + x(i) + '" cy="' + y(v) + '" r="' + (i === n - 1 ? 5 : 4) + '" fill="var(--s-org)" stroke="var(--superficie)" stroke-width="2"/>' +
+        '<text x="' + x(i) + '" y="' + (H - 6) + '" text-anchor="middle">' + esc(smMesNome(meses[i]).slice(0, 3)) + '</text>' +
+        (i === n - 1 || i === 0 ? '<text class="v" x="' + x(i) + '" y="' + (y(v) - 10) + '" text-anchor="middle">' + formato(v) + '</text>' : '') + '</g>';
+    }).join('') + '</svg>';
+}
+
+// Colunas empilhadas: alcance orgânico (base) e pago (em cima), com legenda e o % orgânico rotulado.
+function srOrganicoPago(lista) {
+  const W = 520, H = 190, pe = 22, n = lista.length;
+  const max = Math.max.apply(null, lista.map(function (r) { return (r.alcanceOrganico || 0) + (r.alcancePago || 0); }).concat([1]));
+  const larg = Math.min(56, (W - 20) / n - 14);
+  return '<div class="sres-leg"><span><i style="background:var(--s-org)"></i>Orgânico</span><span><i style="background:var(--s-pago)"></i>Pago</span></div>' +
+    '<svg class="sres-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Alcance orgânico e pago por mês">' +
+    '<line class="grade" x1="0" x2="' + W + '" y1="' + (H - pe) + '" y2="' + (H - pe) + '"/>' +
+    lista.map(function (r, i) {
+      const org = r.alcanceOrganico || 0, pago = r.alcancePago || 0, cx = 10 + (i + 0.5) * (W - 20) / n;
+      const hO = (H - pe - 22) * org / max, hP = (H - pe - 22) * pago / max, base = H - pe;
+      const pct = srPct(org, org + pago);
+      return '<g><title>' + esc(smMesNome(r.mes) + ' · orgânico ' + srN(org) + ' · pago ' + srN(pago) + ' · ' + srN(pct, 1) + '% orgânico') + '</title>' +
+        (hO ? '<rect x="' + (cx - larg / 2) + '" y="' + (base - hO) + '" width="' + larg + '" height="' + hO + '" rx="' + Math.min(4, hO / 2) + '" fill="var(--s-org)"/>' : '') +
+        (hP ? '<rect x="' + (cx - larg / 2) + '" y="' + (base - hO - hP - (hO ? 2 : 0)) + '" width="' + larg + '" height="' + hP + '" rx="' + Math.min(4, hP / 2) + '" fill="var(--s-pago)"/>' : '') +
+        '<text class="v" x="' + cx + '" y="' + (base - hO - hP - 8) + '" text-anchor="middle">' + srN(pct, pct < 10 ? 1 : 0) + '% org.</text>' +
+        '<text x="' + cx + '" y="' + (H - 6) + '" text-anchor="middle">' + esc(smMesNome(r.mes).slice(0, 3)) + '</text></g>';
+    }).join('') + '</svg>';
+}
+
+// Dicas para crescer o orgânico: as ações da Reportei e o que os números do mês mostram.
+function srDicas(r, ant) {
+  const dicas = [], org = r.alcanceOrganico || 0, total = (org || r.alcancePago) ? (r.alcance || (org + (r.alcancePago || 0))) : 0;
+  if (total && org / total < 0.15) dicas.push('Só ' + srN(srPct(org, total), 1) + '% do alcance foi orgânico. Suba a cadência no feed (frequência do perfil) e priorize formatos que distribuem sozinhos, como reels com gancho nos 2 primeiros segundos.');
+  const avaliados = srPostsAvaliados(r);
+  const semSinal = avaliados.filter(function (p) { return !p.salvos && !p.compartilhamentos; }).length;
+  if (avaliados.length && semSinal >= Math.ceil(avaliados.length / 2)) dicas.push(semSinal + ' de ' + avaliados.length + ' posts não tiveram salvamentos nem compartilhamentos. Feche os carrosséis com checklist ou passo a passo e uma chamada para salvar e enviar.');
+  if (ant && r.seguidores && ant.seguidores && r.seguidores <= ant.seguidores) dicas.push('A base não cresceu no mês (' + srN(ant.seguidores) + ' → ' + srN(r.seguidores) + '). Teste collabs e conteúdo para quem ainda não segue (tendências do nicho).');
+  if (r.visitasPerfil && total && r.visitasPerfil / total < 0.01) dicas.push('Poucas visitas ao perfil para o alcance. Use CTA para o perfil (destaques, post fixado) no fim dos posts.');
+  return dicas;
+}
+
+function smResultados(id, m) {
+  const reps = smReports(id), f = S.filtrosSocial;
+  // Mês escolhido no seletor (padrão: o mais recente); o anterior é o mês antes dele.
+  let i = reps.findIndex(function (x) { return x.mes === f.mesRes; });
+  if (i < 0) i = reps.length - 1;
+  const r = reps[i], ant = reps[i - 1];
+  const topo = '<div class="cartao sres-topo"><div class="t"><h3>Resultados da Reportei</h3><p>Importe o PDF do relatório da Reportei: os números, os posts e a análise entram sozinhos para você conferir. ' +
+    'Daqui sai o dashboard abaixo e a apresentação da reunião mensal.</p></div>' +
+    (pode('colaborador') ? '<button class="btn btn-primario" data-novo-report>' + icone('arquivo') + 'Importar PDF da Reportei</button>' : '') +
+    (reps.length > 1 ? '<select class="entrada" style="width:auto" aria-label="Mês do relatório" onchange="S.filtrosSocial.mesRes=this.value;smAtualizar()">' +
+      reps.slice().reverse().map(function (x) { return '<option value="' + esc(x.mes) + '"' + (r && x.mes === r.mes ? ' selected' : '') + '>' + esc(smMesNome(x.mes)) + '</option>'; }).join('') + '</select>' : '') +
+    (r ? '<button class="btn" data-apres="' + esc(r.id) + '">Apresentação de ' + esc(smMesNome(r.mes)) + '</button>' : '') + '</div>';
+  if (!r) return topo + '<div class="cartao"><div class="vazio"><b>Nenhum relatório ainda.</b>Importe o PDF da Reportei do último mês para ver os resultados de ' + esc(nomeCliente(id)) + '.</div></div>';
+  const d = r.detalhe || {}, avaliados = srPostsAvaliados(r);
+  const bons = avaliados.slice(0, Math.min(3, Math.ceil(avaliados.length / 2))), ruins = avaliados.slice(Math.max(bons.length, avaliados.length - 3)).reverse();
+  // Orgânico x pago só existe nos relatórios que trazem os dois (Reportei); nos antigos, não há o que comparar.
+  const temOP = !!(r.alcanceOrganico || r.alcancePago);
+  const totalAlc = temOP ? (r.alcance || ((r.alcanceOrganico || 0) + (r.alcancePago || 0))) : 0;
+  const analise = d.analise || [], acoes = analise.reduce(function (a, x) { return a.concat(x.acoes || []); }, []);
+  const dicas = srDicas(r, ant);
+  const comOrgPago = reps.filter(function (x) { return x.alcanceOrganico || x.alcancePago; }).slice(-6);
+  const segs = reps.filter(function (x) { return x.seguidores; }).slice(-12);
+  return topo +
+    '<p class="mudo pequeno" style="margin:0 0 12px">' + esc(smMesNome(r.mes)) + (r.periodoIni ? ' · dados de ' + dataBr(r.periodoIni) + ' a ' + dataBr(r.periodoFim) : '') + (r.fonte === 'reportei' ? ' · Reportei' : '') + '</p>' +
+    '<div class="kpis">' +
+      kpi('Seguidores', srN(r.seguidores), srVar(r.seguidores, ant && ant.seguidores) || 'no fim do período') +
+      (temOP ? kpi('Alcance orgânico', srN(r.alcanceOrganico), srN(srPct(r.alcanceOrganico, totalAlc), 1) + '% do alcance total') +
+        kpi('Alcance pago', srN(r.alcancePago), 'alcance total ' + srN(totalAlc)) : kpi('Alcance', srN(r.alcance), srVar(r.alcance, ant && ant.alcance) || 'contas alcançadas')) +
+      kpi('Visualizações', srN(r.visualizacoes || r.impressoes), srVar(r.visualizacoes || r.impressoes, ant && (ant.visualizacoes || ant.impressoes)) || 'orgânicas + pagas') +
+      kpi('Visitas ao perfil', srN(r.visitasPerfil), srVar(r.visitasPerfil, ant && ant.visitasPerfil) || 'no período') +
+      kpi('Interações', srN(r.interacoes), srVar(r.interacoes, ant && ant.interacoes) || 'no período') +
+    '</div>' +
+    '<div class="sres-grade">' +
+      '<div class="cartao sres-bloco"><h3>Seguidores <small>por mês</small></h3>' + srLinha(segs.map(function (x) { return x.mes; }), segs.map(function (x) { return x.seguidores; }), srN) + '</div>' +
+      '<div class="cartao sres-bloco"><h3>Alcance orgânico x pago <small>por mês</small></h3>' + (comOrgPago.length ? srOrganicoPago(comOrgPago) : '<p class="mudo pequeno">Os relatórios da Reportei trazem o alcance orgânico e o pago separados.</p>') + '</div>' +
+      '<div class="cartao sres-bloco"><h3>O que deu certo <small>e por quê</small></h3>' + (bons.length ? bons.map(function (p) { return srPostHtml(p, 'bom'); }).join('') : '<p class="mudo pequeno">O relatório não trouxe posts do feed ou reels.</p>') + '</div>' +
+      '<div class="cartao sres-bloco"><h3>O que não funcionou <small>e por quê</small></h3>' + (ruins.length && avaliados.length > 1 ? ruins.map(function (p) { return srPostHtml(p, 'ruim'); }).join('') : '<p class="mudo pequeno">Com um post só não dá para comparar.</p>') + '</div>' +
+      '<div class="cartao sres-bloco sres-analise"><h3>Leitura da Reportei</h3>' + (analise.length ? analise.map(function (a) { return '<p>' + esc(a.texto) + '</p>'; }).join('') : (r.resultados ? '<p>' + esc(r.resultados) + '</p>' : '<p class="mudo">Sem análise escrita neste relatório.</p>')) + '</div>' +
+      '<div class="cartao sres-bloco"><h3>Como crescer o orgânico</h3>' +
+        (totalAlc ? '<div class="sres-barra" title="' + srN(srPct(r.alcanceOrganico, totalAlc), 1) + '% orgânico"><i style="width:' + srPct(r.alcanceOrganico, totalAlc) + '%;background:var(--s-org)"></i><i style="flex:1;background:var(--s-pago)"></i></div>' +
+          '<p class="mudo pequeno" style="margin:0 0 12px">' + srN(srPct(r.alcanceOrganico, totalAlc), 1) + '% orgânico · ' + srN(100 - srPct(r.alcanceOrganico, totalAlc), 1) + '% pago</p>' : '') +
+        (acoes.length || dicas.length ? '<ul class="sres-acoes">' + dicas.concat(acoes).map(function (a) { return '<li>' + esc(a) + '</li>'; }).join('') + '</ul>' : '<p class="mudo">Sem recomendações neste mês.</p>') + '</div>' +
+    '</div>' +
+    (r.liSeguidores || (d.linkedin || []).length ? '<div class="cartao sres-bloco" style="margin-top:16px"><h3>LinkedIn</h3><div class="kpis" style="margin-bottom:12px">' +
+      kpi('Seguidores', srN(r.liSeguidores), srVar(r.liSeguidores, ant && ant.liSeguidores) || 'no LinkedIn') + kpi('Impressões', srN(r.liImpressoes), srN(r.liPosts) + ' post(s) no período') +
+      kpi('Alcance', srN(r.liAlcance), 'no período') + '</div>' +
+      ((d.linkedin || []).length ? '<div class="tabela-wrap"><table class="tabela"><thead><tr><th>Post</th><th class="d">Impressões</th><th class="d">Alcance</th><th class="d">Curtidas</th><th class="d">Coment.</th><th class="d">Engaj.</th></tr></thead><tbody>' +
+        d.linkedin.map(function (p) { return '<tr><td>' + esc(p.legenda) + '</td><td class="d num">' + srN(p.impressoes) + '</td><td class="d num">' + srN(p.alcance) + '</td><td class="d num">' + srN(p.curtidas) + '</td><td class="d num">' + srN(p.comentarios) + '</td><td class="d num">' + srN(p.taxa, 1) + '%</td></tr>'; }).join('') +
+        '</tbody></table></div>' : '') + '</div>' : '') +
+    '<h3 style="margin:28px 0 12px;font-size:15px">Todos os meses</h3>' + smListaReports(id);
+}
+
+// Visão geral da social: o último relatório de cada cliente, lado a lado.
+function smResultadosGeral() {
+  const linhas = smMarcas().filter(function (m) { return cliente(m.clienteId) && m.status !== 'pausa'; }).map(function (m) {
+    const reps = smReports(m.clienteId);
+    return { m: m, r: reps[reps.length - 1], ant: reps[reps.length - 2] };
+  }).filter(function (x) { return x.r; });
+  if (!linhas.length) return '';
+  return '<div class="cartao" style="margin-top:22px"><div class="cartao-cab"><h2>Resultados por cliente <span class="mudo">último relatório</span></h2></div>' +
+    '<div class="tabela-wrap"><table class="tabela sres-tab"><thead><tr><th>Cliente</th><th>Mês</th><th class="d">Seguidores</th><th class="d">Variação</th><th class="d">Alcance orgânico</th><th class="d">Interações</th><th class="d">Visitas</th></tr></thead><tbody>' +
+    linhas.map(function (x) {
+      const r = x.r, tot = r.alcance || ((r.alcanceOrganico || 0) + (r.alcancePago || 0));
+      const v = x.ant && x.ant.seguidores ? Math.round((r.seguidores - x.ant.seguidores) * 1000 / x.ant.seguidores) / 10 : null;
+      return '<tr data-abrir-res="' + esc(x.m.clienteId) + '"><td><b>' + esc(nomeCliente(x.m.clienteId)) + '</b></td><td>' + esc(smMesNome(r.mes)) + '</td>' +
+        '<td class="d num">' + srN(r.seguidores) + '</td><td class="d num">' + (v == null ? '—' : (v >= 0 ? '▲ ' : '▼ ') + srN(Math.abs(v), 1) + '%') + '</td>' +
+        '<td class="d num">' + (r.alcanceOrganico ? srN(r.alcanceOrganico) + (tot ? ' · ' + srN(srPct(r.alcanceOrganico, tot), 1) + '%' : '') : '—') + '</td>' +
+        '<td class="d num">' + srN(r.interacoes) + '</td><td class="d num">' + srN(r.visitasPerfil) + '</td></tr>';
+    }).join('') + '</tbody></table></div></div>';
+}
+
+// Converte o resultado de lerReportei nos campos do report (números do Instagram e do LinkedIn, textos da análise).
+function srCamposReportei(x) {
+  const ig = x.instagram || {}, li = x.linkedin || {}, an = x.analise || [];
+  const posts = (x.posts || []).concat(x.reels || []);
+  const taxas = posts.map(function (p) { return p.taxa; }).filter(function (t) { return t > 0; });
+  const v = {
+    seguidores: ig.seguidores, alcance: ig.alcance, impressoes: ig.visualizacoes, visualizacoes: ig.visualizacoes, interacoes: ig.interacoes,
+    visitasPerfil: ig.visitasPerfil, alcanceOrganico: ig.alcanceOrganico, alcancePago: ig.alcancePago, postsPublicados: posts.length || null,
+    engajamento: taxas.length ? Math.round(taxas.reduce(function (a, b) { return a + b; }, 0) * 10 / taxas.length) / 10 : (ig.interacoes && ig.alcance ? Math.round(ig.interacoes * 1000 / ig.alcance) / 10 : null),
+    liSeguidores: li.seguidores, liAlcance: li.alcance, liImpressoes: li.impressoes, liPosts: li.posts,
+  };
+  Object.keys(v).forEach(function (k) { if (v[k] == null) delete v[k]; });
+  const lista = function (a) { return (a || []).map(function (t) { return '• ' + t; }).join('\n'); };
+  return {
+    valores: v, mes: x.mes,
+    textos: { resultados: an[0] ? an[0].texto : '', ajustes: an[0] ? lista(an[0].acoes) : '', destaques: an[1] ? an[1].texto : '', proximosPassos: an[1] ? lista(an[1].acoes) : '' },
+    extra: { fonte: 'reportei', periodoIni: x.periodoIni, periodoFim: x.periodoFim,
+      detalhe: { posts: x.posts, reels: x.reels, stories: x.stories, cidades: x.cidades, analise: x.analise, linkedin: li.postagens || [] } },
+  };
+}
+</script>
