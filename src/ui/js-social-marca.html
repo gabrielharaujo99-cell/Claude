@@ -894,6 +894,15 @@ function smApresentacao(reportId) {
     '<section class="sl capa">' + (logoAg ? '<img class="ls" src="' + e(logoAg) + '" alt="' + e(nomeAg) + '">' : '<b>' + e(nomeAg.toUpperCase()) + '</b>') +
       '<div><span class="rot">Report mensal de social media</span><h1><b>' + e(smMesNome(r.mes).split(' ')[0]) + '</b> ' + e(smMesNome(r.mes).split(' ').slice(1).join(' ')) + '</h1><p>Resultados, conteúdo entregue e ajustes na estratégia de ' + e(c.nome) + '.</p></div>' +
       '<span class="rot">Fase: ' + e(m.fase || '—') + '</span><div class="faixa">' + marcaC + '</div></section>' +
+    // estratégia: objetivo, fase, frequência e pilares
+    '<section class="sl">' + topo + '<h2>A <b>estratégia</b></h2><div class="duas"><div><h3>Objetivo</h3><p><b>' + e(m.objetivo || 'Defina o objetivo no perfil de marca') + '</b></p>' +
+      '<h3 style="margin-top:22px">Fase</h3><p>' + e(m.fase || '—') + '</p>' + (m.publico ? '<h3 style="margin-top:22px">Para quem falamos</h3><p>' + e(m.publico) + '</p>' : '') + '</div>' +
+      '<div><h3>Frequência</h3><div class="grande">' + (r.postsPublicados || ps.length) + (meta ? ' <small>de ' + meta + ' previstos no mês (' + n(m.frequencia, 1) + ' por semana)</small>' : ' <small>publicações</small>') + '</div>' +
+      (m.pilares && m.pilares.length ? '<h3 style="margin-top:26px">Pilares</h3>' + barras(m.pilares.map(function (pl) { return [pl.nome + ' (meta ' + (pl.meta || 0) + '%)', ps.filter(function (x) { return x.pilar === pl.nome; }).length]; })) : '') + '</div></div></section>' +
+    // por que cada post
+    (ps.length ? '<section class="sl">' + topo + '<h2>Por que cada <b>post</b></h2><ul style="columns:2;column-gap:44px">' + ps.slice(0, 14).map(function (x) {
+      return '<li style="break-inside:avoid;margin-bottom:10px"><b>' + e(x.titulo) + '</b> <span style="color:#7B8677">· ' + e([x.formato, x.pilar].filter(Boolean).join(' · ')) + '</span><br>' + e(x.porque || ('Pilar ' + (x.pilar || 'da estratégia') + ': reforça o objetivo de ' + (m.objetivo || 'marca') + '.')) + '</li>';
+    }).join('') + '</ul></section>' : '') +
     // números
     '<section class="sl">' + topo + '<h2>O mês em <b>números</b></h2><div class="tiles">' +
       tile('seguidores', 'Seguidores') + tile('alcance', 'Contas alcançadas') + tile('impressoes', 'Impressões') + tile('interacoes', 'Interações') + tile('engajamento', 'Engajamento', true) + tile('visitasPerfil', 'Visitas ao perfil') + '</div></section>' +
@@ -905,9 +914,23 @@ function smApresentacao(reportId) {
       (over.length ? '<h3 style="margin-top:30px">Entregas além do combinado</h3><ul>' + over.map(function (j) { return '<li>' + e(j.titulo) + '</li>'; }).join('') + '</ul>' : '') + '</div></div></section>' +
     // destaques e resultados
     '<section class="sl">' + topo + '<h2>Destaques e <b>resultados</b></h2><div class="duas"><div><h3>Destaques</h3>' + par(r.destaques) + '</div><div><h3>Resultados x objetivo</h3><p><b>' + e(m.objetivo || '') + '</b></p>' + par(r.resultados) + '</div></div></section>' +
+    // Reportei: orgânico x pago, o que deu certo e o que não, o que os números dizem
+    (r.alcanceOrganico || r.alcancePago ? '<section class="sl">' + topo + '<h2>Alcance <b>orgânico x pago</b></h2><div class="tiles">' +
+      tile('alcanceOrganico', 'Alcance orgânico') + tile('alcancePago', 'Alcance pago') + tile('visualizacoes', 'Visualizações') + '</div>' +
+      '<p style="margin-top:28px">' + n(srPct(r.alcanceOrganico, (r.alcanceOrganico || 0) + (r.alcancePago || 0)), 1) + '% do alcance do mês foi orgânico.</p></section>' : '') +
+    (function () {
+      const av = srPostsAvaliados(r);
+      if (!av.length) return '';
+      const item = function (x, bom) { const mot = (bom ? x.bons : x.ruins).slice(0, 2); return '<li><b>' + e(x.legenda) + '</b><br><span style="color:#7B8677">alcance ' + n(x.alcance) + ' · taxa ' + n(x.taxa, 1) + '%</span>' + (mot.length ? '<br>' + e(mot.join('; ')) : '') + '</li>'; };
+      return '<section class="sl">' + topo + '<h2>O que deu certo e o que <b>não funcionou</b></h2><div class="duas"><div><h3>Deu certo</h3><ul>' + av.slice(0, 3).map(function (x) { return item(x, true); }).join('') + '</ul></div>' +
+        '<div><h3>Não funcionou</h3><ul>' + (av.length > 1 ? av.slice(-2).reverse().map(function (x) { return item(x, false); }).join('') : '<li>Com um post só não dá para comparar.</li>') + '</ul></div></div></section>';
+    })() +
+    ((r.detalhe && r.detalhe.analise && r.detalhe.analise.length) ? '<section class="sl">' + topo + '<h2>O que os <b>números dizem</b></h2><div class="duas">' +
+      r.detalhe.analise.slice(0, 2).map(function (a) { return '<div>' + par(a.texto.length > 700 ? a.texto.slice(0, 700) + '…' : a.texto) + '</div>'; }).join('') + '</div></section>' : '') +
     // ajustes
     '<section class="sl">' + topo + '<h2>Ajustes na <b>estratégia</b></h2><div class="duas"><div><h3>O que muda</h3>' + par(r.ajustes) +
       (ajustesMes.length ? '<ul>' + ajustesMes.map(function (j) { return '<li>' + e(j.titulo) + '</li>'; }).join('') + '</ul>' : '') + '</div><div><h3>Próximos passos</h3>' + par(r.proximosPassos) + '</div></div>' +
+      '<p style="margin-top:14px"><b>Onde queremos chegar:</b> ' + e(m.objetivo || 'objetivo a definir') + '</p>' +
       '<div class="fase">' + smFases().map(function (fa, k) { const at = smFases().indexOf(m.fase); return '<div class="' + (k === at ? 'at' : k < at ? 'ok' : '') + '"><i></i>' + e(fa) + '</div>'; }).join('') + '</div></section>' +
     // encerramento
     '<section class="sl fim"><div class="lados">' + (logoAg ? '<img class="ls" src="' + e(logoAg) + '" alt="' + e(nomeAg) + '">' : '<b>' + e(nomeAg.toUpperCase()) + '</b>') + '<span style="opacity:.4;font-size:30px">×</span>' + marcaC + '</div><h1 style="font-size:60px">Obrigado.</h1><p style="color:rgba(247,243,236,.7)">Seguimos juntos no próximo mês.</p></section>' +
