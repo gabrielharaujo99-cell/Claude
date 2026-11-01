@@ -141,3 +141,45 @@ TELAS.cockpit = {
   },
 };
 </script>
+<style>
+.acoes-rapidas { padding: 18px 20px; margin-bottom: 20px; }
+.acoes-rapidas h3 { margin: 0 0 2px; font-size: 16px; font-weight: 700; }
+.acoes-rapidas p { margin: 0 0 14px; color: var(--suave); font-size: 12.5px; }
+.ar-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+.ar-grade button { display: grid; justify-items: center; gap: 10px; padding: 16px 8px 14px; border-radius: 16px; border: 1px solid var(--linha); background: var(--superficie); cursor: pointer;
+  font: 600 13px var(--fonte); color: var(--texto); transition: transform .15s, box-shadow .15s, border-color .15s; }
+.ar-grade button:hover { transform: translateY(-2px); box-shadow: var(--sombra); border-color: var(--linha-forte); }
+.ar-grade i { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: var(--g-pilula); color: #fff; }
+.ar-grade i.cobre { background: var(--g-cta); }
+.ar-grade svg { width: 20px; height: 20px; }
+</style>
+<script>
+// Ações rápidas do Início (como no Be Flow): atalhos do dia a dia, conforme as áreas de cada pessoa.
+function acoesRapidas() {
+  const l = [];
+  const pc = pode('colaborador');
+  if (pc && temArea('comercial')) l.push(['nova-op', 'mais', 'Nova oportunidade', 'cobre']);
+  l.push(['buscar', 'busca', 'Buscar']);
+  if (pc && temArea('social')) l.push(['novo-post', 'social', 'Novo conteúdo']);
+  if (pc) l.push(['nova-tarefa', 'tarefas', 'Nova tarefa']);
+  if (pc) l.push(['horas', 'horas', 'Lançar horas']);
+  if (temArea('comercial')) l.push(['cockpit', 'cvision', 'Cockpit']);
+  if (temArea('social')) l.push(['social', 'calendario', 'Calendário social']);
+  if (temArea('comercial')) l.push(['funil', 'funil', 'Funil']);
+  return '<div class="cartao acoes-rapidas"><h3>Ações rápidas</h3><p>Atalhos do dia a dia.</p><div class="ar-grade">' +
+    l.map(function (a) { return '<button type="button" data-acao-rapida="' + a[0] + '"><i class="' + (a[3] || '') + '">' + icone(a[1]) + '</i>' + esc(a[2]) + '</button>'; }).join('') + '</div></div>';
+}
+
+document.addEventListener('click', function (e) {
+  const b = e.target.closest('[data-acao-rapida]');
+  if (!b) return;
+  const a = b.dataset.acaoRapida;
+  if (a === 'nova-op') abrirFormOportunidade();
+  else if (a === 'buscar') abrirBusca();
+  else if (a === 'novo-post') abrirFormPost(smBaseNova());
+  else if (a === 'nova-tarefa') abrirFormTarefa({});
+  else if (a === 'horas') abrirFormHoras({});
+  else if (a === 'social') { S.filtrosSocial.pagina = ''; S.filtrosSocial.vista = 'calendario'; irPara('social'); }
+  else irPara(a);
+});
+</script>

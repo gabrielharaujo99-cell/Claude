@@ -310,7 +310,7 @@ function inicioPorArea(saudacao, primeiroNome, dataHoje) {
       texto: (vencendo ? '<span class="al">' + vencendo + ' vencendo hoje ou atrasada(s)</span>. ' : 'Nenhuma atrasada. ') + 'Os números das suas áreas estão logo abaixo.',
       painel: { tipo: 'anel', titulo: 'Seu ritmo', valor: String(saude), unidade: '%', rot: 'em dia', prog: saude / 100, barras: sinais },
     },
-    corpo: '<div class="conteudo">' + blocos + '<div class="painel"><div>' + tarefas + '</div><div>' + (lado || '') + '</div></div></div>',
+    corpo: '<div class="conteudo">' + acoesRapidas() + blocos + '<div class="painel"><div>' + tarefas + '</div><div>' + (lado || '') + '</div></div></div>',
     montar: function (el) {
       el.addEventListener('click', function (e) {
         const ir = e.target.closest('[data-ir-tela]');
@@ -444,7 +444,7 @@ TELAS.inicio = {
         painel: { tipo: 'anel', titulo: 'Saúde da operação', valor: String(saude), unidade: '%', rot: 'saúde', prog: saude / 100, barras: sinais },
       },
       acoes: pode('colaborador') ? '<button class="btn btn-primario" data-nova-op>' + icone('mais') + 'Nova oportunidade</button>' : '',
-      corpo: '<div class="conteudo">' + kpis + '<div class="painel"><div>' + funil + atencao + '</div><div>' + tarefas + fechamentos + '</div></div></div>',
+      corpo: '<div class="conteudo">' + kpis + acoesRapidas() + '<div class="painel"><div>' + funil + atencao + '</div><div>' + tarefas + fechamentos + '</div></div></div>',
       montar: function (el, topo) {
         const n = topo.querySelector('[data-nova-op]');
         if (n) n.onclick = function () { abrirFormOportunidade(); };
