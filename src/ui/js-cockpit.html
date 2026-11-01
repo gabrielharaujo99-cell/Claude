@@ -1,0 +1,143 @@
+<style>
+/* Cockpit comercial (no espírito do Be Flow): o que vai entrar no mês, o que está quente, o foco e o Destrave. */
+.ck-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.ck-bloco { padding: 18px 20px; display: grid; gap: 12px; align-content: start; }
+.ck-bloco h3 { margin: 0; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.ck-bloco h3 small { font-weight: 500; color: var(--suave); font-size: 12px; }
+.ck-fc { display: flex; flex-wrap: wrap; gap: 8px; }
+.ck-fc span { padding: 8px 12px; border-radius: 12px; background: var(--afundado); font-size: 13px; color: var(--suave); }
+.ck-fc b { color: var(--texto); margin-left: 6px; font-variant-numeric: tabular-nums; }
+.ck-op { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--linha); background: var(--superficie); cursor: pointer; }
+.ck-op:hover { border-color: var(--linha-forte); }
+.ck-op .x { flex: 1; min-width: 0; }
+.ck-op .x b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ck-op .x small { color: var(--suave); }
+.ck-calor { width: 44px; text-align: center; flex: none; }
+.ck-calor b { display: block; font-size: 18px; font-weight: 700; color: var(--acento); }
+.ck-calor small { font-size: 10px; color: var(--suave); text-transform: uppercase; letter-spacing: .08em; }
+.ck-v { text-align: right; flex: none; }
+.ck-v b { display: block; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ck-v small { color: var(--suave); font-size: 11.5px; }
+.ck-falta { color: var(--alerta); font-size: 11.5px; }
+.ck-dt { display: grid; grid-template-columns: minmax(0, 1.4fr) 170px minmax(0, 1.6fr) 140px auto; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--linha); }
+.ck-dt:last-child { border-bottom: 0; }
+.ck-dt .x b { display: block; font-weight: 600; font-size: 13.5px; }
+.ck-dt .x small { color: var(--suave); font-size: 12px; }
+.ck-dt .entrada { min-height: 36px; font-size: 13px; }
+@media (max-width: 1100px) { .ck-grade { grid-template-columns: minmax(0, 1fr); } .ck-dt { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<script>
+/**
+ * Cockpit comercial: controle do funil em uma tela, para dar tração (como no Be Flow, adaptado para agência).
+ * 1) quanto deve entrar no mês (forecast: compromisso, provável, otimista, já ganho)
+ * 2) os negócios mais quentes para fechar (nota de calor)
+ * 3) o foco do mês: propostas e negociações e o que falta em cada uma
+ * 4) Destrave: o que está parado, por quê, o próximo passo e a data
+ */
+const CK_MOTIVOS = { aguardando_cliente: 'Aguardando o cliente', aguardando_aprovacao: 'Aguardando aprovação interna do cliente', orcamento: 'Orçamento', concorrencia: 'Concorrência',
+  prazo: 'Prazo / momento', sem_contato: 'Sem contato', interno: 'Pendência nossa', outro: 'Outro' };
+
+function ckMes() { return S.dados.hoje.slice(0, 7); }
+function ckNomeMes() { return new Date(S.dados.hoje + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'long' }); }
+
+// Nota de calor (0 a 100): chance da etapa, previsão próxima, próximo passo marcado, movimento recente e prioridade.
+function ckCalor(o) {
+  const e = etapa(o.etapa) || { prob: 0 }, hoje = S.dados.hoje;
+  let n = e.prob * 0.45;
+  if (o.previsao) { const d = (new Date(o.previsao + 'T12:00:00') - new Date(hoje + 'T12:00:00')) / 864e5; n += d < 0 ? 5 : d <= 15 ? 20 : d <= 30 ? 12 : 4; }
+  if (o.proximoPasso && o.proximoPassoData && o.proximoPassoData >= hoje) n += 15;
+  const dias = diasDesde(o.etapaDesde);
+  n += dias <= 3 ? 12 : dias <= 7 ? 6 : 0;
+  n += o.prioridade === 'alta' ? 8 : o.prioridade === 'media' ? 4 : 0;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+function ckFalta(o) {
+  const f = [], hoje = S.dados.hoje;
+  if (!o.previsao) f.push('data de fechamento');
+  if (!o.proximoPasso) f.push('próximo passo');
+  else if (o.proximoPassoData && o.proximoPassoData < hoje) f.push('próximo passo vencido');
+  if (!S.dados.propostas.some(function (p) { return p.oportunidadeId === o.id; }) && (etapa(o.etapa) || {}).prob >= 50) f.push('proposta anexada');
+  return f;
+}
+
+function ckOpHtml(o, extra) {
+  const e = etapa(o.etapa) || {};
+  return '<div class="ck-op" data-op-ck="' + esc(o.id) + '">' + (extra || '') +
+    '<span class="x"><b>' + esc(nomeCliente(o.clienteId) || 'Sem cliente') + '</b><small>' + esc(o.titulo) + '</small></span>' +
+    '<span class="ck-v"><span class="pilula">' + esc(e.nome || '') + '</span><b>' + dinheiro(totalOp(o), true) + '</b><small>' +
+      (o.previsao ? 'fecha ' + dataBr(o.previsao) : 'sem data') + ' · parada ' + diasDesde(o.etapaDesde) + 'd</small></span></div>';
+}
+
+TELAS.cockpit = {
+  desenhar: function () {
+    const cfg = S.dados.config, mes = ckMes();
+    const ops = opsAtivas(), abertas = ops.filter(function (o) { const e = etapa(o.etapa); return e && e.tipo === 'aberta'; });
+    const doMes = abertas.filter(function (o) { return o.previsao && o.previsao.slice(0, 7) <= mes; });
+    const pond = function (l) { return l.reduce(function (s, o) { return s + totalOp(o) * (etapa(o.etapa).prob / 100); }, 0); };
+    const compromisso = doMes.filter(function (o) { return etapa(o.etapa).prob >= 75; }).reduce(function (s, o) { return s + totalOp(o); }, 0);
+    const provavel = pond(doMes), otimista = doMes.reduce(function (s, o) { return s + totalOp(o); }, 0);
+    const ganho = ops.filter(function (o) { const e = etapa(o.etapa); return e && e.tipo === 'ganho' && String(o.fechadoEm).slice(0, 7) === mes; }).reduce(function (s, o) { return s + totalOp(o); }, 0);
+    const quentes = abertas.map(function (o) { return { o: o, n: ckCalor(o) }; }).sort(function (a, b) { return b.n - a.n; }).slice(0, 6);
+    const foco = abertas.filter(function (o) { return (etapa(o.etapa) || {}).prob >= 50; }).sort(function (a, b) { return totalOp(b) - totalOp(a); }).slice(0, 6);
+    const paradas = abertas.filter(parada).sort(function (a, b) { return diasDesde(b.etapaDesde) - diasDesde(a.etapaDesde); });
+    const comPasso = abertas.filter(function (o) { return o.proximoPasso && o.proximoPassoData; }).length;
+    const pct = abertas.length ? Math.round(comPasso * 100 / abertas.length) : 100;
+    return {
+      rotulo: cfg.empresa,
+      titulo: 'Cockpit',
+      banner: {
+        chip: 'Cockpit · ' + new Date(S.dados.hoje + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' }),
+        manchete: 'Devem entrar <em>' + dinheiro(provavel, true) + '</em> em ' + ckNomeMes(),
+        texto: abertas.length + ' negócio(s) abertos somam <b>' + dinheiro(abertas.reduce(function (s, o) { return s + totalOp(o); }, 0), true) + '</b> (' + dinheiro(pond(abertas), true) + ' ponderado). ' +
+          '<b>' + quentes.filter(function (x) { return x.n >= 60; }).length + '</b> estão quentes e ' + (paradas.length ? '<span class="al">' + paradas.length + ' parado(s)</span> pedem destrave.' : 'nada está parado.'),
+        stats: [{ v: dinheiro(provavel, true), l: 'ponderado previsto no mês' }, { v: String(quentes.filter(function (x) { return x.n >= 60; }).length), l: 'quentes para fechar' },
+          { v: dinheiro(ganho, true), l: 'já ganho no mês' }, { v: String(paradas.length), l: 'parados há ' + cfg.diasParado + '+ dias' }],
+        painel: { tipo: 'anel', titulo: 'Destrave', valor: String(pct), unidade: '%', rot: 'com próximo passo', prog: pct / 100,
+          barras: [{ l: 'Com próximo passo', v: comPasso + ' de ' + abertas.length, p: abertas.length ? comPasso / abertas.length : 1 },
+            { l: 'Sem parada', v: (abertas.length - paradas.length) + ' de ' + abertas.length, p: abertas.length ? 1 - paradas.length / abertas.length : 1 }] },
+      },
+      acoes: (pode('colaborador') ? '<button class="btn btn-primario" data-nova-op-ck>' + icone('mais') + '<span>Nova oportunidade</span></button>' : '') +
+        '<button class="btn" data-ir-funil>' + icone('funil') + '<span>Abrir o funil</span></button>',
+      corpo: '<div class="conteudo">' +
+        '<div class="cartao ck-bloco"><h3>Forecast de ' + esc(ckNomeMes()) + ' <small>negócios com fechamento previsto até o fim do mês</small></h3><div class="ck-fc">' +
+          '<span>Compromisso<b>' + dinheiro(compromisso, true) + '</b></span><span>Provável<b>' + dinheiro(provavel, true) + '</b></span>' +
+          '<span>Otimista<b>' + dinheiro(otimista, true) + '</b></span><span>Já ganho<b>' + dinheiro(ganho, true) + '</b></span></div></div>' +
+        '<div class="ck-grade">' +
+          '<div class="cartao ck-bloco"><h3>Mais quentes para fechar <small>nota de calor: etapa, data, próximo passo, movimento</small></h3>' +
+            (quentes.length ? quentes.map(function (x) { return ckOpHtml(x.o, '<span class="ck-calor"><b>' + x.n + '</b><small>calor</small></span>'); }).join('') : '<p class="mudo">Nenhum negócio aberto.</p>') + '</div>' +
+          '<div class="cartao ck-bloco"><h3>Foco do mês <small>propostas e negociações que mais pesam</small></h3>' +
+            (foco.length ? foco.map(function (o) { const f = ckFalta(o); return ckOpHtml(o) + (f.length ? '<span class="ck-falta">Falta: ' + esc(f.join(', ')) + '</span>' : ''); }).join('') : '<p class="mudo">Nada em proposta ou negociação.</p>') + '</div>' +
+        '</div>' +
+        '<div class="cartao ck-bloco" style="margin-top:16px"><h3>Destrave <small>o que está parado, por quê, o próximo passo e a data</small></h3>' +
+          (paradas.length ? paradas.map(function (o) {
+            return '<div class="ck-dt" data-dt="' + esc(o.id) + '"><span class="x"><b>' + esc(nomeCliente(o.clienteId)) + ' · ' + esc(o.titulo) + '</b><small>' + esc((etapa(o.etapa) || {}).nome || '') + ' há ' + diasDesde(o.etapaDesde) + ' dias · ' + dinheiro(totalOp(o), true) + '</small></span>' +
+              '<select class="entrada" name="travaMotivo">' + opcoes(Object.keys(CK_MOTIVOS).map(function (k) { return { v: k, t: CK_MOTIVOS[k] }; }), o.travaMotivo, 'Por que travou?') + '</select>' +
+              '<input class="entrada" name="proximoPasso" maxlength="300" placeholder="Próximo passo" value="' + esc(o.proximoPasso) + '">' +
+              '<input class="entrada" type="date" name="proximoPassoData" value="' + esc(o.proximoPassoData) + '">' +
+              (pode('colaborador') ? '<button class="btn btn-peq" data-salvar-dt="' + esc(o.id) + '">Salvar</button>' : '') + '</div>';
+          }).join('') : '<p class="mudo">Nenhuma oportunidade parada. Bom ritmo!</p>') + '</div>' +
+      '</div>',
+      montar: function (el, topo) {
+        const n = topo.querySelector('[data-nova-op-ck]');
+        if (n) n.onclick = function () { abrirFormOportunidade(); };
+        topo.querySelector('[data-ir-funil]').onclick = function () { irPara('funil'); };
+        el.addEventListener('click', function (e) {
+          const s = e.target.closest('[data-salvar-dt]');
+          if (s) {
+            const linha = s.closest('[data-dt]'), d = {};
+            linha.querySelectorAll('[name]').forEach(function (c) { d[c.name] = c.value; });
+            ocupado(s, async function () {
+              const r = await gravar('salvarDestrave', [linha.dataset.dt, d], 'Destrave salvo.');
+              if (r) { trocar('oportunidades', r); desenhar(); }
+            });
+            return;
+          }
+          const op = e.target.closest('[data-op-ck]');
+          if (op) abrirOportunidade(op.dataset.opCk);
+        });
+      },
+    };
+  },
+};
+</script>

@@ -128,3 +128,24 @@ function removerComentario(id) {
     return remover_('comentarios', id);
   });
 }
+
+// ---------- Destrave (Cockpit) ----------
+const MOTIVOS_TRAVA = ['aguardando_cliente', 'aguardando_aprovacao', 'orcamento', 'concorrencia', 'prazo', 'sem_contato', 'interno', 'outro'];
+
+// Registra por que a oportunidade travou, o próximo passo e a data. Sem motivo, limpa o destrave.
+function salvarDestrave(id, d) {
+  const eu = exigirArea_('comercial', 'colaborador');
+  return comTrava_(function () {
+    const op = achar_('oportunidades', texto_(id, 40));
+    if (!op) throw new Error('Oportunidade não encontrada. Recarregue a página.');
+    d = d || {};
+    const patch = {
+      travaMotivo: umDe_(d.travaMotivo, MOTIVOS_TRAVA, ''), proximoPasso: texto_(d.proximoPasso, 300), proximoPassoData: dataIso_(d.proximoPassoData),
+      destraveEm: agora_(), destravePor: eu.email,
+    };
+    if (patch.proximoPasso && !patch.proximoPassoData) throw new Error('Dê uma data para o próximo passo.');
+    const r = atualizar_('oportunidades', op.id, patch);
+    if (r.antes.proximoPasso !== patch.proximoPasso && patch.proximoPasso) registrar_(eu, 'oportunidade', op.id, 'definiu próximo passo', 'proximoPasso', r.antes.proximoPasso, patch.proximoPasso);
+    return r.depois;
+  });
+}

@@ -7,7 +7,9 @@ const SCHEMA = {
   oportunidades: {
     colunas: ['id', 'titulo', 'clienteId', 'servico', 'contrato', 'valor', 'meses', 'etapa', 'ordem', 'responsavel',
       'prioridade', 'origem', 'previsao', 'motivoPerda', 'obs', 'tags', 'criadoEm', 'criadoPor', 'etapaDesde',
-      'fechadoEm', 'atualizadoEm', 'atualizadoPor', 'arquivado'],
+      'fechadoEm', 'atualizadoEm', 'atualizadoPor', 'arquivado',
+      // Destrave (Cockpit): o que está travando, o próximo passo e a data dele
+      'travaMotivo', 'proximoPasso', 'proximoPassoData', 'destraveEm', 'destravePor'],
     num: ['valor', 'meses', 'ordem'], json: ['tags'], bool: ['arquivado'],
   },
   clientes: {

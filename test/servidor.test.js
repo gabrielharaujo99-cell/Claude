@@ -320,3 +320,13 @@ test('C-Vision: só quem tem a marcação, com a nota de saúde e as áreas', ()
   assert.ok(v.trafego.investimento30 > 0);
   assert.throws(() => c.ana('cvision'), /exclusivo/);
 });
+
+test('destrave: motivo, próximo passo com data obrigatória', () => {
+  const c = comEquipe();
+  const op = c.ana('salvarOportunidade', { titulo: 'Rebranding', clienteNome: 'Spa' });
+  assert.throws(() => c.ana('salvarDestrave', op.id, { travaMotivo: 'orcamento', proximoPasso: 'Ligar' }), /data/);
+  const r = c.ana('salvarDestrave', op.id, { travaMotivo: 'orcamento', proximoPasso: 'Ligar para o diretor', proximoPassoData: '2026-11-10' });
+  assert.equal(r.travaMotivo, 'orcamento');
+  assert.equal(r.proximoPassoData, '2026-11-10');
+  assert.equal(c.ana('salvarDestrave', op.id, { travaMotivo: 'inventado' }).travaMotivo, '');
+});
