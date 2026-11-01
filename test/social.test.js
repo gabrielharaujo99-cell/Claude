@@ -283,3 +283,26 @@ test('agenda: só eventos com PAX entram, com as peças de cada evento ligadas a
   c.estado.agenda.push({ id: 'e4', titulo: 'Outro cliente 12 pax', inicio: dia(3) });
   assert.ok(!c.soc('sincronizarAgenda', c.cliente.id).some((e) => e.titulo.startsWith('Outro')));
 });
+
+test('tendências: com a chave, pesquisa com IA (web search); sem, Google Notícias; não repete títulos', () => {
+  const c = agencia();
+  c.soc('salvarMarca', { clienteId: c.cliente.id });
+  assert.throws(() => c.soc('pesquisarTendencias', c.cliente.id), /nicho/);
+  c.soc('salvarMarca', { clienteId: c.cliente.id, nicho: 'spa e bem-estar' });
+  c.estado.http = [{ contem: 'news.google.com', corpo: '<rss><channel><item><title><![CDATA[Banho de floresta vira moda - Folha]]></title><link>https://exemplo.com/a</link><source url="x">Folha</source></item><item><title>Spa urbano cresce 20% - Valor</title><link>https://exemplo.com/b</link><source url="y">Valor</source></item></channel></rss>' }];
+  const r = c.soc('pesquisarTendencias', c.cliente.id);
+  assert.equal(r.fonte, 'noticias');
+  assert.deepEqual(r.novos.map((t) => t.titulo), ['Banho de floresta vira moda', 'Spa urbano cresce 20%']);
+  assert.equal(c.soc('pesquisarTendencias', c.cliente.id).novos.length, 0, 'não repete');
+
+  c.estado.props.ANTHROPIC_API_KEY = 'sk-teste';
+  c.estado.http = [{ contem: 'api.anthropic.com', corpo: { stop_reason: 'end_turn', content: [{ type: 'text', text: 'Pronto: {"tendencias":[{"titulo":"Sauna e banho gelado","porque":"buscas subiram","ideia":"Reels antes e depois","fonte":"TikTok","link":"https://tiktok.com/x"}]}' }] } }];
+  const ia = c.soc('pesquisarTendencias', c.cliente.id);
+  assert.equal(ia.fonte, 'ia');
+  assert.equal(ia.novos[0].titulo, 'Sauna e banho gelado');
+  assert.match(ia.novos[0].descricao, /Ideia: Reels/);
+  const pedido = JSON.parse(c.estado.requisicoes.at(-1).opcoes.payload);
+  assert.equal(pedido.model, 'claude-opus-5-5');
+  assert.equal(pedido.tools[0].type, 'web_search_20260209');
+  assert.equal(c.estado.requisicoes.at(-1).opcoes.headers['x-api-key'], 'sk-teste');
+});

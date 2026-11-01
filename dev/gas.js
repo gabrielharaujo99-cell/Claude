@@ -138,6 +138,12 @@ function criarGlobais(estado, opcoes) {
           const r = (estado.instagram || {})[decodeURIComponent(ig[1])] || { codigo: 404, corpo: '' };
           return { getResponseCode: () => r.codigo, getContentText: () => (typeof r.corpo === 'string' ? r.corpo : JSON.stringify(r.corpo)) };
         }
+        // Respostas HTTP simuladas: estado.http = [{ contem, codigo, corpo }] (a primeira cujo trecho aparece na URL).
+        const h = (estado.http || []).find((x) => url.indexOf(x.contem) >= 0);
+        if (h) {
+          (estado.requisicoes = estado.requisicoes || []).push({ url, opcoes: o || {} });
+          return { getResponseCode: () => h.codigo || 200, getContentText: () => (typeof h.corpo === 'string' ? h.corpo : JSON.stringify(h.corpo)) };
+        }
         estado.chats.push({ url, corpo: JSON.parse(o.payload) });
         return { getResponseCode: () => 200, getContentText: () => '{}' };
       },

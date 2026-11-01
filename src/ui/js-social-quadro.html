@@ -38,6 +38,7 @@
 .sq-peca a:hover { text-decoration: underline; }
 .sq-sub { font: 600 10.5px/1.3 var(--fonte); letter-spacing: .14em; text-transform: uppercase; color: var(--suave); margin-top: 4px; }
 .sq-vazio { color: var(--suave); font-size: 13px; margin: 0; }
+.sq-acoes .btn svg, .sq-peca .btn svg, .sq-linha .btn svg { width: 15px; height: 15px; flex: none; }
 .sq-cfg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; }
 .sq-cfg label.chk { display: flex; align-items: center; gap: 8px; font-size: 14px; }
 @media (max-width: 1100px) { .sq-grade { grid-template-columns: minmax(0, 1fr); } }
@@ -163,7 +164,7 @@ function sqBlocoPedidos(id) {
     }).join('') + '</div>' : '<p class="sq-vazio">Nenhum pedido pendente.</p>') + '</div>';
 }
 
-function smQuadro(id, m, c) {
+function smQuadroCliente(id, m, c) {
   if (!m) return smAbaEstrategia(id, m, c);
   const b = m.blocos && m.blocos.length ? m.blocos : ['frequencia', 'estoque', 'pedidos'];
   const mapa = {
@@ -190,7 +191,8 @@ function sqConfigurar(id) {
       '<label class="campo inteira"><span>Nicho para as tendências</span><input name="nicho" maxlength="200" value="' + esc(m.nicho) + '" placeholder="Ex.: saúde e medicina preventiva; creator economy; RH e treinamento corporativo"></label>' +
       '<label class="campo"><span>Agenda dos eventos (ID)</span><input name="agendaId" maxlength="200" value="' + esc(m.agendaId) + '" placeholder="vazio = agenda principal"><small>Configurações da agenda › Integrar agenda › ID da agenda.</small></label>' +
       '<label class="campo"><span>Só eventos que citam</span><input name="agendaFiltro" maxlength="80" value="' + esc(m.agendaFiltro) + '" placeholder="Ex.: Outbox (opcional)"><small>Sempre precisa ter o número de PAX.</small></label>' +
-      '<label class="campo inteira"><span>Peças de cada evento</span><input name="entregasEvento" value="' + esc((m.entregasEvento || ['Story', 'Feed Instagram', 'LinkedIn']).join(', ')) + '"><small>Separe por vírgula.</small></label></form>',
+      '<label class="campo inteira"><span>Peças de cada evento</span><input name="entregasEvento" value="' + esc((m.entregasEvento || ['Story', 'Feed Instagram', 'LinkedIn']).join(', ')) + '"><small>Separe por vírgula.</small></label>' +
+      (pode('admin') ? '<label class="campo inteira"><span>Chave da API da Anthropic (tendências com IA, vale para todos)</span><input name="chaveIA" type="password" autocomplete="off" placeholder="sk-ant-… (deixe vazio para não mudar)"><small>Sem chave, as tendências vêm do Google Notícias.</small></label>' : '') + '</form>',
     pe: '<button class="btn btn-fantasma" data-fechar>Cancelar</button><button class="btn btn-primario" data-ok>Salvar quadro</button>',
   });
   md.el.querySelector('[data-ok]').onclick = function () {
@@ -199,6 +201,7 @@ function sqConfigurar(id) {
       frequencia: f.frequencia, antecedencia: f.antecedencia, nicho: f.nicho, agendaId: f.agendaId, agendaFiltro: f.agendaFiltro,
       entregasEvento: String(f.entregasEvento || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean) };
     ocupado(md.el.querySelector('[data-ok]'), async function () {
+      if (f.chaveIA && !(await gravar('salvarChaveIA', [f.chaveIA], 'Chave da IA salva.'))) return;
       const r = await gravar('salvarMarca', [d], 'Quadro salvo.');
       if (r) { trocar('marcas', r, 'clienteId'); md.fechar(); smRedesenhar(); }
     });
@@ -254,6 +257,18 @@ function sqUsar(id) {
       if (r) { trocar('temas', r.tema); S.dados.posts.push(r.post); md.fechar(); smRedesenhar(); }
     });
   };
+}
+
+// Pesquisa de tendências do nicho (IA com busca na web, ou Google Notícias sem a chave).
+function sqPesquisarTendencias(id, btn) {
+  ocupado(btn, async function () {
+    btn.textContent = 'Pesquisando…';
+    const r = await gravar('pesquisarTendencias', [id]);
+    if (!r) return;
+    r.novos.forEach(function (t) { S.dados.temas.push(t); });
+    toast(r.novos.length ? r.novos.length + ' tendência(s) nova(s)' + (r.fonte === 'ia' ? ' pesquisadas com IA.' : ' do Google Notícias (configure a chave da IA para pesquisar redes, blogs e YouTube).') : 'Nada novo desde a última pesquisa.');
+    smRedesenhar();
+  });
 }
 
 // Cliques do quadro (chamado antes dos cliques gerais da social).

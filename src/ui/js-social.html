@@ -238,7 +238,12 @@ function smCorpo() {
 }
 
 // Atualiza só o corpo (sem perder o foco da busca no topo).
-function smAtualizar() { const box = document.getElementById('sm-corpo'); if (box) box.innerHTML = smCorpo(); }
+function smAtualizar() {
+  const box = document.getElementById('sm-corpo');
+  if (!box) return;
+  // Na página de um cliente, o corpo é o da página (quadro, estratégia, resultados…), não a visão geral.
+  box.innerHTML = S.filtrosSocial.pagina && cliente(S.filtrosSocial.pagina) ? smPaginaCorpo(S.filtrosSocial.pagina) : smCorpo();
+}
 function smRedesenhar() { if (S.tela === 'social' && document.getElementById('sm-corpo')) smAtualizar(); else desenhar(); }
 
 function smKpis(lista) {

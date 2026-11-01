@@ -419,7 +419,7 @@ function smPaginaCliente(id) {
 
 function smPaginaCorpo(id) {
   const f = S.filtrosSocial, m = smMarca(id), c = cliente(id);
-  const aba = f.aba === 'quadro' ? smQuadro(id, m, c) : f.aba === 'conteudo' ? smAbaConteudo(id, m, c) : f.aba === 'pedidos' ? smPedidosVista(id) : f.aba === 'jornada' ? smAbaJornada(id) : f.aba === 'reports' ? smResultados(id, m) : smAbaEstrategia(id, m, c);
+  const aba = f.aba === 'quadro' ? smQuadroCliente(id, m, c) : f.aba === 'conteudo' ? smAbaConteudo(id, m, c) : f.aba === 'pedidos' ? smPedidosVista(id) : f.aba === 'jornada' ? smAbaJornada(id) : f.aba === 'reports' ? smResultados(id, m) : smAbaEstrategia(id, m, c);
   return '<div class="conteudo">' + aba + '</div>';
 }
 
