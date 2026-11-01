@@ -134,3 +134,41 @@ function criarEntregaEvento(eventoId, tipo) {
     return { evento: evento, post: post };
   });
 }
+
+// ---------- clientes da Seok já configurados (um clique) ----------
+// Cria (ou completa) os clientes de social media com os blocos e nichos combinados. Não apaga nada:
+// cliente que já existe (mesmo nome) é reaproveitado e só recebe o que ainda estiver vazio.
+const CLIENTES_SEOK_ = [
+  { nome: 'Metapel', segmento: 'Saúde', nicho: 'saúde, medicina e prevenção', blocos: ['frequencia', 'estoque', 'tendencias', 'pedidos'], frequencia: 3 },
+  { nome: 'Outbox', segmento: 'Treinamento corporativo', nicho: 'RH, liderança e treinamento corporativo', blocos: ['frequencia', 'eventos', 'temas', 'pedidos'], frequencia: 3, entregasEvento: ['Story', 'Feed Instagram', 'LinkedIn'] },
+  { nome: 'Content Lab', segmento: 'Creator economy', nicho: 'creator economy e marketing de criadores', blocos: ['cases', 'frequencia', 'tendencias', 'temas'], frequencia: 3 },
+  { nome: 'Pietro', segmento: 'Wellness', nicho: 'wellness, bem-estar e longevidade', blocos: ['estoque', 'frequencia', 'tendencias', 'pedidos'], frequencia: 4 },
+  { nome: 'Seok Wellness', segmento: 'Wellness', nicho: 'wellness, bem-estar e longevidade', blocos: ['estoque', 'frequencia', 'tendencias', 'pedidos'], frequencia: 4 },
+  { nome: 'Nap Griddle', segmento: '', nicho: '', blocos: ['frequencia', 'pedidos'], frequencia: 0 },
+];
+
+function prepararClientesSeok() {
+  const eu = exigirArea_('social', 'gestor');
+  return comTrava_(function () {
+    const agora = agora_(), feitos = [];
+    CLIENTES_SEOK_.forEach(function (x) {
+      let c = ler_('clientes').filter(function (k) { return normalizar_(k.nome) === normalizar_(x.nome); })[0];
+      if (!c) c = inserir_('clientes', { id: novoId_('cl'), nome: x.nome, segmento: x.segmento, criadoEm: agora, atualizadoEm: agora, arquivado: false });
+      const m = achar_('marcas', c.id);
+      const base = { status: 'ativo', blocos: x.blocos, nicho: x.nicho, frequencia: x.frequencia, entregasEvento: x.entregasEvento || ENTREGAS_PADRAO.slice(), antecedencia: 7, atualizadoEm: agora, atualizadoPor: eu.email };
+      if (!m) {
+        inserir_('marcas', Object.assign({ clienteId: c.id, fase: FASES_ESTRATEGIA[0], pilares: [], formatosMeta: {}, inicio: hoje_() }, base));
+        registrarJornada_(eu, c.id, 'marco', 'Início da gestão de social media', 'Quadro configurado com os blocos combinados.', '', '', '', '');
+      } else {
+        const patch = {};
+        if (!m.blocos || !m.blocos.length) patch.blocos = x.blocos;
+        if (!m.nicho && x.nicho) patch.nicho = x.nicho;
+        if (!m.frequencia && x.frequencia) patch.frequencia = x.frequencia;
+        if (!m.entregasEvento || !m.entregasEvento.length) patch.entregasEvento = base.entregasEvento;
+        if (Object.keys(patch).length) atualizar_('marcas', c.id, patch);
+      }
+      feitos.push(c.nome);
+    });
+    return feitos;
+  });
+}

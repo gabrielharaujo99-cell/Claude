@@ -234,6 +234,8 @@ function smGeral(lista) {
       [['ativo', 'Ativos', conta('ativo')], ['pausa', 'Em pausa', conta('pausa')], ['todos', 'Todos', smMarcas().length]].map(function (s) {
         return '<button type="button" data-statuscli="' + s[0] + '" aria-pressed="' + (f.statusCli === s[0]) + '">' + s[1] + ' · ' + s[2] + '</button>';
       }).join('') + '</div>' +
+      (pode('gestor') && !['Metapel', 'Outbox', 'Content Lab', 'Pietro'].every(function (n) { return S.dados.clientes.some(function (c) { return c.nome === n && smMarca(c.id); }); })
+        ? '<button class="btn btn-primario btn-peq" data-preparar-seok>' + icone('mais') + 'Preparar clientes da Seok</button>' : '') +
       (pode('colaborador') && semPerfil.length ? '<button class="btn btn-peq" data-nova-marca>' + icone('mais') + 'Cliente na social</button>' : '') +
       '<span class="mudo">Clique em um cliente para ver persona, estratégia, conteúdo, jornada e reports.</span></div>' + cards +
     '<div class="smg-tabs">' + filas('aprovacao', 'Aguardando aprovação', 'com o cliente') + filas('producao', 'Em produção', 'sendo criados pela equipe') + '</div>' +
@@ -361,6 +363,10 @@ function smCliqueExtra(e) {
     return true;
   }
   if (sel('[data-nova-marca]')) { abrirNovaMarca(); return true; }
+  if ((x = sel('[data-preparar-seok]'))) {
+    ocupado(x, async function () { const r = await gravar('prepararClientesSeok', [], 'Clientes prontos: Metapel, Outbox, Content Lab, Pietro, Seok Wellness e Nap Griddle.'); if (r) recarregar(); });
+    return true;
+  }
   if ((x = sel('[data-ed-marca]'))) { abrirFormMarca(x.dataset.edMarca); return true; }
   if ((x = sel('[data-ig-verificar]'))) { smVerificarIg(x.dataset.igVerificar, x); return true; }
   if ((x = sel('[data-ig-diario]'))) {

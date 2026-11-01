@@ -306,3 +306,18 @@ test('tendências: com a chave, pesquisa com IA (web search); sem, Google Notíc
   assert.equal(pedido.tools[0].type, 'web_search_20260209');
   assert.equal(c.estado.requisicoes.at(-1).opcoes.headers['x-api-key'], 'sk-teste');
 });
+
+test('clientes da Seok: um clique cria os 6 com os blocos combinados, sem duplicar', () => {
+  const c = agencia();
+  c.dono('salvarCliente', { nome: 'Outbox' });
+  assert.throws(() => c.soc('prepararClientesSeok'), /papel/);
+  assert.equal(c.dono('prepararClientesSeok').length, 6);
+  const d = c.dono('carregar');
+  const ob = d.clientes.filter((x) => x.nome === 'Outbox');
+  assert.equal(ob.length, 1, 'reaproveita o cliente que já existia');
+  const mo = d.marcas.find((m) => m.clienteId === ob[0].id);
+  assert.deepEqual(mo.blocos, ['frequencia', 'eventos', 'temas', 'pedidos']);
+  assert.equal(d.marcas.find((m) => m.clienteId === d.clientes.find((x) => x.nome === 'Content Lab').id).nicho, 'creator economy e marketing de criadores');
+  c.dono('prepararClientesSeok');
+  assert.equal(c.dono('carregar').clientes.filter((x) => x.nome === 'Metapel').length, 1);
+});
