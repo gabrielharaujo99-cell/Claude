@@ -33,7 +33,7 @@ function lista_(v, max) {
 
 // ---------- banco ----------
 const SCHEMA = {
-  equipe: { colunas: ['email', 'nome', 'papel', 'ativo', 'criadoEm'], chave: 'email', bool: ['ativo'] },
+  equipe: { colunas: ['email', 'nome', 'papel', 'ativo', 'criadoEm', 'acesso'], chave: 'email', bool: ['ativo'] },
   config: { colunas: ['chave', 'valor'], chave: 'chave' },
   clientes: {
     colunas: ['id', 'nome', 'cor', 'nicho', 'objetivo', 'instagram', 'linkedin', 'frequencia', 'antecedencia', 'blocos', 'agendaId', 'agendaFiltro',
@@ -53,6 +53,7 @@ const SCHEMA = {
     num: ['seguidores', 'alcance', 'alcanceOrganico', 'alcancePago', 'visualizacoes', 'interacoes', 'visitasPerfil', 'liSeguidores', 'liImpressoes', 'liAlcance', 'liPosts'],
     json: ['detalhe'],
   },
+  marcos: { colunas: ['id', 'clienteId', 'data', 'tipo', 'titulo', 'descricao', 'link', 'criadoPor', 'criadoEm'] },
 };
 
 let MEMO_ = {};
@@ -63,7 +64,8 @@ function aba_(nome) {
   const s = esquema_(nome), ss = SpreadsheetApp.getActiveSpreadsheet();
   let sh = ss.getSheetByName(nome);
   if (!sh) {
-    sh = ss.insertSheet(nome);
+    // Duas chamadas ao mesmo tempo podem tentar criar a aba: se outra já criou, usa a dela.
+    try { sh = ss.insertSheet(nome); } catch (e) { sh = ss.getSheetByName(nome); if (!sh) throw e; return sh; }
     sh.getRange(1, 1, 1, s.colunas.length).setValues([s.colunas]).setFontWeight('bold');
     sh.setFrozenRows(1);
     return sh;
@@ -165,6 +167,27 @@ function gravarConfig_(chave, valor) { if (achar_('config', chave)) atualizar_('
 // "link aberto" ligado (Ajustes), essa pessoa entra como editora "Equipe"; desligado, fica sem acesso.
 const PAPEIS = { leitor: 1, editor: 2, admin: 3 };
 let EU_ = null;
+let CHAVE_ = '';
+
+// Toda chamada da tela passa por aqui com a chave do link pessoal (?k=...). Contas Gmail de fora do domínio
+// não mostram o e-mail para um app que roda como o dono; a chave é o que identifica essas pessoas.
+function rodar(chave, fn, args) {
+  const f = {
+    carregar: carregar, salvarCliente: salvarCliente, salvarPost: salvarPost, moverPost: moverPost, removerPost: removerPost,
+    salvarTema: salvarTema, ordenarTemas: ordenarTemas, temaParaPauta: temaParaPauta, removerTema: removerTema,
+    salvarPedido: salvarPedido, pedidoParaPauta: pedidoParaPauta, removerPedido: removerPedido, sincronizarAgenda: sincronizarAgenda,
+    criarPeca: criarPeca, salvarReport: salvarReport, removerReport: removerReport, lerReportei: lerReportei,
+    pesquisarTendencias: pesquisarTendencias, salvarMarco: salvarMarco, removerMarco: removerMarco,
+    salvarMembro: salvarMembro, salvarAjustes: salvarAjustes,
+  }[fn];
+  if (!f) throw new Error('Função desconhecida: ' + fn);
+  CHAVE_ = /^[a-f0-9]{32}$/.test(String(chave || '')) ? String(chave) : '';
+  EU_ = null;
+  return f.apply(null, Array.isArray(args) ? args : []);
+}
+
+function novaChave_() { return Utilities.getUuid().replace(/-/g, ''); }
+function linkApp_() { try { return ScriptApp.getService().getUrl() || ''; } catch (e) { return ''; } }
 
 function emailDono_() { return String(Session.getEffectiveUser().getEmail() || '').toLowerCase(); }
 
@@ -174,12 +197,12 @@ function eu_() {
     const dono = emailDono_();
     comTrava_(function () {
       if (!ler_('equipe').length && dono) inserir_('equipe', { email: dono, nome: nomeDoEmail_(dono), papel: 'admin', ativo: true, criadoEm: agora_() });
-      if (!achar_('config', 'linkAberto')) gravarConfig_('linkAberto', '1');
+      if (!achar_('config', 'linkAberto')) gravarConfig_('linkAberto', '0');
     });
   }
   const email = String(Session.getActiveUser().getEmail() || '').trim().toLowerCase();
-  const m = email ? achar_('equipe', email) : null;
-  if (m && m.ativo && PAPEIS[m.papel]) EU_ = { email: email, nome: m.nome || nomeDoEmail_(email), papel: m.papel };
+  const m = email ? achar_('equipe', email) : CHAVE_ ? ler_('equipe').filter(function (x) { return x.acesso === CHAVE_; })[0] || null : null;
+  if (m && m.ativo && PAPEIS[m.papel]) EU_ = { email: m.email, nome: m.nome || nomeDoEmail_(m.email), papel: m.papel };
   else if (!email && config_('linkAberto') === '1') EU_ = { email: '', nome: 'Equipe', papel: 'editor' };
   else EU_ = { email: email, nome: email ? nomeDoEmail_(email) : '', papel: 'sem_acesso' };
   return EU_;
@@ -202,7 +225,9 @@ function salvarMembro(d) {
     if (atual && atual.papel === 'admin' && (papel !== 'admin' || !ativo) && ler_('equipe').filter(function (m) { return m.papel === 'admin' && m.ativo; }).length <= 1) {
       throw new Error('Este é o único admin. Promova outra pessoa antes.');
     }
-    const dados = { nome: texto_(d.nome, 80) || nomeDoEmail_(email), papel: papel, ativo: ativo };
+    const dados = { nome: texto_(d.nome, 80) || (atual && atual.nome) || nomeDoEmail_(email), papel: papel, ativo: ativo };
+    // Link pessoal: nasce com a pessoa; "novoLink" troca a chave (o link antigo para de funcionar).
+    if (!atual || !atual.acesso || d.novoLink) dados.acesso = novaChave_();
     if (atual) atualizar_('equipe', email, dados); else inserir_('equipe', Object.assign({ email: email, criadoEm: agora_() }, dados));
     return ler_('equipe');
   });
@@ -231,19 +256,20 @@ function salvarAjustes(d) {
  *   Content Lab   fila de cases em ordem, frequência, tendências da creator economy
  *   Pietro        estoque, frequência, tendências de wellness, pedidos
  *   Seok Wellness igual ao Pietro
- *   Nap Griddle   frequência e pedidos (estratégia em construção)
+ *   Nap Briddle   frequência e pedidos (estratégia em construção)
  */
 const BLOCOS = ['frequencia', 'estoque', 'eventos', 'temas', 'cases', 'tendencias', 'pedidos'];
 const STATUS_POST = ['ideia', 'producao', 'aprovacao', 'agendado', 'publicado'];
 const FORMATOS = ['Reels', 'Carrossel', 'Post', 'Stories', 'Vídeo', 'Artigo'];
 const REDES = ['Instagram', 'LinkedIn', 'TikTok', 'YouTube', 'Facebook'];
+const TIPOS_MARCO = ['conquista', 'lancamento', 'campanha', 'estrategia', 'evento', 'resultado'];
 const CLIENTES_INICIAIS_ = [
   { nome: 'Metapel', cor: '#2F6B8F', nicho: 'saúde, medicina e prevenção', frequencia: 3, blocos: ['frequencia', 'estoque', 'tendencias', 'pedidos'] },
   { nome: 'Outbox', cor: '#B5683A', nicho: 'RH, liderança e treinamento corporativo', frequencia: 3, blocos: ['frequencia', 'eventos', 'temas', 'pedidos'], entregasEvento: ['Story', 'Feed Instagram', 'LinkedIn'] },
   { nome: 'Content Lab', cor: '#6B4FA0', nicho: 'creator economy e marketing de criadores', frequencia: 3, blocos: ['cases', 'frequencia', 'tendencias'] },
   { nome: 'Pietro', cor: '#3F7D4E', nicho: 'wellness, bem-estar e longevidade', frequencia: 4, blocos: ['estoque', 'frequencia', 'tendencias', 'pedidos'] },
   { nome: 'Seok Wellness', cor: '#1F3D2B', nicho: 'wellness, bem-estar e longevidade', frequencia: 4, blocos: ['estoque', 'frequencia', 'tendencias', 'pedidos'] },
-  { nome: 'Nap Griddle', cor: '#8A7B5C', nicho: '', frequencia: 0, blocos: ['frequencia', 'pedidos'], obs: 'Estratégia em construção.' },
+  { nome: 'Nap Briddle', cor: '#8A7B5C', nicho: '', frequencia: 0, blocos: ['frequencia', 'pedidos'], obs: 'Estratégia em construção.' },
 ];
 
 function semearClientes_() {
@@ -273,10 +299,12 @@ function carregar() {
   return {
     eu: eu, versao: VERSAO, hoje: hoje_(),
     clientes: ler_('clientes').sort(function (a, b) { return a.ordem - b.ordem; }),
-    posts: ler_('posts'), temas: ler_('temas'), eventos: ler_('eventos'), pedidos: ler_('pedidos'), reports: ler_('reports'),
+    posts: ler_('posts'), temas: ler_('temas'), eventos: ler_('eventos'), pedidos: ler_('pedidos'), reports: ler_('reports'), marcos: ler_('marcos'),
     equipe: eu.papel === 'admin' ? ler_('equipe') : [],
-    ajustes: { linkAberto: config_('linkAberto') === '1', temIA: !!p.getProperty('ANTHROPIC_API_KEY') },
-    listas: { status: STATUS_POST, formatos: FORMATOS, redes: REDES, blocos: BLOCOS },
+    // Quem está na equipe, só nome e papel, para a barra de cima.
+    time: ler_('equipe').filter(function (m) { return m.ativo; }).map(function (m) { return { nome: m.nome || nomeDoEmail_(m.email), papel: m.papel }; }),
+    ajustes: { linkAberto: config_('linkAberto') === '1', temIA: !!p.getProperty('ANTHROPIC_API_KEY'), link: eu.papel === 'admin' ? linkApp_() : '' },
+    listas: { status: STATUS_POST, formatos: FORMATOS, redes: REDES, blocos: BLOCOS, marcos: TIPOS_MARCO },
   };
 }
 
@@ -521,6 +549,26 @@ function limparDetalhe_(d) {
 }
 
 function removerReport(id) { exigir_('editor'); return comTrava_(function () { return remover_('reports', id); }); }
+
+// ---------- marcos do cliente ----------
+// O que marcou a história de cada cliente (lançamento, campanha, recorde, mudança de estratégia). Os recordes da Reportei a tela calcula sozinha.
+function salvarMarco(d) {
+  const eu = exigir_('editor');
+  return comTrava_(function () {
+    d = d || {};
+    const m = { clienteId: texto_(d.clienteId, 40), data: dataIso_(d.data), tipo: umDe_(d.tipo, TIPOS_MARCO, 'conquista'), titulo: texto_(d.titulo, 160),
+      descricao: texto_(d.descricao, 1000), link: url_(d.link) };
+    if (!achar_('clientes', m.clienteId)) throw new Error('Escolha o cliente.');
+    if (!m.titulo) throw new Error('Dê um título para o marco.');
+    if (!m.data) throw new Error('Informe a data do marco.');
+    if (texto_(d.link, 1000) && !m.link) throw new Error('O link precisa começar com https://');
+    if (!d.id) return inserir_('marcos', Object.assign(m, { id: novoId_('mc'), criadoPor: eu.email, criadoEm: agora_() }));
+    if (!achar_('marcos', d.id)) throw new Error('Marco não encontrado. Recarregue a página.');
+    return atualizar_('marcos', d.id, m);
+  });
+}
+
+function removerMarco(id) { exigir_('editor'); return comTrava_(function () { return remover_('marcos', id); }); }
 
 // ---------- tendências ----------
 // Com a chave da Anthropic, o Claude pesquisa na web (redes, blogs, YouTube, notícias); sem ela, Google Notícias.

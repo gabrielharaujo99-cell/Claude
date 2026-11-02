@@ -17,7 +17,7 @@ test('primeiro acesso: dono vira admin e os 6 clientes nascem com os blocos comb
   const a = app();
   const d = a.dono('carregar');
   assert.equal(d.eu.papel, 'admin');
-  assert.deepEqual(d.clientes.map((c) => c.nome), ['Metapel', 'Outbox', 'Content Lab', 'Pietro', 'Seok Wellness', 'Nap Griddle']);
+  assert.deepEqual(d.clientes.map((c) => c.nome), ['Metapel', 'Outbox', 'Content Lab', 'Pietro', 'Seok Wellness', 'Nap Briddle']);
   const ob = d.clientes.find((c) => c.nome === 'Outbox');
   assert.deepEqual(ob.blocos, ['frequencia', 'eventos', 'temas', 'pedidos']);
   assert.deepEqual(ob.entregasEvento, ['Story', 'Feed Instagram', 'LinkedIn']);
@@ -25,9 +25,11 @@ test('primeiro acesso: dono vira admin e os 6 clientes nascem com os blocos comb
   assert.equal(a.dono('carregar').clientes.length, 6, 'não semeia de novo');
 });
 
-test('acesso: link aberto deixa a equipe de outro domínio entrar como editora; fechado bloqueia', () => {
+test('acesso: fechado por padrão; link aberto deixa a equipe de outro domínio entrar como editora', () => {
   const a = app();
   a.dono('carregar');
+  assert.equal(a.equipe('carregar').semAcesso, true, 'padrão: só quem está na equipe');
+  a.dono('salvarAjustes', { linkAberto: true });
   assert.equal(a.equipe('carregar').eu.papel, 'editor');
   assert.equal(a.fora('carregar').semAcesso, true, 'e-mail conhecido do domínio mas fora da equipe');
   a.dono('salvarAjustes', { linkAberto: false });
@@ -120,6 +122,37 @@ test('tendências: Google Notícias sem a chave, IA com a chave; não repete', (
   a.dono('salvarAjustes', { chaveIA: 'sk-ant-teste' });
   a.estado.http = [{ contem: 'api.anthropic.com', corpo: { stop_reason: 'end_turn', content: [{ type: 'text', text: '{"tendencias":[{"titulo":"Longevidade no trabalho","porque":"x","ideia":"Reels"}]}' }] } }];
   assert.equal(a.dono('pesquisarTendencias', c.id).fonte, 'ia');
-  const nap = a.dono('carregar').clientes.find((x) => x.nome === 'Nap Griddle');
+  const nap = a.dono('carregar').clientes.find((x) => x.nome === 'Nap Briddle');
   assert.throws(() => a.dono('pesquisarTendencias', nap.id), /nicho/);
+});
+
+test('marcos: título, data e cliente obrigatórios; edita e apaga', () => {
+  const a = app();
+  const c = a.dono('carregar').clientes[0];
+  assert.throws(() => a.dono('salvarMarco', { clienteId: c.id, data: '2026-10-01' }), /título/);
+  assert.throws(() => a.dono('salvarMarco', { clienteId: c.id, titulo: 'X' }), /data/);
+  const m = a.dono('salvarMarco', { clienteId: c.id, titulo: 'Lançou a linha nova', data: '2026-10-01', tipo: 'lancamento' });
+  assert.equal(a.dono('salvarMarco', { id: m.id, clienteId: c.id, titulo: 'Lançou a linha', data: '2026-10-02', tipo: 'xyz' }).tipo, 'conquista');
+  const d = a.dono('carregar');
+  assert.equal(d.marcos.length, 1);
+  assert.ok(d.time.length >= 1, 'a barra de cima recebe a equipe');
+  a.dono('removerMarco', m.id);
+  assert.equal(a.dono('carregar').marcos.length, 0);
+});
+
+test('link pessoal: conta Gmail sem e-mail visível entra pela chave do link, com o papel dela', () => {
+  const a = app();
+  a.dono('carregar');
+  const eq = a.dono('salvarMembro', { email: 'pessoa@gmail.com', papel: 'editor' });
+  const k = eq.find((m) => m.email === 'pessoa@gmail.com').acesso;
+  assert.match(k, /^[a-f0-9]{32}$/);
+  assert.equal(a.equipe('rodar', '', 'carregar', []).semAcesso, true, 'sem chave, link fechado: sem acesso');
+  const d = a.equipe('rodar', k, 'carregar', []);
+  assert.equal(d.eu.email, 'pessoa@gmail.com');
+  assert.equal(d.eu.papel, 'editor');
+  assert.throws(() => a.equipe('rodar', k, 'salvarMembro', [{ email: 'x@y.com' }]), /acesso/);
+  const k2 = a.dono('salvarMembro', { email: 'pessoa@gmail.com', papel: 'editor', novoLink: true }).find((m) => m.email === 'pessoa@gmail.com').acesso;
+  assert.notEqual(k2, k);
+  assert.equal(a.equipe('rodar', k, 'carregar', []).semAcesso, true, 'link antigo para de valer');
+  assert.throws(() => a.dono('rodar', '', 'eu_', []), /desconhecida/);
 });

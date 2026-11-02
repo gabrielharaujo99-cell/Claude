@@ -6,19 +6,20 @@
  *   Content Lab   fila de cases em ordem, frequência, tendências da creator economy
  *   Pietro        estoque, frequência, tendências de wellness, pedidos
  *   Seok Wellness igual ao Pietro
- *   Nap Griddle   frequência e pedidos (estratégia em construção)
+ *   Nap Briddle   frequência e pedidos (estratégia em construção)
  */
 const BLOCOS = ['frequencia', 'estoque', 'eventos', 'temas', 'cases', 'tendencias', 'pedidos'];
 const STATUS_POST = ['ideia', 'producao', 'aprovacao', 'agendado', 'publicado'];
 const FORMATOS = ['Reels', 'Carrossel', 'Post', 'Stories', 'Vídeo', 'Artigo'];
 const REDES = ['Instagram', 'LinkedIn', 'TikTok', 'YouTube', 'Facebook'];
+const TIPOS_MARCO = ['conquista', 'lancamento', 'campanha', 'estrategia', 'evento', 'resultado'];
 const CLIENTES_INICIAIS_ = [
   { nome: 'Metapel', cor: '#2F6B8F', nicho: 'saúde, medicina e prevenção', frequencia: 3, blocos: ['frequencia', 'estoque', 'tendencias', 'pedidos'] },
   { nome: 'Outbox', cor: '#B5683A', nicho: 'RH, liderança e treinamento corporativo', frequencia: 3, blocos: ['frequencia', 'eventos', 'temas', 'pedidos'], entregasEvento: ['Story', 'Feed Instagram', 'LinkedIn'] },
   { nome: 'Content Lab', cor: '#6B4FA0', nicho: 'creator economy e marketing de criadores', frequencia: 3, blocos: ['cases', 'frequencia', 'tendencias'] },
   { nome: 'Pietro', cor: '#3F7D4E', nicho: 'wellness, bem-estar e longevidade', frequencia: 4, blocos: ['estoque', 'frequencia', 'tendencias', 'pedidos'] },
   { nome: 'Seok Wellness', cor: '#1F3D2B', nicho: 'wellness, bem-estar e longevidade', frequencia: 4, blocos: ['estoque', 'frequencia', 'tendencias', 'pedidos'] },
-  { nome: 'Nap Griddle', cor: '#8A7B5C', nicho: '', frequencia: 0, blocos: ['frequencia', 'pedidos'], obs: 'Estratégia em construção.' },
+  { nome: 'Nap Briddle', cor: '#8A7B5C', nicho: '', frequencia: 0, blocos: ['frequencia', 'pedidos'], obs: 'Estratégia em construção.' },
 ];
 
 function semearClientes_() {
@@ -48,10 +49,12 @@ function carregar() {
   return {
     eu: eu, versao: VERSAO, hoje: hoje_(),
     clientes: ler_('clientes').sort(function (a, b) { return a.ordem - b.ordem; }),
-    posts: ler_('posts'), temas: ler_('temas'), eventos: ler_('eventos'), pedidos: ler_('pedidos'), reports: ler_('reports'),
+    posts: ler_('posts'), temas: ler_('temas'), eventos: ler_('eventos'), pedidos: ler_('pedidos'), reports: ler_('reports'), marcos: ler_('marcos'),
     equipe: eu.papel === 'admin' ? ler_('equipe') : [],
-    ajustes: { linkAberto: config_('linkAberto') === '1', temIA: !!p.getProperty('ANTHROPIC_API_KEY') },
-    listas: { status: STATUS_POST, formatos: FORMATOS, redes: REDES, blocos: BLOCOS },
+    // Quem está na equipe, só nome e papel, para a barra de cima.
+    time: ler_('equipe').filter(function (m) { return m.ativo; }).map(function (m) { return { nome: m.nome || nomeDoEmail_(m.email), papel: m.papel }; }),
+    ajustes: { linkAberto: config_('linkAberto') === '1', temIA: !!p.getProperty('ANTHROPIC_API_KEY'), link: eu.papel === 'admin' ? linkApp_() : '' },
+    listas: { status: STATUS_POST, formatos: FORMATOS, redes: REDES, blocos: BLOCOS, marcos: TIPOS_MARCO },
   };
 }
 
@@ -296,6 +299,26 @@ function limparDetalhe_(d) {
 }
 
 function removerReport(id) { exigir_('editor'); return comTrava_(function () { return remover_('reports', id); }); }
+
+// ---------- marcos do cliente ----------
+// O que marcou a história de cada cliente (lançamento, campanha, recorde, mudança de estratégia). Os recordes da Reportei a tela calcula sozinha.
+function salvarMarco(d) {
+  const eu = exigir_('editor');
+  return comTrava_(function () {
+    d = d || {};
+    const m = { clienteId: texto_(d.clienteId, 40), data: dataIso_(d.data), tipo: umDe_(d.tipo, TIPOS_MARCO, 'conquista'), titulo: texto_(d.titulo, 160),
+      descricao: texto_(d.descricao, 1000), link: url_(d.link) };
+    if (!achar_('clientes', m.clienteId)) throw new Error('Escolha o cliente.');
+    if (!m.titulo) throw new Error('Dê um título para o marco.');
+    if (!m.data) throw new Error('Informe a data do marco.');
+    if (texto_(d.link, 1000) && !m.link) throw new Error('O link precisa começar com https://');
+    if (!d.id) return inserir_('marcos', Object.assign(m, { id: novoId_('mc'), criadoPor: eu.email, criadoEm: agora_() }));
+    if (!achar_('marcos', d.id)) throw new Error('Marco não encontrado. Recarregue a página.');
+    return atualizar_('marcos', d.id, m);
+  });
+}
+
+function removerMarco(id) { exigir_('editor'); return comTrava_(function () { return remover_('marcos', id); }); }
 
 // ---------- tendências ----------
 // Com a chave da Anthropic, o Claude pesquisa na web (redes, blogs, YouTube, notícias); sem ela, Google Notícias.

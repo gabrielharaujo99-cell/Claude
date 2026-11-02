@@ -30,7 +30,7 @@ function lista_(v, max) {
 
 // ---------- banco ----------
 const SCHEMA = {
-  equipe: { colunas: ['email', 'nome', 'papel', 'ativo', 'criadoEm'], chave: 'email', bool: ['ativo'] },
+  equipe: { colunas: ['email', 'nome', 'papel', 'ativo', 'criadoEm', 'acesso'], chave: 'email', bool: ['ativo'] },
   config: { colunas: ['chave', 'valor'], chave: 'chave' },
   clientes: {
     colunas: ['id', 'nome', 'cor', 'nicho', 'objetivo', 'instagram', 'linkedin', 'frequencia', 'antecedencia', 'blocos', 'agendaId', 'agendaFiltro',
@@ -50,6 +50,7 @@ const SCHEMA = {
     num: ['seguidores', 'alcance', 'alcanceOrganico', 'alcancePago', 'visualizacoes', 'interacoes', 'visitasPerfil', 'liSeguidores', 'liImpressoes', 'liAlcance', 'liPosts'],
     json: ['detalhe'],
   },
+  marcos: { colunas: ['id', 'clienteId', 'data', 'tipo', 'titulo', 'descricao', 'link', 'criadoPor', 'criadoEm'] },
 };
 
 let MEMO_ = {};
@@ -60,7 +61,8 @@ function aba_(nome) {
   const s = esquema_(nome), ss = SpreadsheetApp.getActiveSpreadsheet();
   let sh = ss.getSheetByName(nome);
   if (!sh) {
-    sh = ss.insertSheet(nome);
+    // Duas chamadas ao mesmo tempo podem tentar criar a aba: se outra já criou, usa a dela.
+    try { sh = ss.insertSheet(nome); } catch (e) { sh = ss.getSheetByName(nome); if (!sh) throw e; return sh; }
     sh.getRange(1, 1, 1, s.colunas.length).setValues([s.colunas]).setFontWeight('bold');
     sh.setFrozenRows(1);
     return sh;
@@ -162,6 +164,27 @@ function gravarConfig_(chave, valor) { if (achar_('config', chave)) atualizar_('
 // "link aberto" ligado (Ajustes), essa pessoa entra como editora "Equipe"; desligado, fica sem acesso.
 const PAPEIS = { leitor: 1, editor: 2, admin: 3 };
 let EU_ = null;
+let CHAVE_ = '';
+
+// Toda chamada da tela passa por aqui com a chave do link pessoal (?k=...). Contas Gmail de fora do domínio
+// não mostram o e-mail para um app que roda como o dono; a chave é o que identifica essas pessoas.
+function rodar(chave, fn, args) {
+  const f = {
+    carregar: carregar, salvarCliente: salvarCliente, salvarPost: salvarPost, moverPost: moverPost, removerPost: removerPost,
+    salvarTema: salvarTema, ordenarTemas: ordenarTemas, temaParaPauta: temaParaPauta, removerTema: removerTema,
+    salvarPedido: salvarPedido, pedidoParaPauta: pedidoParaPauta, removerPedido: removerPedido, sincronizarAgenda: sincronizarAgenda,
+    criarPeca: criarPeca, salvarReport: salvarReport, removerReport: removerReport, lerReportei: lerReportei,
+    pesquisarTendencias: pesquisarTendencias, salvarMarco: salvarMarco, removerMarco: removerMarco,
+    salvarMembro: salvarMembro, salvarAjustes: salvarAjustes,
+  }[fn];
+  if (!f) throw new Error('Função desconhecida: ' + fn);
+  CHAVE_ = /^[a-f0-9]{32}$/.test(String(chave || '')) ? String(chave) : '';
+  EU_ = null;
+  return f.apply(null, Array.isArray(args) ? args : []);
+}
+
+function novaChave_() { return Utilities.getUuid().replace(/-/g, ''); }
+function linkApp_() { try { return ScriptApp.getService().getUrl() || ''; } catch (e) { return ''; } }
 
 function emailDono_() { return String(Session.getEffectiveUser().getEmail() || '').toLowerCase(); }
 
@@ -171,12 +194,12 @@ function eu_() {
     const dono = emailDono_();
     comTrava_(function () {
       if (!ler_('equipe').length && dono) inserir_('equipe', { email: dono, nome: nomeDoEmail_(dono), papel: 'admin', ativo: true, criadoEm: agora_() });
-      if (!achar_('config', 'linkAberto')) gravarConfig_('linkAberto', '1');
+      if (!achar_('config', 'linkAberto')) gravarConfig_('linkAberto', '0');
     });
   }
   const email = String(Session.getActiveUser().getEmail() || '').trim().toLowerCase();
-  const m = email ? achar_('equipe', email) : null;
-  if (m && m.ativo && PAPEIS[m.papel]) EU_ = { email: email, nome: m.nome || nomeDoEmail_(email), papel: m.papel };
+  const m = email ? achar_('equipe', email) : CHAVE_ ? ler_('equipe').filter(function (x) { return x.acesso === CHAVE_; })[0] || null : null;
+  if (m && m.ativo && PAPEIS[m.papel]) EU_ = { email: m.email, nome: m.nome || nomeDoEmail_(m.email), papel: m.papel };
   else if (!email && config_('linkAberto') === '1') EU_ = { email: '', nome: 'Equipe', papel: 'editor' };
   else EU_ = { email: email, nome: email ? nomeDoEmail_(email) : '', papel: 'sem_acesso' };
   return EU_;
@@ -199,7 +222,9 @@ function salvarMembro(d) {
     if (atual && atual.papel === 'admin' && (papel !== 'admin' || !ativo) && ler_('equipe').filter(function (m) { return m.papel === 'admin' && m.ativo; }).length <= 1) {
       throw new Error('Este é o único admin. Promova outra pessoa antes.');
     }
-    const dados = { nome: texto_(d.nome, 80) || nomeDoEmail_(email), papel: papel, ativo: ativo };
+    const dados = { nome: texto_(d.nome, 80) || (atual && atual.nome) || nomeDoEmail_(email), papel: papel, ativo: ativo };
+    // Link pessoal: nasce com a pessoa; "novoLink" troca a chave (o link antigo para de funcionar).
+    if (!atual || !atual.acesso || d.novoLink) dados.acesso = novaChave_();
     if (atual) atualizar_('equipe', email, dados); else inserir_('equipe', Object.assign({ email: email, criadoEm: agora_() }, dados));
     return ler_('equipe');
   });

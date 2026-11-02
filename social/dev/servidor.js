@@ -28,7 +28,7 @@ function semear() {
   roda('salvarCliente', { id: c.Metapel, objetivo: 'Educar sobre prevenção e levar agendamentos de check-up para as unidades.' });
   roda('salvarCliente', { id: c.Pietro, objetivo: 'Crescer a audiência orgânica com rotina e longevidade e vender a nova linha.' });
   // Histórico de publicados (8 semanas) com ritmos diferentes por cliente.
-  const ritmo = { Metapel: 3, Outbox: 2, 'Content Lab': 3, Pietro: 3, 'Seok Wellness': 4, 'Nap Griddle': 1 };
+  const ritmo = { Metapel: 3, Outbox: 2, 'Content Lab': 3, Pietro: 3, 'Seok Wellness': 4, 'Nap Briddle': 1 };
   const fmts = ['Reels', 'Carrossel', 'Post', 'Reels', 'Carrossel'];
   Object.keys(ritmo).forEach((cli) => {
     for (let s = 1; s <= 8; s++) for (let k = 0; k < ritmo[cli] - (s % 3 === 0 ? 1 : 0); k++) post(cli, cli + ' · peça ' + s + '.' + (k + 1), -(s * 7) + k * 2, 'publicado', fmts[(s + k) % 5]);
@@ -49,7 +49,7 @@ function semear() {
   post('Content Lab', 'Case: creator B2B que virou canal de vendas', 2, 'agendado', 'Carrossel');
   post('Content Lab', 'UGC x influenciador: quando usar', 5, 'aprovacao', 'Reels');
   post('Outbox', 'Liderança que escuta', 3, 'agendado', 'Carrossel', 'LinkedIn');
-  post('Nap Griddle', 'Apresentação da marca', 6, 'ideia', 'Post');
+  post('Nap Briddle', 'Apresentação da marca', 6, 'ideia', 'Post');
   // Treinamentos da Outbox (Google Agenda com PAX).
   estado.agenda = [
     { id: 'ev1', titulo: 'Treinamento de Liderança · Senac · 32 PAX', inicio: new Date(new Date(Date.now() + 4 * 864e5).setHours(12, 0, 0, 0)).toISOString(), local: 'Senac Paulista' },
@@ -70,7 +70,7 @@ function semear() {
   roda('salvarPedido', { clienteId: c.Metapel, titulo: 'Post do novo horário de sábado', prioridade: 'alta', prazo: dia(3) });
   roda('salvarPedido', { clienteId: c.Outbox, titulo: 'Divulgar vagas da turma de março', prazo: dia(10) });
   roda('salvarPedido', { clienteId: c.Pietro, titulo: 'Reels com a nova linha de suplementos', prioridade: 'alta', prazo: dia(5) });
-  roda('salvarPedido', { clienteId: c['Nap Griddle'], titulo: 'Definir tom de voz e paleta', prazo: dia(14) });
+  roda('salvarPedido', { clienteId: c['Nap Briddle'], titulo: 'Definir tom de voz e paleta', prazo: dia(14) });
   // Relatórios do Reportei (números fictícios), 3 meses.
   const meses = ['2026-08', '2026-09', '2026-10'];
   const base = { Metapel: 4200, Outbox: 2800, 'Content Lab': 6100, Pietro: 9800, 'Seok Wellness': 3500 };
@@ -85,6 +85,17 @@ function semear() {
         { legenda: 'Post institucional de data comemorativa', tipo: 'Post', alcance: Math.round(org * 0.04), interacoes: 22, salvos: 1, compartilhamentos: 0, taxa: 0.8 },
       ], analise: [{ texto: 'Conteúdo educativo e Reels de bastidores puxaram o alcance orgânico. Datas comemorativas genéricas tiveram baixo engajamento.', acoes: ['Manter 2 Reels por semana', 'Trocar datas comemorativas por conteúdo útil'] }] } });
   }));
+  // Marcos (fictícios).
+  [['Pietro', 'lancamento', -40, 'Lançamento da linha de suplementos', 'Campanha de 3 semanas com Reels de rotina e depoimentos.'],
+    ['Pietro', 'estrategia', -120, 'Virada para conteúdo de longevidade', 'Saímos de dicas soltas para uma série semanal sobre rotina e sono.'],
+    ['Pietro', 'campanha', -75, 'Primeira campanha paga de alcance', 'R$ 1.500 em 30 dias para testar público de 35+.'],
+    ['Metapel', 'campanha', -20, 'Outubro Rosa', '8 peças e live com a médica responsável.'],
+    ['Metapel', 'evento', -95, 'Inauguração da unidade Moema'],
+    ['Outbox', 'evento', -9, 'Maior turma do ano: 45 PAX'],
+    ['Content Lab', 'estrategia', -60, 'Fila de cases como linha editorial'],
+    ['Seok Wellness', 'lancamento', -30, 'Novo posicionamento: só wellness', 'Esporte, Longevidade, Saúde e Recovery.'],
+    ['Nap Briddle', 'estrategia', -5, 'Início da parceria com a Seok']]
+    .forEach(([cli, tipo, n, titulo, descricao]) => roda('salvarMarco', { clienteId: c[cli], tipo, data: dia(n), titulo, descricao: descricao || '' }));
   salvar();
 }
 

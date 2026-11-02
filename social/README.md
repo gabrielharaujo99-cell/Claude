@@ -1,6 +1,6 @@
 # Seok Social
 
-App de social media dos 6 clientes da Seok (Metapel, Outbox, Content Lab, Pietro, Seok Wellness, Nap Griddle), em Google Apps Script com uma planilha como banco.
+App de social media dos 6 clientes da Seok (Metapel, Outbox, Content Lab, Pietro, Seok Wellness, Nap Briddle), em Google Apps Script com uma planilha como banco.
 
 - **Visão geral:** um cartão grande por cliente com frequência real x meta (8 semanas), estoque de posts prontos e até quando cobre, próximo post, o foco do cliente (treinamento com PAX, próximo case, pedido, tema, tendência) e o último Reportei.
 - **Página do cliente:** só os blocos que importam para ele (frequência editável, estoque, treinamentos da agenda com peças Story/Feed/LinkedIn, fila de cases, temas, tendências, pedidos), calendário, resultados e ajustes.
