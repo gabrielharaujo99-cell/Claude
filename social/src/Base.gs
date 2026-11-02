@@ -30,7 +30,7 @@ function lista_(v, max) {
 
 // ---------- banco ----------
 const SCHEMA = {
-  equipe: { colunas: ['email', 'nome', 'papel', 'ativo', 'criadoEm', 'acesso'], chave: 'email', bool: ['ativo'] },
+  equipe: { colunas: ['email', 'nome', 'papel', 'ativo', 'criadoEm', 'acesso', 'foto'], chave: 'email', bool: ['ativo'] },
   config: { colunas: ['chave', 'valor'], chave: 'chave' },
   clientes: {
     colunas: ['id', 'nome', 'cor', 'nicho', 'objetivo', 'instagram', 'linkedin', 'frequencia', 'antecedencia', 'blocos', 'agendaId', 'agendaFiltro',
@@ -175,7 +175,7 @@ function rodar(chave, fn, args) {
     salvarPedido: salvarPedido, pedidoParaPauta: pedidoParaPauta, removerPedido: removerPedido, sincronizarAgenda: sincronizarAgenda,
     criarPeca: criarPeca, salvarReport: salvarReport, removerReport: removerReport, lerReportei: lerReportei,
     pesquisarTendencias: pesquisarTendencias, salvarMarco: salvarMarco, removerMarco: removerMarco,
-    salvarMembro: salvarMembro, salvarAjustes: salvarAjustes,
+    salvarMembro: salvarMembro, salvarAjustes: salvarAjustes, salvarPerfil: salvarPerfil, atualizarPerfis: atualizarPerfis,
   }[fn];
   if (!f) throw new Error('Função desconhecida: ' + fn);
   CHAVE_ = /^[a-f0-9]{32}$/.test(String(chave || '')) ? String(chave) : '';
@@ -230,16 +230,92 @@ function salvarMembro(d) {
   });
 }
 
+// ---------- perfil: nome e foto de cada pessoa ----------
+// Nome: o que está na equipe ou em "Meu perfil" (o dono também pode vir do perfil Google dele). Nunca o nome que o dono
+// deu ao contato, que pode ser um apelido. Foto: "Meu perfil" > a foto do perfil Google da pessoa (achada pelos contatos do dono).
+function fotoValida_(v) {
+  const s = String(v || '');
+  if (!s) return '';
+  if (!/^(data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+|https:\/\/[^\s"'()<>]+)$/.test(s)) throw new Error('Imagem inválida. Use JPG, PNG ou WEBP.');
+  if (s.length > 48000) throw new Error('Imagem grande demais. Escolha outra.');
+  return s;
+}
+
+function perfisGoogle_() {
+  if (MEMO_.__perfis) return MEMO_.__perfis;
+  const cache = CacheService.getScriptCache();
+  try { const c = cache.get('perfis_v1'); if (c) return (MEMO_.__perfis = JSON.parse(c)); } catch (e) { /* refaz */ }
+  const out = {};
+  if (typeof People === 'undefined') return (MEMO_.__perfis = out);
+  // Só a foto do perfil Google da pessoa; a que o dono colocou no contato não aparece para o time.
+  const pega = function (p, email) {
+    const tem = (p.emailAddresses || []).some(function (x) { return String(x.value || '').toLowerCase() === email; });
+    if (!tem) return null;
+    const ph = (p.photos || []).filter(function (x) { return x.url && !x.default && x.metadata && x.metadata.source && x.metadata.source.type === 'PROFILE'; })[0];
+    return ph ? { foto: ph.url, nome: '' } : null;
+  };
+  const dono = emailDono_();
+  try {
+    const eu = People.People.get('people/me', { personFields: 'names,photos' });
+    const ph = (eu.photos || []).filter(function (x) { return x.url && !x.default; })[0], nm = (eu.names || [])[0];
+    if (dono) out[dono] = { foto: ph ? ph.url : '', nome: nm ? nm.displayName : '' };
+  } catch (e) { console.warn('perfil do dono: ' + e.message); }
+  // A busca nos contatos precisa de uma chamada vazia antes para "aquecer" (documentação da People API).
+  try { People.People.searchContacts({ query: '', readMask: 'names' }); People.OtherContacts.search({ query: '', readMask: 'names' }); } catch (e) { /* segue */ }
+  ler_('equipe').forEach(function (m) {
+    if (!m.ativo || m.email === dono) return;
+    let achou = null;
+    const fontes = ['READ_SOURCE_TYPE_CONTACT', 'READ_SOURCE_TYPE_PROFILE'];
+    try { (People.People.searchContacts({ query: m.email, readMask: 'photos,emailAddresses', sources: fontes, pageSize: 5 }).results || []).some(function (r) { return (achou = pega(r.person || {}, m.email)); }); } catch (e) { /* sem contatos */ }
+    if (!achou) try { (People.OtherContacts.search({ query: m.email, readMask: 'photos,emailAddresses', sources: ['READ_SOURCE_TYPE_CONTACT', 'READ_SOURCE_TYPE_PROFILE'], pageSize: 5 }).results || []).some(function (r) { return (achou = pega(r.person || {}, m.email)); }); } catch (e) { /* sem outros contatos */ }
+    if (achou) out[m.email] = achou;
+  });
+  try { cache.put('perfis_v1', JSON.stringify(out), 21600); } catch (e) { /* sem cache */ }
+  return (MEMO_.__perfis = out);
+}
+
+// Como a pessoa aparece na tela. O nome escrito à mão vale mais; o nome tirado do e-mail perde para o do Google.
+function pessoaTela_(m, perfis) {
+  const g = (perfis || {})[m.email] || {}, automatico = !m.nome || m.nome === nomeDoEmail_(m.email);
+  return { nome: (automatico && g.nome) || m.nome || nomeDoEmail_(m.email), foto: m.foto || g.foto || '' };
+}
+
+function salvarPerfil(d) {
+  const eu = exigir_('leitor');
+  if (!eu.email) throw new Error('Entre pelo seu link pessoal para editar o perfil.');
+  return comTrava_(function () {
+    d = d || {};
+    const patch = {};
+    if ('nome' in d) { patch.nome = texto_(d.nome, 80); if (!patch.nome) throw new Error('Informe o seu nome.'); }
+    if ('foto' in d) patch.foto = fotoValida_(d.foto);
+    const m = atualizar_('equipe', eu.email, patch);
+    return Object.assign({ email: m.email, papel: m.papel }, pessoaTela_(m, perfisGoogle_()));
+  });
+}
+
+function atualizarPerfis() {
+  exigir_('admin');
+  try { CacheService.getScriptCache().remove('perfis_v1'); } catch (e) { /* segue */ }
+  MEMO_.__perfis = null;
+  const p = perfisGoogle_();
+  return { achados: Object.keys(p).filter(function (k) { return p[k].foto || p[k].nome; }).length };
+}
+
 function salvarAjustes(d) {
   exigir_('admin');
   return comTrava_(function () {
     d = d || {};
     if ('linkAberto' in d) gravarConfig_('linkAberto', d.linkAberto ? '1' : '0');
+    if ('agendaPadrao' in d) {
+      const ag = texto_(d.agendaPadrao, 200);
+      if (ag && !/^[^\s@]+@[^\s@]+$/.test(ag)) throw new Error('A agenda padrão é o e-mail da conta (ou o ID da agenda, que também tem @).');
+      gravarConfig_('agendaPadrao', ag);
+    }
     if (d.chaveIA !== undefined && d.chaveIA !== null) {
       const k = texto_(d.chaveIA, 300), p = PropertiesService.getScriptProperties();
       if (k && !/^sk-ant-/.test(k)) throw new Error('A chave da Anthropic começa com sk-ant-.');
       if (k) p.setProperty('ANTHROPIC_API_KEY', k); else if (d.apagarChave) p.deleteProperty('ANTHROPIC_API_KEY');
     }
-    return { linkAberto: config_('linkAberto') === '1', temIA: !!PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY') };
+    return { linkAberto: config_('linkAberto') === '1', temIA: !!PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY'), link: linkApp_(), agendaPadrao: config_('agendaPadrao'), dono: emailDono_() };
   });
 }

@@ -69,6 +69,11 @@ svg { display: block; }
 .eu small { display: block; font-size: 11.5px; color: var(--ink-3); }
 .pessoa { position: relative; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: #fff; font: 700 11px/1 var(--sans); letter-spacing: .02em; flex: none; }
 .pessoa.g { width: 36px; height: 36px; font-size: 12.5px; }
+.pessoa.xg { width: 72px; height: 72px; font-size: 22px; }
+.pessoa img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+.eu { border: 0; background: none; padding: 4px 4px 4px 10px; border-radius: 100px; cursor: pointer; font: inherit; color: inherit; transition: background .15s; }
+.eu:hover { background: var(--sunken); }
+.row > .pessoa { flex: none; }
 .pessoa.on::after { content: ''; position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%; background: #3DBE5A; box-shadow: 0 0 0 2px var(--surface); }
 
 /* ---------- estrutura ---------- */
@@ -853,9 +858,11 @@ function esfera(svg) {
 
 // Pessoas da equipe (barra de cima): cor estável por nome.
 const CORES_PESSOA = ['#3F5B2E', '#A9511F', '#2A84C2', '#8B5CC9', '#7A6A12', '#23432A', '#B5683A'];
-function pessoa(nome, cls) {
+function pessoa(p, cls) {
+  const nome = typeof p === 'object' && p ? p.nome : p, foto = typeof p === 'object' && p ? p.foto : '';
   let h = 0; String(nome || '').split('').forEach(function (ch) { h = (h * 31 + ch.charCodeAt(0)) >>> 0; });
-  return '<span class="pessoa ' + (cls || '') + '" style="background:' + CORES_PESSOA[h % CORES_PESSOA.length] + '" title="' + esc(nome) + '">' + esc(iniciais(nome)) + '</span>';
+  return '<span class="pessoa ' + (cls || '') + '" style="background:' + CORES_PESSOA[h % CORES_PESSOA.length] + '" title="' + esc(nome) + '">' +
+    (foto ? '<img src="' + esc(foto) + '" alt="" referrerpolicy="no-referrer" loading="lazy">' : esc(iniciais(nome))) + '</span>';
 }
 
 
@@ -1004,6 +1011,7 @@ async function iniciar() {
     S.d = d; S.mes = d.hoje.slice(0, 7); d.marcos = d.marcos || []; d.time = d.time || [];
     d.clientes.forEach(function (c) { S.filtroCal[c.id] = true; });
     casca(); ir('geral');
+    lerAgendas(false);
   } catch (e) {
     $('#app').innerHTML = '<div class="gate"><span class="logo-seok"></span><div class="h1">Não deu para <i>abrir</i>.</div><p class="lede">' + esc(e.message) + '</p><p><button class="btn volt" onclick="location.reload()">Tentar de novo</button></p></div>';
   }
@@ -1012,15 +1020,15 @@ async function iniciar() {
 const NOME_PAPEL = { admin: 'Admin', editor: 'Editor', leitor: 'Leitor' };
 
 function casca() {
-  const d = S.d, outros = d.time.filter(function (m) { return m.nome !== d.eu.nome; });
+  const d = S.d, outros = d.time.filter(function (m) { return !m.eu; });
   $('#app').innerHTML =
     '<header class="topbar"><button class="brand" data-ir="geral" aria-label="Seok Social, visão geral"><span class="logo-seok" role="img" aria-label="SEOK"></span><span class="sep"></span><span><b>Seok Social</b><small>Seok Wellness</small></span></button>' +
       '<span class="top-sp"></span><div class="top-acts">' +
         '<div class="temas" role="group" aria-label="Tema">' + [['white', 'sun', 'White'], ['seok', 'leaf', 'Seok'], ['dark', 'moon', 'Dark']].map(function (t) { return '<button data-tema="' + t[0] + '" aria-pressed="' + (temaAtual() === t[0]) + '" title="Tema ' + t[2] + '" aria-label="Tema ' + t[2] + '">' + ic(t[1]) + '</button>'; }).join('') + '</div>' +
         (pode('editor') ? '<button class="btn primary sm" data-novo-post>' + ic('plus') + '<span>Novo post</span></button>' : '') +
-        (outros.length ? '<span class="top-div t"></span><div class="time" title="Equipe do Seok Social">' + outros.slice(0, 5).map(function (m) { return pessoa(m.nome); }).join('') +
+        (outros.length ? '<span class="top-div t"></span><div class="time" title="Equipe do Seok Social">' + outros.slice(0, 5).map(function (m) { return pessoa(m); }).join('') +
           (outros.length > 5 ? '<span class="mais">+' + (outros.length - 5) + '</span>' : '') + '</div>' : '') +
-        '<span class="top-div"></span><div class="eu"><span><b>' + esc(d.eu.nome) + '</b><small>' + esc(NOME_PAPEL[d.eu.papel] || '') + ' · online</small></span>' + pessoa(d.eu.nome, 'g on') + '</div>' +
+        '<span class="top-div"></span><button type="button" class="eu" data-perfil title="Meu perfil"><span><b>' + esc(d.eu.nome) + '</b><small>' + esc(NOME_PAPEL[d.eu.papel] || '') + ' · online</small></span>' + pessoa(d.eu, 'g on') + '</button>' +
       '</div></header>' +
     '<div class="app"><aside class="side">' +
     '<nav class="nav" id="nav">' +
@@ -1040,6 +1048,7 @@ function casca() {
   });
   $('.topbar .brand').addEventListener('click', function () { ir('geral'); });
   $('.temas').addEventListener('click', function (e) { const b = e.target.closest('[data-tema]'); if (b) trocarTema(b.dataset.tema); });
+  $('[data-perfil]').addEventListener('click', meuPerfil);
   badges();
 }
 
@@ -1049,6 +1058,23 @@ function trocarTema(t) {
   try { localStorage.setItem('seokSocial.tema', t); } catch (e) {}
   $$('.temas [data-tema]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.tema === t)); });
   render();
+}
+
+// Lê o Google Agenda dos clientes que acompanham treinamentos. Automático: só quando a última leitura tem mais de 3 horas.
+async function lerAgendas(forcar) {
+  if (!pode('editor')) return;
+  const velho = new Date(Date.now() - 3 * 36e5).toISOString(), erros = [];
+  const alvos = S.d.clientes.filter(function (c) {
+    if ((c.blocos || []).indexOf('eventos') < 0) return false;
+    const ult = S.d.eventos.filter(function (e) { return e.clienteId === c.id; }).reduce(function (m, e) { return e.sincronizadoEm > m ? e.sincronizadoEm : m; }, '');
+    return forcar || !ult || ult < velho;
+  });
+  for (let i = 0; i < alvos.length; i++) {
+    try { const r = await call('sincronizarAgenda', alvos[i].id); S.d.eventos = S.d.eventos.filter(function (e) { return e.clienteId !== alvos[i].id; }).concat(r); }
+    catch (e) { erros.push(alvos[i].nome + ': ' + e.message); }
+  }
+  if (erros.length && forcar) toast(erros[0], true);
+  if (alvos.length && (S.view === 'geral' || S.view === 'cliente' || S.view === 'ajustes')) render();
 }
 
 function badges() {
@@ -1297,7 +1323,8 @@ function pEventos(c) {
   const prox = evs.filter(function (e) { return e.inicio.slice(0, 10) >= hoje; }), pass = evs.filter(function (e) { return e.inicio.slice(0, 10) < hoje; }).reverse();
   const doMes = prox.filter(function (e) { return e.inicio.slice(0, 7) === hoje.slice(0, 7); }).length;
   const sinc = evs.reduce(function (m, e) { return e.sincronizadoEm > m ? e.sincronizadoEm : m; }, '');
-  return '<section class="panel wide"><div class="panel-h"><h2 class="h2">Treinamentos</h2><small>' + doMes + ' neste mês · ' + (sinc ? 'agenda lida ' + br(sinc) : 'agenda ainda não lida') + '</small>' +
+  const fonte = c.agendaId || S.d.ajustes.agendaPadrao;
+  return '<section class="panel wide"><div class="panel-h"><h2 class="h2">Treinamentos</h2><small>' + doMes + ' neste mês · ' + (fonte ? 'agenda de ' + esc(fonte) + ' · ' : '') + (sinc ? 'lida ' + br(sinc) : 'ainda não lida') + '</small>' +
       (pode('editor') ? '<button class="btn sm" data-agenda="' + esc(c.id) + '">' + ic('refresh') + 'Ler agenda</button>' : '') + '</div>' +
     '<div class="panels" style="gap:28px"><div><span class="eyebrow">Próximos</span>' + (prox.length ? prox.slice(0, 6).map(function (e) { return evHtml(e, c); }).join('') : '<div class="empty"><b>Nenhum treinamento futuro</b>Entram os eventos da agenda com o número de PAX.</div>') + '</div>' +
       '<div><span class="eyebrow">Já aconteceram</span>' + (pass.length ? pass.slice(0, 6).map(function (e) { return evHtml(e, c); }).join('') : '<div class="empty"><b>Nada nos últimos 60 dias</b></div>') + '</div></div></section>';
@@ -1363,7 +1390,7 @@ function tAjustesCliente(c) {
     '<div class="field full"><span>Blocos da visão do cliente</span><div style="display:flex;flex-wrap:wrap;gap:8px">' + B.map(function (b) {
       return '<label class="fchip" style="cursor:pointer"><input type="checkbox" data-bloco="' + b + '"' + ((c.blocos || []).indexOf(b) >= 0 ? ' checked' : '') + ' style="accent-color:var(--accent)">' + esc(NOME_BLOCO[b]) + '</label>';
     }).join('') + '</div></div>' +
-    '<label class="field"><span>Agenda dos treinamentos (ID)</span><input name="agendaId" value="' + esc(c.agendaId) + '" placeholder="vazio = agenda principal"><small>Configurações da agenda › Integrar agenda.</small></label>' +
+    '<label class="field"><span>Agenda dos treinamentos (ID)</span><input name="agendaId" value="' + esc(c.agendaId) + '" placeholder="vazio = agenda padrão dos Ajustes"><small>E-mail da conta ou ID (Configurações da agenda › Integrar agenda).</small></label>' +
     '<label class="field"><span>Só eventos que citam</span><input name="agendaFiltro" value="' + esc(c.agendaFiltro) + '" placeholder="opcional"><small>Sempre precisa ter o número de PAX.</small></label>' +
     '<label class="field full"><span>Peças de cada treinamento</span><input name="entregasEvento" value="' + esc((c.entregasEvento || []).join(', ')) + '"><small>Separe por vírgula.</small></label>' +
     '<label class="field"><span>Status</span><select name="status">' + opt([{ v: 'ativo', t: 'Ativo' }, { v: 'pausa', t: 'Em pausa' }], c.status) + '</select></label>' +
@@ -1584,6 +1611,41 @@ function vMarcos() {
     resumoMarcos(l) + linhaTempo(l, !f);
 }
 
+// Meu perfil: nome e foto. A foto é reduzida aqui no navegador (160 px) e vai para a planilha.
+function reduzirFoto(file) {
+  return new Promise(function (ok, no) {
+    if (!/^image\//.test(file.type)) return no(new Error('Escolha uma imagem (JPG, PNG ou WEBP).'));
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = function () {
+      const L = 160, c = document.createElement('canvas'), k = Math.max(L / img.width, L / img.height), w = img.width * k, hh = img.height * k;
+      c.width = c.height = L; c.getContext('2d').drawImage(img, (L - w) / 2, (L - hh) / 2, w, hh);
+      URL.revokeObjectURL(url); ok(c.toDataURL('image/jpeg', .82));
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); no(new Error('Não deu para ler essa imagem.')); };
+    img.src = url;
+  });
+}
+
+function meuPerfil() {
+  const eu = S.d.eu; let foto = eu.foto || '';
+  if (!eu.email) return toast('Entre pelo seu link pessoal para editar o perfil.', true);
+  const g = gaveta({ eyebrow: 'Meu perfil', titulo: eu.nome, ok: 'Salvar perfil',
+    corpo: '<div style="display:flex;align-items:center;gap:16px"><span id="pf-av">' + pessoa(eu, 'xg') + '</span><div style="display:grid;gap:8px">' +
+      '<label class="btn sm" style="cursor:pointer">' + ic('plus') + 'Trocar foto<input type="file" accept="image/*" id="pf-arq" hidden></label>' +
+      '<button type="button" class="btn ghost sm" id="pf-tirar">Usar a foto do Google</button></div></div>' +
+      '<label class="field"><span>Seu nome</span><input id="pf-nome" value="' + esc(eu.nome) + '"></label>' +
+      '<p style="margin:0;font-size:12.5px;color:var(--ink-3)">' + esc(eu.email) + ' · ' + esc(NOME_PAPEL[eu.papel] || '') + '. Sem foto própria, o app usa a do seu perfil Google quando encontra.</p>' });
+  const mostra = function () { $('#pf-av', g.el).innerHTML = pessoa({ nome: $('#pf-nome', g.el).value || eu.nome, foto: foto }, 'xg'); };
+  $('#pf-arq', g.el).onchange = function () { const a = this.files[0]; if (a) reduzirFoto(a).then(function (u) { foto = u; mostra(); }, function (e) { toast(e.message, true); }); };
+  $('#pf-tirar', g.el).onclick = function () { foto = ''; mostra(); };
+  $('[data-ok]', g.el).onclick = function () {
+    busy(this, async function () {
+      const r = await save('salvarPerfil', [{ nome: $('#pf-nome', g.el).value, foto: foto }], 'Perfil salvo.');
+      if (r) { const d = await call('carregar'); Object.assign(S.d, { eu: d.eu, time: d.time, equipe: d.equipe }); g.fechar(); casca(); marcarNav(); render(); }
+    });
+  };
+}
+
 // Link pessoal de acesso: é o que identifica contas Gmail (fora do domínio) no app.
 function linkMembro(email) {
   const m = S.d.equipe.find(function (x) { return x.email === email; }); if (!m) return;
@@ -1717,12 +1779,17 @@ function vAjustes() {
   return '<div class="head"><div><span class="eyebrow">Admin</span><h1 class="h1">Ajustes</h1><p class="lede">Acesso da equipe e a pesquisa de tendências com IA.</p></div></div>' +
     '<div class="panels"><section class="panel"><div class="panel-h"><h2 class="h2">Acesso</h2></div>' +
       '<label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" id="aj-link"' + (a.linkAberto ? ' checked' : '') + ' style="margin-top:3px;accent-color:var(--accent)"><span><b style="font-weight:600">Link aberto para a equipe</b><br><span style="color:var(--ink-3);font-size:13px">Quem abrir o link com uma conta Google de outro domínio entra como editor. Desligue para liberar só quem está na lista abaixo.</span></span></label>' +
-      '<div class="sec" style="margin:24px 0 8px"><h2 class="h2" style="font-size:14px">Equipe</h2></div><div class="rows">' + S.d.equipe.map(function (m) {
-        return '<div class="row"><div class="tx"><b>' + esc(m.nome) + '</b><small>' + esc(m.email) + '</small></div><span class="chip">' + esc(m.papel) + '</span>' +
+      '<div class="sec" style="margin:24px 0 8px"><h2 class="h2" style="font-size:14px">Equipe</h2><span class="grow"></span><button class="btn ghost sm" data-atualizar-perfis title="Busca de novo o nome e a foto de cada pessoa no Google">' + ic('refresh') + 'Fotos do Google</button></div><div class="rows">' + S.d.equipe.map(function (m) {
+        return '<div class="row">' + pessoa(m) + '<div class="tx"><b>' + esc(m.nome) + '</b><small>' + esc(m.email) + '</small></div><span class="chip">' + esc(m.papel) + '</span>' +
           '<div class="acts"><button class="btn sm" data-link-membro="' + esc(m.email) + '">' + ic('link') + 'Link de acesso</button></div></div>';
       }).join('') + '</div>' +
-      '<form id="f-membro" class="grid2" style="margin-top:14px"><label class="field"><span>E-mail</span><input name="email" placeholder="nome@seokwellness.com"></label><label class="field"><span>Acesso</span><select name="papel">' + opt([{ v: 'editor', t: 'Editor' }, { v: 'leitor', t: 'Leitor' }, { v: 'admin', t: 'Admin' }], 'editor') + '</select></label></form>' +
-      '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn" data-add-membro>Adicionar à equipe</button></div></section>' +
+      '<form id="f-membro" class="grid2" style="margin-top:14px"><label class="field full"><span>Nome</span><input name="nome" placeholder="Como aparece para o time (opcional)"></label><label class="field"><span>E-mail</span><input name="email" placeholder="nome@seokwellness.com"></label><label class="field"><span>Acesso</span><select name="papel">' + opt([{ v: 'editor', t: 'Editor' }, { v: 'leitor', t: 'Leitor' }, { v: 'admin', t: 'Admin' }], 'editor') + '</select></label></form>' +
+      '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn" data-add-membro>Adicionar ou atualizar</button></div></section>' +
+    '<section class="panel"><div class="panel-h"><h2 class="h2">Agenda dos treinamentos</h2><span class="chip ' + (a.agendaPadrao ? 'ok' : '') + '"><i class="d"></i>' + (a.agendaPadrao ? 'Ligada' : 'Agenda do dono') + '</span></div>' +
+      '<p style="color:var(--ink-2);margin:0 0 14px">Os treinamentos com PAX dos clientes vêm desta agenda, direto do Google Agenda, e se atualizam sozinhos ao abrir o app. Um cliente pode usar outra agenda nos ajustes dele.</p>' +
+      '<label class="field"><span>Agenda padrão (e-mail da conta)</span><input id="aj-agenda" value="' + esc(a.agendaPadrao) + '" placeholder="ex.: nome@gmail.com" autocomplete="off"><small>Vazio = a agenda de ' + esc(a.dono || 'quem publicou o app') + '.</small></label>' +
+      '<div class="alert" style="margin-top:12px">' + ic('link') + '<span>A dona da agenda precisa compartilhá-la com <b>' + esc(a.dono || 'o dono do app') + '</b>: Google Agenda › Configurações da agenda › Compartilhar com pessoas específicas › <b>Ver todos os detalhes do evento</b>.</span></div>' +
+      '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn primary" data-salvar-agenda>Salvar e ler a agenda</button></div></section>' +
     '<section class="panel"><div class="panel-h"><h2 class="h2">Tendências com IA</h2><span class="chip ' + (a.temIA ? 'ok' : '') + '"><i class="d"></i>' + (a.temIA ? 'Ligada' : 'Desligada') + '</span></div>' +
       '<p style="color:var(--ink-2);margin:0 0 14px">Com a chave da API da Anthropic, a pesquisa de tendências usa o Claude com busca na web (redes, blogs, YouTube, notícias). Sem a chave, usa só o Google Notícias.</p>' +
       '<label class="field"><span>Chave da API da Anthropic</span><input id="aj-chave" type="password" placeholder="sk-ant-… (vazio para não mudar)" autocomplete="off"></label>' +
@@ -2000,6 +2067,11 @@ document.addEventListener('click', function (e) {
   if ((x = q('[data-apagar-chave]'))) return busy(x, async function () { const r = await save('salvarAjustes', [{ chaveIA: '', apagarChave: true }], 'Chave removida.'); if (r) { S.d.ajustes = r; render(); } });
   if ((x = q('[data-add-membro]'))) return busy(x, async function () { const em = form($('#f-membro')).email.trim().toLowerCase(); const r = await save('salvarMembro', [form($('#f-membro'))], 'Pessoa adicionada.'); if (r) { S.d.equipe = r; render(); linkMembro(em); } });
   if ((x = q('[data-link-membro]'))) return linkMembro(x.dataset.linkMembro);
+  if ((x = q('[data-salvar-agenda]'))) return busy(x, async function () {
+    const r = await save('salvarAjustes', [{ agendaPadrao: $('#aj-agenda').value.trim() }], 'Agenda salva.');
+    if (r) { S.d.ajustes = r; await lerAgendas(true); render(); }
+  });
+  if ((x = q('[data-atualizar-perfis]'))) return busy(x, async function () { const r = await save('atualizarPerfis', []); if (r) { const d = await call('carregar'); Object.assign(S.d, { eu: d.eu, time: d.time, equipe: d.equipe }); casca(); marcarNav(); render(); toast(r.achados ? 'Fotos e nomes de ' + r.achados + ' pessoa(s) vieram do Google.' : 'Nenhum perfil achado nos contatos do Google.'); } });
 });
 document.addEventListener('change', function (e) {
   if (e.target.matches('[data-sel-mes-dash]')) { S.mesDash = e.target.value; render(); }

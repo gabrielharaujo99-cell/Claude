@@ -156,3 +156,35 @@ test('link pessoal: conta Gmail sem e-mail visível entra pela chave do link, co
   assert.equal(a.equipe('rodar', k, 'carregar', []).semAcesso, true, 'link antigo para de valer');
   assert.throws(() => a.dono('rodar', '', 'eu_', []), /desconhecida/);
 });
+
+test('perfil: cada pessoa troca o próprio nome e foto; foto inválida é recusada', () => {
+  const a = app();
+  a.dono('carregar');
+  const k = a.dono('salvarMembro', { email: 'pessoa@gmail.com', papel: 'editor' }).find((m) => m.email === 'pessoa@gmail.com').acesso;
+  assert.equal(a.equipe('rodar', k, 'carregar', []).eu.nome, 'Pessoa');
+  const foto = 'data:image/jpeg;base64,' + 'A'.repeat(200);
+  const p = a.equipe('rodar', k, 'salvarPerfil', [{ nome: 'Pessoa da Silva', foto }]);
+  assert.equal(p.nome, 'Pessoa da Silva');
+  assert.equal(p.foto, foto);
+  const d = a.equipe('rodar', k, 'carregar', []);
+  assert.equal(d.eu.foto, foto);
+  assert.ok(d.time.some((m) => m.nome === 'Pessoa da Silva' && m.foto === foto));
+  assert.throws(() => a.equipe('rodar', k, 'salvarPerfil', [{ foto: 'javascript:alert(1)' }]), /inválida/);
+  assert.throws(() => a.equipe('rodar', k, 'atualizarPerfis', []), /acesso/);
+});
+
+test('agenda padrão: treinamentos vêm da agenda de outra conta; sem compartilhar, o erro explica o que fazer', () => {
+  const a = app();
+  const ob = a.dono('carregar').clientes.find((c) => c.nome === 'Outbox');
+  const dia = (n) => new Date(Date.now() + n * 864e5).toISOString();
+  a.estado.agenda = [
+    { id: 'm1', agenda: 'social@gmail.com', titulo: 'Treinamento Natura · 18 PAX', inicio: dia(3) },
+    { id: 'd1', titulo: 'Treinamento do dono · 50 PAX', inicio: dia(3) },
+  ];
+  assert.deepEqual(a.dono('sincronizarAgenda', ob.id).map((e) => e.pax), [50], 'sem agenda padrão: a do dono');
+  assert.throws(() => a.dono('salvarAjustes', { agendaPadrao: 'sem arroba' }), /e-mail/);
+  assert.equal(a.dono('salvarAjustes', { agendaPadrao: 'social@gmail.com' }).agendaPadrao, 'social@gmail.com');
+  assert.ok(a.dono('sincronizarAgenda', ob.id).some((e) => e.pax === 18), 'com agenda padrão: a da social media');
+  a.dono('salvarAjustes', { agendaPadrao: 'naocompartilhada@gmail.com' });
+  assert.throws(() => a.dono('sincronizarAgenda', ob.id), /compartilhada com dono@seok\.dev/);
+});

@@ -46,14 +46,15 @@ function carregar() {
   if (eu.papel === 'sem_acesso') return { semAcesso: true, email: eu.email };
   if (!ler_('clientes').length) comTrava_(semearClientes_);
   const p = PropertiesService.getScriptProperties();
+  const perfis = perfisGoogle_(), membro = eu.email ? achar_('equipe', eu.email) : null;
   return {
-    eu: eu, versao: VERSAO, hoje: hoje_(),
+    eu: Object.assign({}, eu, membro ? pessoaTela_(membro, perfis) : {}), versao: VERSAO, hoje: hoje_(),
     clientes: ler_('clientes').sort(function (a, b) { return a.ordem - b.ordem; }),
     posts: ler_('posts'), temas: ler_('temas'), eventos: ler_('eventos'), pedidos: ler_('pedidos'), reports: ler_('reports'), marcos: ler_('marcos'),
-    equipe: eu.papel === 'admin' ? ler_('equipe') : [],
+    equipe: eu.papel === 'admin' ? ler_('equipe').map(function (m) { return Object.assign({}, m, pessoaTela_(m, perfis)); }) : [],
     // Quem está na equipe, só nome e papel, para a barra de cima.
-    time: ler_('equipe').filter(function (m) { return m.ativo; }).map(function (m) { return { nome: m.nome || nomeDoEmail_(m.email), papel: m.papel }; }),
-    ajustes: { linkAberto: config_('linkAberto') === '1', temIA: !!p.getProperty('ANTHROPIC_API_KEY'), link: eu.papel === 'admin' ? linkApp_() : '' },
+    time: ler_('equipe').filter(function (m) { return m.ativo; }).map(function (m) { return Object.assign({ papel: m.papel, eu: m.email === eu.email }, pessoaTela_(m, perfis)); }),
+    ajustes: { linkAberto: config_('linkAberto') === '1', temIA: !!p.getProperty('ANTHROPIC_API_KEY'), link: eu.papel === 'admin' ? linkApp_() : '', agendaPadrao: config_('agendaPadrao'), dono: eu.papel === 'admin' ? emailDono_() : '' },
     listas: { status: STATUS_POST, formatos: FORMATOS, redes: REDES, blocos: BLOCOS, marcos: TIPOS_MARCO },
   };
 }
@@ -220,8 +221,8 @@ function sincronizarAgenda(clienteId) {
   exigir_('editor');
   const c = achar_('clientes', texto_(clienteId, 40));
   if (!c) throw new Error('Cliente não encontrado.');
-  const cal = c.agendaId ? CalendarApp.getCalendarById(c.agendaId) : CalendarApp.getDefaultCalendar();
-  if (!cal) throw new Error('Agenda não encontrada. Confira o ID da agenda nos ajustes do cliente.');
+  // De onde vêm os treinamentos: a agenda do cliente, senão a agenda padrão dos Ajustes (a da social media), senão a do dono.
+  const id = c.agendaId || config_('agendaPadrao'), cal = id ? agenda_(id) : CalendarApp.getDefaultCalendar();
   const filtro = normalizar_(c.agendaFiltro);
   const lidos = cal.getEvents(new Date(Date.now() - 60 * 864e5), new Date(Date.now() + 90 * 864e5)).map(function (ev) {
     const titulo = String(ev.getTitle() || ''), desc = String(ev.getDescription() || '');
@@ -236,6 +237,15 @@ function sincronizarAgenda(clienteId) {
     });
     return ler_('eventos').filter(function (e) { return e.clienteId === c.id; });
   });
+}
+
+// Agenda de outra conta: precisa estar compartilhada com o dono do app. Na primeira vez ela é adicionada à lista dele.
+function agenda_(id) {
+  let cal = CalendarApp.getCalendarById(id);
+  if (!cal) try { cal = CalendarApp.subscribeToCalendar(id); } catch (e) { cal = null; }
+  if (!cal) throw new Error('Não consegui ler a agenda ' + id + '. Ela precisa estar compartilhada com ' + (emailDono_() || 'o dono do app') +
+    ' (Google Agenda › Configurações da agenda › Compartilhar com pessoas específicas › "Ver todos os detalhes do evento").');
+  return cal;
 }
 
 function criarPeca(eventoId, tipo) {
