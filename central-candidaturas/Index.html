@@ -76,16 +76,22 @@
   .vtip { position:absolute; pointer-events:none; font:12px var(--mono); color:var(--fg); background:#0b1324; border:1px solid var(--cyan); box-shadow:0 0 14px rgba(0,229,255,.35); border-radius:6px; padding:5px 9px; white-space:nowrap; z-index:3; }
   .legend { display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:8px; font:11px var(--mono); color:var(--muted); }
   .legend span::before { content:""; display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:6px; background:currentColor; box-shadow:0 0 6px currentColor; }
+  .hero { position:relative; display:grid; grid-template-columns:1fr minmax(260px,420px); align-items:center; gap:16px; min-height:260px;
+          background:linear-gradient(135deg, rgba(0,229,255,.06), rgba(255,43,214,.05)); border:1px solid var(--line); border-radius:18px; padding:22px 26px; overflow:hidden; }
+  .hero-txt { display:flex; flex-direction:column; gap:12px; align-items:flex-start; position:relative; z-index:1; }
+  #orb { width:100%; height:260px; display:block; cursor:crosshair; }
+  @media (max-width:760px) { .hero { grid-template-columns:1fr; } #orb { height:220px; } }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="top">
-    <div>
+  <div class="hero">
+    <div class="hero-txt">
       <h1>Central de Candidaturas</h1>
       <p class="sub" id="frase">Carregando…</p>
+      <a class="btn ghost" id="sheet" href="#" target="_blank" rel="noopener">Abrir planilha</a>
     </div>
-    <a class="btn ghost" id="sheet" href="#" target="_blank" rel="noopener">Abrir planilha</a>
+    <canvas id="orb" aria-hidden="true"></canvas>
   </div>
 
   <div class="tiles">
@@ -250,6 +256,89 @@
   function load(res) { DATA = res.rows; $('sheet').href = res.sheetUrl; render(); }
   $('q').oninput = render; $('f').onchange = render;
   google.script.run.withSuccessHandler(load).withFailureHandler(e => { $('frase').textContent = 'Não carregou: ' + e.message; }).getData();
+</script>
+<script>
+  /* Partículas (mesmo efeito do Seok/Be Flow): esfera que gira, vira as iniciais e afunda onde o mouse passa. */
+  function particulas(canvas, opcoes) {
+    var o = Object.assign({ cor: '#00e5ff', corLogo: '#ff2bd6', modo: 'ciclo', escala: 1, texto: 'GA' }, opcoes || {});
+    var ctx = canvas.getContext('2d');
+    var quieto = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var W = 0, H = 0, quadro = 0, logo = [], ps = [], esfera = [];
+    var mouse = { x: -1e4, y: -1e4 };
+    function medir() { var r = canvas.getBoundingClientRect(); W = Math.max(1, Math.round(r.width * dpr)); H = Math.max(1, Math.round(r.height * dpr)); canvas.width = W; canvas.height = H; }
+    function amostrarLogo(img) {
+      var larg = 240, alt = Math.round(larg * img.height / img.width);
+      var c = document.createElement('canvas'); c.width = larg; c.height = alt;
+      var g = c.getContext('2d'); g.drawImage(img, 0, 0, larg, alt);
+      var px = g.getImageData(0, 0, larg, alt).data, pts = [], passo = 3;
+      for (var y = 0; y < alt; y += passo) for (var x = 0; x < larg; x += passo) { if (px[(y * larg + x) * 4 + 3] > 120) pts.push({ x: (x - larg / 2) / larg, y: (y - alt / 2) / larg }); }
+      return pts;
+    }
+    function montar() {
+      var n = Math.max(900, Math.min(1800, logo.length * 2)); esfera = []; ps = [];
+      var ouro = Math.PI * (3 - Math.sqrt(5));
+      for (var i = 0; i < n; i++) {
+        var yy = 1 - (i / (n - 1)) * 2, raio = Math.sqrt(1 - yy * yy), t = ouro * i;
+        esfera.push({ x: Math.cos(t) * raio, y: yy, z: Math.sin(t) * raio });
+        ps.push({ x: W / 2 + (Math.random() - 0.5) * W * 0.1, y: H / 2 + (Math.random() - 0.5) * H * 0.1, vx: 0, vy: 0, z: 0, l: logo.length ? logo[i % logo.length] : null, j: (Math.random() - 0.5) * 0.08 });
+      }
+    }
+    function mistura(t) {
+      if (o.modo === 'logo') return 1; if (!logo.length) return 0;
+      var c = (t / 1000) % 11, suave = function (x) { return x * x * (3 - 2 * x); };
+      if (c < 4) return 0; if (c < 5.4) return suave((c - 4) / 1.4); if (c < 9.6) return 1; return 1 - suave((c - 9.6) / 1.4);
+    }
+    function desenhar(t, unico) {
+      if (!canvas.isConnected) return;
+      if (!unico) quadro = requestAnimationFrame(desenhar);
+      if (document.hidden) return;
+      var m = mistura(t), cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.36 * o.escala;
+      var rotY = t * 0.00025, rotX = 0.35 + Math.sin(t * 0.0002) * 0.12, foco = 2.6;
+      var cyy = Math.cos(rotY), syy = Math.sin(rotY), cxx = Math.cos(rotX), sxx = Math.sin(rotX);
+      var logoLarg = Math.min(W * 0.78, H * 1.25) * o.escala, balanco = Math.sin(t * 0.0006) * 0.18, raioMouse = 80 * dpr;
+      ctx.clearRect(0, 0, W, H);
+      ctx.shadowBlur = 6 * dpr;
+      for (var i = 0; i < ps.length; i++) {
+        var p = ps[i], e = esfera[i];
+        var x = e.x * cyy - e.z * syy, z = e.x * syy + e.z * cyy, y = e.y * cxx - z * sxx; z = e.y * sxx + z * cxx;
+        var s = foco / (foco + z), ex = cx + x * R * s, ey = cy + y * R * s;
+        var lx = ex, ly = ey, lz = z;
+        if (p.l) { lx = cx + p.l.x * logoLarg * Math.cos(balanco); ly = cy + p.l.y * logoLarg; lz = p.l.x * Math.sin(balanco) + p.j; }
+        var tx = ex + (lx - ex) * m, ty = ey + (ly - ey) * m; p.z = z + (lz - z) * m;
+        p.vx += (tx - p.x) * 0.075; p.vy += (ty - p.y) * 0.075;
+        var dx = p.x - mouse.x, dy = p.y - mouse.y, d2 = dx * dx + dy * dy;
+        if (d2 < raioMouse * raioMouse && d2 > 0.01) { var d = Math.sqrt(d2), f = (1 - d / raioMouse); p.vx += dx / d * f * f * 9 * dpr; p.vy += dy / d * f * f * 9 * dpr; }
+        p.vx *= 0.8; p.vy *= 0.8; p.x += p.vx; p.y += p.vy;
+        var frente = 1 - (p.z + 1) / 2, a = 0.18 + frente * 0.82 * (1 - m * 0.2) + m * 0.25;
+        ctx.globalAlpha = Math.min(1, a);
+        var cor = m > 0.5 && p.l ? o.corLogo : o.cor; ctx.fillStyle = cor; ctx.shadowColor = cor;
+        var tam = (0.9 + frente * 1.3 + m * 0.4) * dpr; ctx.fillRect(p.x - tam / 2, p.y - tam / 2, tam, tam);
+      }
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    }
+    function mover(e) { var r = canvas.getBoundingClientRect(), pt = e.touches ? e.touches[0] : e; mouse.x = (pt.clientX - r.left) * dpr; mouse.y = (pt.clientY - r.top) * dpr; }
+    function sair() { mouse.x = mouse.y = -1e4; }
+    var alvo = o.alvo || canvas;
+    alvo.addEventListener('mousemove', mover); alvo.addEventListener('touchmove', mover, { passive: true });
+    alvo.addEventListener('mouseleave', sair); alvo.addEventListener('touchend', sair);
+    if (window.ResizeObserver) new ResizeObserver(function () { medir(); montar(); }).observe(canvas);
+    medir();
+    var c = document.createElement('canvas'); c.width = 480; c.height = 220;
+    var g = c.getContext('2d'); g.fillStyle = '#000'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = '700 170px Orbitron, sans-serif'; g.fillText(o.texto, 240, 115);
+    var img = new Image();
+    img.onload = function () {
+      try { logo = amostrarLogo(img); } catch (err) { logo = []; }
+      montar();
+      if (quieto) { o.modo = 'logo'; ps.forEach(function (p) { p.x = W / 2; p.y = H / 2; }); for (var k = 0; k < 90; k++) desenhar(0, true); return; }
+      quadro = requestAnimationFrame(desenhar);
+    };
+    img.src = c.toDataURL('image/png');
+  }
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(function () {
+    particulas(document.getElementById('orb'), { alvo: document.querySelector('.hero') });
+  });
 </script>
 </body>
 </html>
