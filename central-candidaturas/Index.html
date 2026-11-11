@@ -3,148 +3,646 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
+<title>Órbita · CRM de Candidaturas</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Display:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
-  /* Layout: painel de comando escuro com grade, vidro e neon ciano/magenta */
-  :root { --bg:#05070d; --bg2:#0a1020; --panel:rgba(16,24,44,.62); --fg:#e6f1ff; --muted:#8aa0c2; --line:rgba(0,229,255,.18);
+  /* Layout: app em tela cheia — barra lateral fixa + área principal fluida; vidro escuro com neon ciano/violeta/magenta */
+  :root { --bg:#04060c; --bg2:#0a1020; --panel:rgba(14,22,42,.62); --panel2:rgba(10,16,32,.72); --fg:#e9f2ff; --muted:#8ea3c4; --line:rgba(0,229,255,.16);
           --cyan:#00e5ff; --mag:#ff2bd6; --vio:#7b5cff; --warn:#ffb020; --ok:#2bffa0; --bad:#ff4d6d;
-          --display:"Google Sans Display","Google Sans","Product Sans",system-ui,sans-serif; --body:"Google Sans","Google Sans Text","Product Sans",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace; color-scheme:dark; }
+          --display:"Google Sans Display","Google Sans","Product Sans",system-ui,sans-serif; --body:"Google Sans","Google Sans Text","Product Sans",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+          --side:248px; color-scheme:dark; }
   * { box-sizing:border-box; }
-  body { margin:0; color:var(--fg); font:14px/1.45 var(--body); min-height:100vh;
-         background: radial-gradient(1200px 600px at 10% -10%, rgba(123,92,255,.25), transparent 60%),
-                     radial-gradient(900px 500px at 110% 10%, rgba(0,229,255,.18), transparent 60%), var(--bg);
-         padding:28px max(16px,env(safe-area-inset-left)) 56px max(16px,env(safe-area-inset-right)); }
+  html, body { height:100%; }
+  body { margin:0; color:var(--fg); font:14px/1.5 var(--body); background:
+           radial-gradient(1400px 700px at 0% -20%, rgba(123,92,255,.22), transparent 60%),
+           radial-gradient(1000px 600px at 110% 0%, rgba(0,229,255,.16), transparent 60%),
+           radial-gradient(900px 600px at 60% 120%, rgba(255,43,214,.10), transparent 60%), var(--bg); }
   body::before { content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
-         background-image: linear-gradient(rgba(0,229,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,.05) 1px, transparent 1px);
-         background-size: 40px 40px; mask-image: linear-gradient(to bottom, #000 0%, transparent 85%); }
-  .wrap { position:relative; z-index:1; max-width:1240px; margin:0 auto; display:flex; flex-direction:column; gap:30px; }
-  h1 { font:700 30px/1.1 var(--display); letter-spacing:.06em; text-transform:uppercase; margin:0 0 6px;
-       background:linear-gradient(90deg,var(--cyan),var(--vio) 55%,var(--mag)); -webkit-background-clip:text; background-clip:text; color:transparent; }
-  h2 { font:500 13px var(--display); letter-spacing:.18em; text-transform:uppercase; color:var(--cyan); margin:0 0 12px; display:flex; align-items:center; gap:10px; }
+         background-image: linear-gradient(rgba(0,229,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,.045) 1px, transparent 1px);
+         background-size: 44px 44px; mask-image: radial-gradient(ellipse at 50% 0%, #000 0%, transparent 75%); }
+  .app { position:relative; z-index:1; display:grid; grid-template-columns:var(--side) 1fr; min-height:100vh; }
+
+  /* Barra lateral */
+  .side { position:sticky; top:0; height:100vh; display:flex; flex-direction:column; gap:16px; padding:22px 16px; border-right:1px solid var(--line); background:rgba(5,9,18,.72); backdrop-filter:blur(14px); }
+  .brand { display:flex; align-items:center; gap:10px; padding:0 6px; text-decoration:none; color:var(--fg); }
+  .brand svg { width:34px; height:34px; flex:none; }
+  .brand b { font:700 20px var(--display); letter-spacing:-.01em; }
+  .brand small { display:block; font:400 11px var(--mono); color:var(--muted); letter-spacing:.04em; }
+  .side { overflow-y:auto; scrollbar-width:thin; }
+  .nav { display:grid; gap:2px; }
+  .nav-sec { font:700 10px/1 var(--display); letter-spacing:.18em; text-transform:uppercase; color:rgba(142,163,196,.7); padding:18px 12px 8px; }
+  .nav button { position:relative; display:flex; align-items:center; gap:11px; width:100%; min-height:38px; padding:6px 12px; border:1px solid transparent; border-radius:11px; background:none; color:var(--muted); cursor:pointer; text-align:left; font:500 13.5px var(--body); transition:background .15s, color .15s, border-color .15s; }
+  .nav button svg { width:18px; height:18px; flex:none; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .nav button:hover { color:var(--fg); background:rgba(0,229,255,.06); }
+  .nav button[aria-current="page"] { color:var(--fg); background:linear-gradient(90deg, rgba(0,229,255,.16), rgba(123,92,255,.08)); border-color:var(--line); }
+  .nav button[aria-current="page"]::before { content:""; position:absolute; left:-17px; top:9px; bottom:9px; width:3px; border-radius:0 3px 3px 0; background:var(--cyan); box-shadow:0 0 12px var(--cyan); }
+  .nav button[aria-current="page"] svg { color:var(--cyan); filter:drop-shadow(0 0 6px rgba(0,229,255,.6)); }
+  .nav .badge { margin-left:auto; min-width:18px; height:18px; padding:0 6px; border-radius:9px; display:grid; place-items:center; font:700 10.5px/1 var(--mono); color:#04121a; background:var(--warn); }
+  .nav .badge.muted { background:rgba(142,163,196,.2); color:var(--muted); }
+  .nav .badge:empty { display:none; }
+  .dotwarn { margin-left:auto; width:8px; height:8px; border-radius:50%; background:var(--mag); box-shadow:0 0 8px var(--mag); }
+  .side-ver { font:700 10px/1 var(--display); letter-spacing:.16em; text-transform:uppercase; color:rgba(142,163,196,.6); padding:4px 12px 0; }
+  .btn.sm { padding:7px 12px; font-size:12.5px; justify-content:center; }
+  .side-foot { margin-top:auto; display:flex; flex-direction:column; gap:10px; padding-top:12px; border-top:1px solid var(--line); }
+  .me { display:flex; align-items:center; gap:10px; padding:10px; border:1px solid var(--line); border-radius:12px; background:var(--panel); }
+  .me .av { width:34px; height:34px; border-radius:50%; display:grid; place-items:center; font:700 13px var(--display); color:#04121a; background:linear-gradient(135deg,var(--cyan),var(--mag)); }
+  .me b { display:block; font-size:13px; } .me span { font:11px var(--mono); color:var(--muted); }
+
+  /* Área principal */
+  .main { min-width:0; padding:22px clamp(16px,2.4vw,36px) 48px; display:flex; flex-direction:column; gap:26px; }
+  .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .crumb { font:12px var(--mono); color:var(--muted); letter-spacing:.06em; }
+  .crumb b { color:var(--cyan); font-weight:500; }
+  .acts { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .btn { font:500 13px var(--body); text-decoration:none; cursor:pointer; border-radius:10px; padding:9px 16px; border:1px solid var(--cyan); color:var(--cyan); background:rgba(0,229,255,.06); transition:box-shadow .2s, transform .2s, background .2s; display:inline-flex; align-items:center; gap:8px; }
+  .btn:hover, .btn:focus-visible { box-shadow:0 0 22px rgba(0,229,255,.45); outline:none; }
+  .btn.solid { color:#03101a; border-color:transparent; background:linear-gradient(135deg,var(--cyan),var(--vio)); box-shadow:0 8px 24px -8px rgba(0,229,255,.6); }
+  .btn.solid:hover { box-shadow:0 10px 30px -6px rgba(123,92,255,.7); }
+  @media (prefers-reduced-motion: no-preference) { .btn:hover { transform:translateY(-1px); } }
+
+  /* Banner */
+  .hero { position:relative; display:grid; grid-template-columns:minmax(0,1.25fr) minmax(280px,.9fr); align-items:center; gap:24px; min-height:320px; padding:34px clamp(20px,3vw,44px);
+          border:1px solid var(--line); border-radius:22px; overflow:hidden;
+          background:linear-gradient(120deg, rgba(0,229,255,.10), rgba(123,92,255,.10) 45%, rgba(255,43,214,.08)), rgba(8,13,26,.75); }
+  .hero::after { content:""; position:absolute; inset:-1px; border-radius:22px; pointer-events:none; padding:1px;
+          background:linear-gradient(120deg, rgba(0,229,255,.6), transparent 30%, transparent 70%, rgba(255,43,214,.5));
+          -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask-composite:exclude; }
+  .hero-txt { position:relative; z-index:2; display:flex; flex-direction:column; gap:14px; align-items:flex-start; min-width:0; }
+  .kicker { font:500 12px var(--mono); letter-spacing:.14em; text-transform:uppercase; color:var(--cyan); display:inline-flex; align-items:center; gap:8px; padding:5px 10px; border:1px solid var(--line); border-radius:999px; background:rgba(0,229,255,.06); }
+  .kicker i { width:7px; height:7px; border-radius:50%; background:var(--ok); box-shadow:0 0 10px var(--ok); }
+  .ttl { margin:0; width:min(100%,640px); }
+  .ttl svg { display:block; width:100%; height:auto; overflow:visible; }
+  .ttl text { font:700 50px var(--display); letter-spacing:-.02em; }
+  .lead { margin:0; color:var(--muted); font-size:15px; max-width:56ch; }
+  .lead b { color:var(--fg); font-weight:500; }
+  .hero-stage { position:relative; z-index:1; height:300px; display:grid; place-items:center; }
+  #orb { position:absolute; inset:0; width:100%; height:100%; display:block; }
+  .mascot { position:relative; width:170px; height:auto; z-index:2; filter:drop-shadow(0 18px 30px rgba(0,229,255,.25)); }
+  @media (prefers-reduced-motion: no-preference) { .mascot { animation:float 5s ease-in-out infinite; } .bit-ring { animation:spin 14s linear infinite; transform-origin:100px 104px; } .bit-blink { animation:blink 5.5s infinite; transform-origin:100px 96px; } }
+  @keyframes float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-10px); } }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  @keyframes blink { 0%,94%,100% { transform:scaleY(1); } 96% { transform:scaleY(.1); } }
+  .bubble { position:absolute; z-index:3; top:8px; right:4%; max-width:230px; font-size:13px; line-height:1.4; color:var(--fg); background:rgba(11,19,36,.92); border:1px solid var(--cyan); border-radius:14px 14px 14px 4px; padding:10px 12px; box-shadow:0 0 22px rgba(0,229,255,.25); }
+  .bubble b { color:var(--cyan); }
+
+  h2 { font:600 13px var(--display); letter-spacing:.16em; text-transform:uppercase; color:var(--cyan); margin:0 0 14px; display:flex; align-items:center; gap:12px; }
   h2::after { content:""; flex:1; height:1px; background:linear-gradient(90deg,var(--line),transparent); }
-  .sub { color:var(--muted); margin:0; font-family:var(--mono); font-size:13px; }
-  .top { display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; align-items:end; }
-  .btn { font:500 12px var(--display); letter-spacing:.12em; text-transform:uppercase; text-decoration:none; cursor:pointer;
-         color:var(--cyan); background:rgba(0,229,255,.06); border:1px solid var(--cyan); border-radius:6px; padding:9px 14px;
-         box-shadow:0 0 12px rgba(0,229,255,.25), inset 0 0 12px rgba(0,229,255,.08); transition:box-shadow .2s; }
-  .btn:hover, .btn:focus-visible { box-shadow:0 0 22px rgba(0,229,255,.5), inset 0 0 14px rgba(0,229,255,.15); outline:none; }
-  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; }
-  .tile { position:relative; background:var(--panel); backdrop-filter:blur(10px); border:1px solid var(--line); border-radius:12px; padding:16px 18px; overflow:hidden; }
+  section { scroll-margin-top:16px; }
+  .sub { color:var(--muted); margin:0; font:13px var(--mono); }
+
+  /* KPIs */
+  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; }
+  .tile { position:relative; background:var(--panel); backdrop-filter:blur(10px); border:1px solid var(--line); border-radius:16px; padding:16px 18px; overflow:hidden; cursor:pointer; transition:box-shadow .2s, border-color .2s, transform .2s; }
   .tile::before { content:""; position:absolute; left:0; top:0; height:2px; width:100%; background:linear-gradient(90deg,var(--cyan),transparent); }
-  .tile .l { font:500 10px var(--display); letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
-  .tile .n { font:700 36px var(--display); font-variant-numeric:tabular-nums; color:var(--fg); text-shadow:0 0 18px rgba(0,229,255,.35); margin-top:4px; }
+  .tile:hover, .tile.sel { border-color:var(--cyan); box-shadow:0 0 22px rgba(0,229,255,.22); }
+  @media (prefers-reduced-motion: no-preference) { .tile:hover { transform:translateY(-2px); } }
+  .tile .l { font:500 11px var(--display); letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+  .tile .n { font:700 38px/1.1 var(--display); font-variant-numeric:tabular-nums; margin-top:6px; text-shadow:0 0 18px rgba(0,229,255,.3); }
+  .tile .s2 { font:11px var(--mono); color:var(--muted); margin-top:2px; }
   .tile.a::before { background:linear-gradient(90deg,var(--warn),transparent); } .tile.a .n { color:var(--warn); text-shadow:0 0 18px rgba(255,176,32,.45); }
   .tile.p::before { background:linear-gradient(90deg,var(--ok),transparent); } .tile.p .n { color:var(--ok); text-shadow:0 0 18px rgba(43,255,160,.4); }
   .tile.e::before { background:linear-gradient(90deg,var(--bad),transparent); } .tile.e .n { color:var(--muted); text-shadow:none; }
-  .board { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:18px; align-items:start; }
-  .col { background:rgba(10,16,32,.55); border:1px solid var(--line); border-radius:14px; padding:14px; min-width:0; backdrop-filter:blur(8px); }
-  .col h3 { margin:0 0 12px; font:500 12px var(--display); letter-spacing:.14em; text-transform:uppercase; display:flex; justify-content:space-between; color:var(--fg); }
-  .col:nth-child(1) h3 span:last-child { color:var(--warn); } .col:nth-child(2) h3 span:last-child { color:var(--ok); }
-  .cards { display:flex; flex-direction:column; gap:10px; }
-  .card { background:var(--panel); border:1px solid var(--line); border-left:2px solid var(--cyan); border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:5px; transition:transform .15s, box-shadow .15s; }
-  .col:nth-child(1) .card { border-left-color:var(--warn); } .col:nth-child(2) .card { border-left-color:var(--ok); }
-  .card:hover { box-shadow:0 0 20px rgba(0,229,255,.15); }
-  @media (prefers-reduced-motion: no-preference) { .card:hover { transform:translateY(-2px); } }
-  .card .e { font-weight:600; letter-spacing:.01em; } .card .v { font-size:12px; color:var(--muted); }
-  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
-  .chip { font:400 11px var(--mono); border:1px solid var(--line); border-radius:4px; padding:1px 7px; color:var(--muted); background:rgba(0,229,255,.04); }
-  .chip.pz { color:var(--mag); border-color:var(--mag); box-shadow:0 0 8px rgba(255,43,214,.3); }
-  select { font:12px var(--mono); padding:5px 8px; border-radius:6px; border:1px solid var(--line); background:#0b1324; color:var(--cyan); max-width:100%; }
-  select:focus-visible, input:focus-visible { outline:1px solid var(--cyan); box-shadow:0 0 10px rgba(0,229,255,.4); }
-  .tw { overflow-x:auto; border:1px solid var(--line); border-radius:12px; background:var(--panel); backdrop-filter:blur(8px); }
-  table { width:100%; border-collapse:collapse; }
-  th, td { text-align:left; padding:9px 12px; border-bottom:1px solid rgba(0,229,255,.08); vertical-align:top; }
-  th { font:500 10px var(--display); letter-spacing:.14em; text-transform:uppercase; color:var(--cyan); white-space:nowrap; background:rgba(0,229,255,.04); }
-  tbody tr:hover td { background:rgba(123,92,255,.07); }
-  td.d { white-space:nowrap; font:12px var(--mono); color:var(--muted); }
-  .filters { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
-  input[type=search] { font:13px var(--mono); padding:7px 12px; border-radius:6px; border:1px solid var(--line); background:#0b1324; color:var(--fg); min-width:220px; }
-  .toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); z-index:5; font:12px var(--mono); color:var(--cyan); background:#0b1324; border:1px solid var(--cyan); box-shadow:0 0 16px rgba(0,229,255,.4); padding:8px 14px; border-radius:6px; }
-  .loading { color:var(--muted); font-family:var(--mono); }
-  .viz { display:grid; grid-template-columns:minmax(240px,1fr) 2fr; gap:18px; }
-  @media (max-width:760px) { .viz { grid-template-columns:1fr; } }
-  .vbox { position:relative; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; min-width:0; backdrop-filter:blur(8px); }
-  .vbox h3 { margin:0 0 8px; font:500 11px var(--display); letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
+  .tile.r::before { background:linear-gradient(90deg,var(--mag),transparent); } .tile.r .n { color:var(--mag); text-shadow:0 0 18px rgba(255,43,214,.45); }
+
+  /* Visualizações */
+  .viz3 { display:grid; grid-template-columns:minmax(240px,1fr) minmax(280px,1.15fr) minmax(260px,1fr); gap:18px; }
+  @media (max-width:1180px) { .viz3 { grid-template-columns:1fr 1fr; } .viz3 > :last-child { grid-column:1/-1; } }
+  @media (max-width:720px) { .viz3 { grid-template-columns:1fr; } }
+  .vbox { position:relative; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:16px; min-width:0; backdrop-filter:blur(8px); }
+  .vbox h3 { margin:0 0 10px; font:500 11px var(--display); letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
   .vbox svg { display:block; width:100%; height:auto; overflow:visible; }
   .seg, .bar { cursor:pointer; transition:filter .2s, opacity .2s, transform .2s; transform-box:fill-box; transform-origin:center; }
   .dim .seg:not(.on), .dim .bar:not(.on) { opacity:.25; }
   .seg.on { filter:drop-shadow(0 0 8px currentColor) drop-shadow(0 0 16px currentColor); }
   .bar.on { filter:drop-shadow(0 0 6px var(--cyan)) drop-shadow(0 0 14px var(--cyan)); }
   @media (prefers-reduced-motion: no-preference) { .seg.on { transform:scale(1.04); } }
+  .stage { cursor:pointer; transition:filter .2s, opacity .2s; }
+  .dim .stage:not(.on) { opacity:.3; }
+  .stage.on { filter:drop-shadow(0 0 8px var(--cyan)) drop-shadow(0 0 16px var(--vio)); }
   .vlab { fill:var(--muted); font:10px var(--mono); }
   .vbig { fill:var(--fg); font:700 28px var(--display); }
-  .vtip { position:absolute; pointer-events:none; font:12px var(--mono); color:var(--fg); background:#0b1324; border:1px solid var(--cyan); box-shadow:0 0 14px rgba(0,229,255,.35); border-radius:6px; padding:5px 9px; white-space:nowrap; z-index:3; }
+  .vtip { position:absolute; pointer-events:none; font:12px var(--mono); color:var(--fg); background:#0b1324; border:1px solid var(--cyan); box-shadow:0 0 14px rgba(0,229,255,.35); border-radius:8px; padding:5px 9px; white-space:nowrap; z-index:3; }
   .legend { display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:8px; font:11px var(--mono); color:var(--muted); }
   .legend span::before { content:""; display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:6px; background:currentColor; box-shadow:0 0 6px currentColor; }
-  .hero { position:relative; display:grid; grid-template-columns:1fr minmax(260px,420px); align-items:center; gap:16px; min-height:260px;
-          background:linear-gradient(135deg, rgba(0,229,255,.06), rgba(255,43,214,.05)); border:1px solid var(--line); border-radius:18px; padding:22px 26px; overflow:hidden; }
-  .hero-txt { display:flex; flex-direction:column; gap:12px; align-items:flex-start; position:relative; z-index:1; }
-  #orb { width:100%; height:260px; display:block; cursor:crosshair; }
-  @media (max-width:760px) { .hero { grid-template-columns:1fr; } #orb { height:220px; } }
-  .ttl { margin:0; width:min(100%,560px); background:none; -webkit-background-clip:initial; background-clip:initial; color:inherit; }
-  .ttl svg { display:block; width:100%; height:auto; overflow:visible; }
-  .ttl text { font:700 50px var(--display); letter-spacing:-.01em; text-transform:none; }
-  @media (prefers-reduced-motion: reduce) { .ttl animate { display:none; } }
+  .fu { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; max-height:250px; overflow:auto; }
+  .fu li { display:flex; justify-content:space-between; gap:10px; padding:8px 10px; border:1px solid var(--line); border-radius:10px; background:rgba(0,229,255,.03); }
+  .fu .who { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .fu .age { font:12px var(--mono); color:var(--warn); white-space:nowrap; }
+  .fu .age.hot { color:var(--bad); }
+
+  /* Quadro */
+  .board { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:18px; align-items:start; }
+  .col { background:var(--panel2); border:1px solid var(--line); border-radius:16px; padding:14px; min-width:0; backdrop-filter:blur(8px); }
+  .col h3 { margin:0 0 12px; font:500 12px var(--display); letter-spacing:.14em; text-transform:uppercase; display:flex; justify-content:space-between; }
+  .col:nth-child(1) h3 span:last-child { color:var(--warn); } .col:nth-child(2) h3 span:last-child { color:var(--ok); }
+  .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-left:2px solid var(--cyan); border-radius:12px; padding:12px 14px; display:flex; flex-direction:column; gap:5px; transition:transform .15s, box-shadow .15s; }
+  .col:nth-child(1) .card { border-left-color:var(--warn); } .col:nth-child(2) .card { border-left-color:var(--ok); }
+  .card:hover { box-shadow:0 0 20px rgba(0,229,255,.15); }
+  @media (prefers-reduced-motion: no-preference) { .card:hover { transform:translateY(-2px); } }
+  .card .e { font-weight:700; } .card .v { font-size:12px; color:var(--muted); }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
+  .chip { font:400 11px var(--mono); border:1px solid var(--line); border-radius:6px; padding:1px 7px; color:var(--muted); background:rgba(0,229,255,.04); }
+  .chip.pz { color:var(--mag); border-color:var(--mag); box-shadow:0 0 8px rgba(255,43,214,.3); }
+  select { font:12px var(--mono); padding:6px 8px; border-radius:8px; border:1px solid var(--line); background:#0b1324; color:var(--cyan); max-width:100%; }
+  select:focus-visible, input:focus-visible { outline:1px solid var(--cyan); box-shadow:0 0 10px rgba(0,229,255,.4); }
+
+  /* Tabela */
+  .filters { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+  input[type=search] { font:13px var(--body); padding:9px 12px; border-radius:10px; border:1px solid var(--line); background:#0b1324; color:var(--fg); min-width:260px; flex:1; max-width:420px; }
+  .tw { overflow-x:auto; border:1px solid var(--line); border-radius:16px; background:var(--panel); backdrop-filter:blur(8px); }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid rgba(0,229,255,.07); vertical-align:top; }
+  th { position:sticky; top:0; font:500 11px var(--display); letter-spacing:.12em; text-transform:uppercase; color:var(--cyan); white-space:nowrap; background:#0a1222; z-index:1; }
+  tbody tr:hover td { background:rgba(123,92,255,.07); }
+  td.d { white-space:nowrap; font:12px var(--mono); color:var(--muted); }
+  td[contenteditable] { outline:none; border-radius:6px; cursor:text; }
+  td[contenteditable]:hover { background:rgba(0,229,255,.06); }
+  td[contenteditable]:focus { background:rgba(0,229,255,.1); box-shadow:inset 0 0 0 1px var(--cyan); }
+  td.age { font:12px var(--mono); white-space:nowrap; color:var(--muted); }
+  td.age.hot { color:var(--warn); }
+
+  /* Modal e toast */
+  .modal { position:fixed; inset:0; z-index:20; background:rgba(3,5,10,.7); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; padding:16px; }
+  .modal[hidden] { display:none; }
+  .modal form { width:min(600px,100%); background:#0b1324; border:1px solid var(--cyan); box-shadow:0 0 40px rgba(0,229,255,.25); border-radius:18px; padding:22px; display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .modal h3 { grid-column:1/-1; margin:0; font:700 18px var(--display); color:var(--fg); }
+  .modal label { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted); }
+  .modal label.full { grid-column:1/-1; }
+  .modal input, .modal select { font:13px var(--body); padding:9px 10px; border-radius:8px; border:1px solid var(--line); background:#070c18; color:var(--fg); }
+  .modal .row { grid-column:1/-1; display:flex; justify-content:flex-end; gap:10px; }
+  .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:30; font:12px var(--mono); color:var(--cyan); background:#0b1324; border:1px solid var(--cyan); box-shadow:0 0 16px rgba(0,229,255,.4); padding:9px 16px; border-radius:10px; }
+  .loading { color:var(--muted); font-family:var(--mono); }
+  .foot { text-align:center; font:11px var(--mono); color:var(--muted); opacity:.7; }
+
+  /* Responsivo */
+  @media (max-width:980px) {
+    .app { grid-template-columns:1fr; }
+    .side { position:fixed; z-index:40; top:auto; bottom:0; left:0; right:0; height:auto; flex-direction:row; padding:6px 6px calc(6px + env(safe-area-inset-bottom)); border-right:0; border-top:1px solid var(--line); background:rgba(5,9,18,.94); }
+    .brand, .side-foot, .nav-sec, .nav button.ag { display:none; }
+    .nav { display:flex; width:100%; justify-content:space-around; }
+    .nav button { flex-direction:column; min-height:0; gap:3px; padding:6px; font-size:10.5px; width:auto; }
+    .nav button .t { display:block; }
+    .nav button[aria-current="page"]::before { display:none; }
+    .nav .badge { position:absolute; top:0; right:2px; margin:0; }
+    .main { padding-bottom:90px; }
+    .hero { grid-template-columns:1fr; } .hero-stage { height:240px; } .bubble { right:2%; }
+  }
+  @media (max-width:520px) { .modal form { grid-template-columns:1fr; } .ttl text { font-size:44px; } }
+  /* Agentes */
+  .lead.hubl { margin:0 0 18px; }
+  .lnk { background:none; border:0; padding:0; color:var(--cyan); font:inherit; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
+  .aghub { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:14px; }
+  .agcard { text-align:left; display:flex; flex-direction:column; gap:8px; padding:18px; border-radius:16px; border:1px solid var(--line); background:var(--panel); color:var(--fg); cursor:pointer; font:inherit; transition:transform .2s, box-shadow .2s, border-color .2s; position:relative; overflow:hidden; }
+  .agcard::after { content:""; position:absolute; inset:auto -40% -60% auto; width:180px; height:180px; border-radius:50%; background:radial-gradient(circle, rgba(123,92,255,.25), transparent 70%); pointer-events:none; }
+  .agcard:hover, .agcard:focus-visible { border-color:var(--cyan); box-shadow:0 0 26px rgba(0,229,255,.2); outline:none; }
+  @media (prefers-reduced-motion: no-preference) { .agcard:hover { transform:translateY(-3px); } }
+  .agcard b { font:700 16px var(--display); }
+  .agcard span:not(.agic) { color:var(--muted); font-size:13px; line-height:1.45; }
+  .agcard i { font:500 12px var(--mono); color:var(--cyan); font-style:normal; margin-top:auto; }
+  .agic { width:40px; height:40px; border-radius:12px; display:grid; place-items:center; background:linear-gradient(135deg, rgba(0,229,255,.18), rgba(255,43,214,.14)); border:1px solid var(--line); }
+  .agic svg { width:20px; height:20px; stroke:var(--cyan); fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; filter:drop-shadow(0 0 6px rgba(0,229,255,.5)); }
+  .agic.lg { width:56px; height:56px; border-radius:16px; flex:none; } .agic.lg svg { width:28px; height:28px; }
+  .agv { display:flex; flex-direction:column; gap:20px; }
+  .agh { display:flex; gap:16px; align-items:center; }
+  .agt { margin:0 0 2px; font:700 28px/1.15 var(--display); background:linear-gradient(90deg,var(--cyan),var(--vio) 60%,var(--mag)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .agbody { display:grid; grid-template-columns:minmax(280px,380px) minmax(0,1fr); gap:20px; align-items:start; }
+  @media (max-width:1100px) { .agbody { grid-template-columns:1fr; } }
+  .agform, .cfgbox { display:flex; flex-direction:column; gap:12px; padding:18px; border:1px solid var(--line); border-radius:16px; background:var(--panel); }
+  .agform label, .cfg label { display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--muted); font-weight:500; }
+  .agform input, .agform textarea, .agform select, .cfg input, .cfg textarea, .cfg select { font:14px var(--body); color:var(--fg); background:#070c18; border:1px solid var(--line); border-radius:10px; padding:10px 12px; resize:vertical; }
+  .agform textarea, .cfg textarea { font:13px/1.5 var(--body); }
+  .btn.big { padding:12px 18px; font-size:14px; justify-content:center; }
+  .btn svg { width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .btn[disabled] { opacity:.6; cursor:wait; }
+  .agout { min-height:420px; padding:22px 24px; border:1px solid var(--line); border-radius:16px; background:var(--panel2); position:relative; min-width:0; }
+  .agout .empty { height:100%; min-height:370px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; color:var(--muted); text-align:center; }
+  .agout .empty svg { width:44px; height:44px; stroke:var(--cyan); fill:none; stroke-width:1.5; opacity:.6; }
+  .think { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; min-height:370px; color:var(--muted); font:13px var(--mono); }
+  .think .orbit { width:70px; height:70px; border-radius:50%; border:2px solid rgba(0,229,255,.2); border-top-color:var(--cyan); border-right-color:var(--mag); box-shadow:0 0 30px rgba(0,229,255,.25); }
+  @media (prefers-reduced-motion: no-preference) { .think .orbit { animation:spin 1s linear infinite; } }
+  .md { line-height:1.65; font-size:14.5px; overflow-wrap:anywhere; }
+  .md h1 { font:700 26px var(--display); margin:0 0 4px; }
+  .md h2 { font:700 15px var(--display); letter-spacing:.02em; text-transform:none; color:var(--cyan); margin:22px 0 8px; display:block; }
+  .md h2::after { display:none; }
+  .md h3 { font:600 14px var(--display); margin:16px 0 6px; color:var(--fg); }
+  .md p { margin:0 0 10px; } .md ul, .md ol { margin:0 0 12px; padding-left:20px; } .md li { margin:3px 0; }
+  .md strong { color:var(--fg); } .md em { color:var(--muted); }
+  .md code { font:12.5px var(--mono); background:rgba(0,229,255,.08); border:1px solid var(--line); border-radius:6px; padding:1px 6px; }
+  .md hr { border:0; border-top:1px solid var(--line); margin:16px 0; }
+  .outbar { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; margin:-6px 0 14px; }
+  .err { color:var(--bad); font:13px var(--mono); }
+  .quick { display:flex; flex-direction:column; gap:8px; padding-top:10px; border-top:1px dashed var(--line); }
+  .quick b { font:600 12px var(--display); letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .qlinks { display:flex; flex-wrap:wrap; gap:8px; }
+  .qlinks a { font:500 12px var(--body); color:var(--fg); text-decoration:none; padding:6px 10px; border-radius:8px; border:1px solid var(--line); background:rgba(0,229,255,.05); }
+  .qlinks a:hover { border-color:var(--cyan); box-shadow:0 0 12px rgba(0,229,255,.3); }
+  .fu-pick { display:flex; flex-direction:column; gap:6px; max-height:300px; overflow:auto; }
+  .fu-pick label { flex-direction:row; align-items:center; gap:8px; color:var(--fg); font-size:13px; }
+  /* Ajustes */
+  .cfg { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .cfg .full { grid-column:1/-1; }
+  .cfgbox h3 { margin:0; font:700 15px var(--display); display:flex; align-items:center; gap:10px; }
+  .g2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; } .g2 .full { grid-column:1/-1; }
+  .pill { font:600 11px var(--mono); padding:2px 8px; border-radius:999px; border:1px solid var(--mag); color:var(--mag); }
+  .pill.ok { border-color:var(--ok); color:var(--ok); }
+  .row { display:flex; justify-content:flex-end; gap:10px; }
+  @media (max-width:820px) { .cfg, .g2 { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="hero">
-    <div class="hero-txt">
-      <h1 class="ttl"><svg viewBox="0 0 640 64" role="img" aria-label="Central de Candidaturas">
-        <defs>
-          <linearGradient id="gt" x1="0" y1="0" x2="640" y2="0" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="#00e5ff"><animate attributeName="stop-color" values="#00e5ff;#7b5cff;#ff2bd6;#00e5ff" dur="8s" repeatCount="indefinite"/></stop>
-            <stop offset="50%" stop-color="#7b5cff"><animate attributeName="stop-color" values="#7b5cff;#ff2bd6;#00e5ff;#7b5cff" dur="8s" repeatCount="indefinite"/></stop>
-            <stop offset="100%" stop-color="#ff2bd6"><animate attributeName="stop-color" values="#ff2bd6;#00e5ff;#7b5cff;#ff2bd6" dur="8s" repeatCount="indefinite"/></stop>
-          </linearGradient>
-          <filter id="gl" x="-10%" y="-40%" width="120%" height="180%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-        </defs>
-        <text x="0" y="48" fill="url(#gt)" filter="url(#gl)" textLength="630" lengthAdjust="spacingAndGlyphs">Central de Candidaturas</text>
-      </svg></h1>
-      <p class="sub" id="frase">Carregando…</p>
-      <a class="btn ghost" id="sheet" href="#" target="_blank" rel="noopener">Abrir planilha</a>
+<div class="app">
+  <aside class="side">
+    <a class="brand" href="#painel" data-ir="painel" aria-label="Órbita">
+      <svg viewBox="0 0 40 40" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#00e5ff"/><stop offset="1" stop-color="#ff2bd6"/></linearGradient></defs><circle cx="20" cy="20" r="9" fill="url(#lg)"/><ellipse cx="20" cy="20" rx="18" ry="7" fill="none" stroke="url(#lg)" stroke-width="2" transform="rotate(-25 20 20)"/><circle cx="35" cy="13" r="2.4" fill="#00e5ff"/></svg>
+      <div><b>Órbita</b><small>CRM de candidaturas</small></div>
+    </a>
+    <nav class="nav" id="nav" aria-label="Menu">
+      <button type="button" data-ir="painel"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg><span class="t">Visão geral</span></button>
+      <button type="button" data-ir="quadro"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="11" rx="1.5"/><rect x="17" y="4" width="4" height="7" rx="1.5"/></svg><span class="t">Quadro</span><span class="badge" id="nav-acao"></span></button>
+      <button type="button" data-ir="todas"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span class="t">Candidaturas</span><span class="badge muted" id="nav-total"></span></button>
+      <span class="nav-sec">Agentes</span>
+      <button type="button" data-ir="agentes" class="hub"><svg viewBox="0 0 24 24"><path d="M12 3l2.2 4.6L19 9l-3.5 3.4.8 4.9L12 15l-4.3 2.3.8-4.9L5 9l4.8-1.4z"/></svg><span class="t">Central de agentes</span></button>
+      <button type="button" data-ir="vagas" class="ag"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span class="t">Caçador de vagas</span></button>
+      <button type="button" data-ir="fit" class="ag"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg><span class="t">Raio-X da vaga</span></button>
+      <button type="button" data-ir="cv" class="ag"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg><span class="t">Analista de CV</span></button>
+      <button type="button" data-ir="montarcv" class="ag"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h5M12 7v3M10.5 8.5h3"/></svg><span class="t">Montador de CV</span></button>
+      <button type="button" data-ir="linkedin" class="ag"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10v7M8 7v.01M12 17v-4a2 2 0 0 1 4 0v4M12 10v7"/></svg><span class="t">Otimizador de LinkedIn</span></button>
+      <button type="button" data-ir="empresa" class="ag"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6M9 10h.01M15 10h.01"/></svg><span class="t">Dossiê da empresa</span></button>
+      <button type="button" data-ir="plano" class="ag"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 14h3M8 17h6"/></svg><span class="t">Plano da semana</span></button>
+      <button type="button" data-ir="entrevista" class="ag"><svg viewBox="0 0 24 24"><path d="M4 5h16v10H9l-5 4z"/></svg><span class="t">Coach de entrevista</span></button>
+      <button type="button" data-ir="mensagem" class="ag"><svg viewBox="0 0 24 24"><path d="M3 6h18v12H3z"/><path d="M3 7l9 6 9-6"/></svg><span class="t">Redator de mensagens</span></button>
+      <button type="button" data-ir="salario" class="ag"><svg viewBox="0 0 24 24"><path d="M12 3v18M16 7c0-1.7-1.8-3-4-3s-4 1.3-4 3 1.8 3 4 3 4 1.3 4 3-1.8 3-4 3-4-1.3-4-3"/></svg><span class="t">Negociador salarial</span></button>
+      <button type="button" data-ir="followup" class="ag"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 3-6.2M4 4v5h5"/></svg><span class="t">Follow-up em massa</span><span class="badge" id="nav-fu"></span></button>
+      <button type="button" data-ir="chat" class="ag"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 10h.01M16 10h.01M8.5 15c2 1.5 5 1.5 7 0"/></svg><span class="t">Pergunte ao Bit</span></button>
+    </nav>
+    <div class="side-foot">
+      <div class="nav"><button type="button" data-ir="ajustes"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span class="t">Ajustes</span><span class="dotwarn" id="nav-cfg" hidden></span></button></div>
+      <a class="btn sm" id="sheet" href="#" target="_blank" rel="noopener">Abrir planilha</a>
+      <div class="me"><div class="av">EU</div><div><b>Meu perfil</b><span>Busca ativa</span></div></div>
+      <div class="side-ver">Órbita · v<span id="ver">2.0</span></div>
     </div>
-    <canvas id="orb" aria-hidden="true"></canvas>
-  </div>
+  </aside>
 
-  <div class="tiles">
-    <div class="tile"><div class="l">Ativas</div><div class="n" id="t-ativas">–</div></div>
-    <div class="tile a"><div class="l">Ação sua</div><div class="n" id="t-acao">–</div></div>
-    <div class="tile p"><div class="l">Em processo</div><div class="n" id="t-proc">–</div></div>
-    <div class="tile"><div class="l">Aguardando</div><div class="n" id="t-agu">–</div></div>
-    <div class="tile e"><div class="l">Encerradas</div><div class="n" id="t-enc">–</div></div>
-  </div>
-
-  <section>
-    <h2>Radar</h2>
-    <div class="viz">
-      <div class="vbox"><h3>Por etapa</h3><svg id="donut" viewBox="0 0 220 220" role="img" aria-label="Rosca com a divisão das candidaturas por etapa"></svg><div class="legend" id="leg"></div></div>
-      <div class="vbox"><h3>Candidaturas por dia</h3><svg id="bars" viewBox="0 0 640 220" role="img" aria-label="Barras com o número de candidaturas enviadas por dia"></svg></div>
+  <main class="main">
+    <div class="topbar">
+      <div class="crumb">ÓRBITA / <b id="crumb">VISÃO GERAL</b> · <span id="hoje"></span></div>
+      <div class="acts"><button class="btn solid" id="novo" type="button">＋ Nova candidatura</button></div>
     </div>
-  </section>
 
-  <section>
-    <h2>Quadro</h2>
-    <div class="board" id="board"><p class="loading">Carregando…</p></div>
-  </section>
+    <div class="view" data-view="painel">
+    <section class="hero" id="painel">
+      <div class="hero-txt">
+        <span class="kicker"><i></i>Busca ativa</span>
+        <h1 class="ttl"><svg viewBox="0 0 640 64" role="img" aria-label="Sua próxima vaga está em órbita">
+          <defs>
+            <linearGradient id="gt" x1="0" y1="0" x2="640" y2="0" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#00e5ff"><animate attributeName="stop-color" values="#00e5ff;#7b5cff;#ff2bd6;#00e5ff" dur="8s" repeatCount="indefinite"/></stop>
+              <stop offset="50%" stop-color="#7b5cff"><animate attributeName="stop-color" values="#7b5cff;#ff2bd6;#00e5ff;#7b5cff" dur="8s" repeatCount="indefinite"/></stop>
+              <stop offset="100%" stop-color="#ff2bd6"><animate attributeName="stop-color" values="#ff2bd6;#00e5ff;#7b5cff;#ff2bd6" dur="8s" repeatCount="indefinite"/></stop>
+            </linearGradient>
+            <filter id="gl" x="-10%" y="-40%" width="120%" height="180%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          </defs>
+          <text x="0" y="50" fill="url(#gt)" filter="url(#gl)" textLength="630" lengthAdjust="spacingAndGlyphs">Sua próxima vaga em órbita</text>
+        </svg></h1>
+        <p class="lead" id="frase">Carregando…</p>
+        <div class="acts"><button type="button" class="btn solid" data-ir="quadro">Ver o que fazer hoje</button><button type="button" class="btn" data-ir="agentes">Chamar os agentes</button></div>
+      </div>
+      <div class="hero-stage">
+        <canvas id="orb" aria-hidden="true"></canvas>
+        <svg class="mascot" id="bit" viewBox="0 0 200 210" role="img" aria-label="Bit, o mascote do Órbita">
+          <defs>
+            <radialGradient id="bb" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#2a3a66"/><stop offset=".6" stop-color="#121a33"/><stop offset="1" stop-color="#070b18"/></radialGradient>
+            <linearGradient id="br" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#00e5ff"/><stop offset=".5" stop-color="#7b5cff"/><stop offset="1" stop-color="#ff2bd6"/></linearGradient>
+            <radialGradient id="be" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#e9fdff"/><stop offset=".45" stop-color="#00e5ff"/><stop offset="1" stop-color="#0090ff" stop-opacity=".2"/></radialGradient>
+            <filter id="bg" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          </defs>
+          <!-- antena -->
+          <path d="M100 38 Q104 22 112 16" stroke="url(#br)" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <circle cx="113" cy="14" r="7" fill="#ff2bd6" filter="url(#bg)"/>
+          <!-- anel orbital -->
+          <g class="bit-ring"><ellipse cx="100" cy="104" rx="92" ry="26" fill="none" stroke="url(#br)" stroke-width="3" stroke-dasharray="6 10" opacity=".75" transform="rotate(-14 100 104)"/></g>
+          <!-- corpo -->
+          <circle cx="100" cy="100" r="64" fill="url(#bb)" stroke="url(#br)" stroke-width="3"/>
+          <ellipse cx="78" cy="68" rx="20" ry="10" fill="#ffffff" opacity=".08" transform="rotate(-25 78 68)"/>
+          <!-- visor -->
+          <rect x="54" y="78" width="92" height="40" rx="20" fill="#050914" stroke="rgba(0,229,255,.5)" stroke-width="1.5"/>
+          <g class="bit-blink">
+            <g id="bit-eyes">
+              <ellipse cx="82" cy="98" rx="9" ry="10" fill="url(#be)" filter="url(#bg)"/>
+              <ellipse cx="118" cy="98" rx="9" ry="10" fill="url(#be)" filter="url(#bg)"/>
+            </g>
+          </g>
+          <!-- bochechas e sorriso -->
+          <circle cx="66" cy="128" r="5" fill="#ff2bd6" opacity=".45"/><circle cx="134" cy="128" r="5" fill="#ff2bd6" opacity=".45"/>
+          <path d="M88 132 Q100 142 112 132" stroke="#00e5ff" stroke-width="3" fill="none" stroke-linecap="round" filter="url(#bg)"/>
+          <!-- propulsor -->
+          <ellipse cx="100" cy="176" rx="22" ry="6" fill="#00e5ff" opacity=".35" filter="url(#bg)"/>
+          <path d="M90 164 L100 186 L110 164 Z" fill="url(#br)" opacity=".7"/>
+        </svg>
+        <div class="bubble" id="bubble" role="status">Oi! Eu sou o <b>Bit</b>. Já organizei suas candidaturas.</div>
+      </div>
+    </section>
 
-  <section>
-    <h2>Todas as candidaturas</h2>
-    <div class="filters">
-      <input type="search" id="q" placeholder="Buscar empresa ou vaga" aria-label="Buscar">
-      <select id="f" aria-label="Filtrar por etapa">
-        <option value="">Todas as etapas</option>
-        <option>Ação sua</option><option>Em processo</option><option>Aguardando</option><option>Encerrada</option>
-      </select>
+    <div class="tiles">
+      <div class="tile" data-f=""><div class="l">Ativas</div><div class="n" id="t-ativas">–</div><div class="s2" id="t-ativas2"></div></div>
+      <div class="tile a" data-f="Ação sua"><div class="l">Ação sua</div><div class="n" id="t-acao">–</div><div class="s2">dependem de você</div></div>
+      <div class="tile p" data-f="Em processo"><div class="l">Em processo</div><div class="n" id="t-proc">–</div><div class="s2">alguém respondeu</div></div>
+      <div class="tile" data-f="Aguardando"><div class="l">Aguardando</div><div class="n" id="t-agu">–</div><div class="s2" id="t-agu2"></div></div>
+      <div class="tile e" data-f="Encerrada"><div class="l">Encerradas</div><div class="n" id="t-enc">–</div><div class="s2">recusadas ou fechadas</div></div>
+      <div class="tile r"><div class="l">Taxa de resposta</div><div class="n" id="t-taxa">–</div><div class="s2">tiveram algum retorno</div></div>
     </div>
-    <div class="tw">
-      <table>
-        <thead><tr><th>Empresa</th><th>Vaga</th><th>Etapa</th><th>Próxima ação / status</th><th>Aplicou</th><th>Modelo</th><th>Contato</th><th>Notas</th></tr></thead>
-        <tbody id="tb"><tr><td colspan="8" class="loading">Carregando…</td></tr></tbody>
-      </table>
+
+    <section id="radar">
+      <h2>Radar</h2>
+      <div class="viz3">
+        <div class="vbox"><h3>Por etapa</h3><svg id="donut" viewBox="0 0 220 220" role="img" aria-label="Rosca com a divisão das candidaturas por etapa"></svg><div class="legend" id="leg"></div></div>
+        <div class="vbox"><h3>Funil</h3><svg id="funil" viewBox="0 0 360 230" role="img" aria-label="Funil de candidaturas: enviadas, com retorno e em processo"></svg></div>
+        <div class="vbox"><h3>Fazer follow-up</h3><p class="sub" style="font-size:12px;margin:0 0 8px">Aguardando há 7 dias ou mais, mais antigas primeiro.</p><ul class="fu" id="fu"></ul></div>
+      </div>
+      <div class="vbox" style="margin-top:18px"><h3>Candidaturas por dia</h3><svg id="bars" viewBox="0 0 640 220" role="img" aria-label="Barras com o número de candidaturas enviadas por dia"></svg></div>
+    </section>
+
     </div>
-  </section>
+
+    <div class="view" data-view="quadro" hidden>
+    <section id="quadro">
+      <h2>Quadro</h2>
+      <div class="board" id="board"><p class="loading">Carregando…</p></div>
+    </section>
+
+    </div>
+
+    <div class="view" data-view="todas" hidden>
+    <section id="todas">
+      <h2>Todas as candidaturas</h2>
+      <div class="filters">
+        <input type="search" id="q" placeholder="Buscar empresa, vaga ou contato" aria-label="Buscar">
+        <select id="f" aria-label="Filtrar por etapa">
+          <option value="">Todas as etapas</option>
+          <option>Ação sua</option><option>Em processo</option><option>Aguardando</option><option>Encerrada</option>
+        </select>
+        <select id="fm" aria-label="Filtrar por modelo">
+          <option value="">Qualquer modelo</option><option value="remoto">Remoto</option><option value="híbrido">Híbrido</option><option value="presencial">Presencial</option>
+        </select>
+        <span class="sub" id="cnt" style="font-size:12px"></span>
+      </div>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Empresa</th><th>Vaga</th><th>Etapa</th><th>Próxima ação / status ✎</th><th>Aplicou</th><th>Dias</th><th>Salário ✎</th><th>Modelo</th><th>Contato</th><th>Notas ✎</th></tr></thead>
+          <tbody id="tb"><tr><td colspan="10" class="loading">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    </div>
+    <div class="view" data-view="agentes" hidden>
+    <section>
+      <h2>Central de agentes</h2>
+      <p class="lead hubl">Doze especialistas de IA trabalhando na sua busca. Eles usam o CV e o perfil salvos em <button type="button" class="lnk" data-ir="ajustes">Ajustes</button>.</p>
+      <div class="aghub">
+        <button type="button" class="agcard" data-ir="vagas"><span class="agic"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></span><b>Caçador de vagas</b><span>Títulos, buscas booleanas, empresas-alvo e links prontos para LinkedIn, Gupy, Indeed e Google.</span><i>Abrir →</i></button>
+        <button type="button" class="agcard" data-ir="fit"><span class="agic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg></span><b>Raio-X da vaga</b><span>Cole uma vaga: nota de encaixe com seu CV, lacunas, palavras-chave de ATS e se vale aplicar.</span><i>Abrir →</i></button>
+        <button type="button" class="agcard" data-ir="cv"><span class="agic"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg></span><b>Analista de CV</b><span>Nota ATS, problemas, bullets reescritos e resumo profissional novo, sem inventar nada.</span><i>Abrir →</i></button>
+        <button type="button" class="agcard" data-ir="montarcv"><span class="agic"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h5M12 7v3M10.5 8.5h3"/></svg></span><b>Montador de CV</b><span>Gera um CV sob medida para a vaga, só com fatos do seu CV, e abre a versão pronta para salvar em PDF.</span><i>Abrir →</i></button>
+        <button type="button" class="agcard" data-ir="linkedin"><span class="agic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10v7M8 7v.01M12 17v-4a2 2 0 0 1 4 0v4M12 10v7"/></svg></span><b>Otimizador de LinkedIn</b><span>Títulos, seção Sobre, experiência e competências para recrutador te achar.</span><i>Abrir →</i></button>
+        <button type="button" class="agcard" data-ir="empresa"><span class="agic"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6M9 10h.01M15 10h.01"/></svg></span><b>Dossiê da empresa</b><span>Briefing da empresa antes da entrevista: negócio, momento, como você ajuda e o que pesquisar.</span><i>Abrir →</i></button>
+        <button type="button" class="agcard" data-ir="plano"><span class="agic"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 14h3M8 17h6"/></svg></span><b>Plano da semana</b><span>Lê seu pipeline e monta a semana: prioridades, tarefas por dia e meta de candidaturas.</span><i>Abrir →</i></button>
+        <button type="button" class="agcard" data-ir="entrevista"><span class="agic"><svg viewBox="0 0 24 24"><path d="M4 5h16v10H9l-5 4z"/></svg></span><b>Coach de entrevista</b><span>Perguntas prováveis com respostas STAR do seu CV, pitch de 30 segundos e o que perguntar.</span><i>Abrir →</i></button>
+        <button type="button" class="agcard" data-ir="mensagem"><span class="agic"><svg viewBox="0 0 24 24"><path d="M3 6h18v12H3z"/><path d="M3 7l9 6 9-6"/></svg></span><b>Redator de mensagens</b><span>Mensagens prontas para recrutador, gestor, agradecimento, follow-up ou proposta.</span><i>Abrir →</i></button>
+        <button type="button" class="agcard" data-ir="salario"><span class="agic"><svg viewBox="0 0 24 24"><path d="M12 3v18M16 7c0-1.7-1.8-3-4-3s-4 1.3-4 3 1.8 3 4 3 4 1.3 4 3-1.8 3-4 3-4-1.3-4-3"/></svg></span><b>Negociador salarial</b><span>Faixa estimada, quanto pedir sem furar seu piso e scripts para pretensão e contraproposta.</span><i>Abrir →</i></button>
+        <button type="button" class="agcard" data-ir="followup"><span class="agic"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 3-6.2M4 4v5h5"/></svg></span><b>Follow-up em massa</b><span>Escreve follow-ups para todas as candidaturas paradas há 7 dias ou mais, uma por empresa.</span><i>Abrir →</i></button>
+        <button type="button" class="agcard" data-ir="chat"><span class="agic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 10h.01M16 10h.01M8.5 15c2 1.5 5 1.5 7 0"/></svg></span><b>Pergunte ao Bit</b><span>Converse com o Bit sobre a sua busca: ele conhece seu CV e todas as suas candidaturas.</span><i>Abrir →</i></button>
+      </div>
+    </section>
+    </div>
+
+    <div class="view" data-view="vagas" hidden>
+    <section class="agv">
+      <div class="agh"><span class="agic lg"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></span><div><h1 class="agt">Caçador de vagas</h1><p class="lead">Títulos, buscas booleanas, empresas-alvo e links prontos para LinkedIn, Gupy, Indeed e Google.</p></div></div>
+      <div class="agbody">
+        <form class="agform" data-ag="vagas">
+          <label for="ag-vagas-cargo">Cargo desejado<input id="ag-vagas-cargo" name="cargo" placeholder="Ex.: Sales Operations Manager" required></label>
+          <label for="ag-vagas-local">Local<input id="ag-vagas-local" name="local" placeholder="Ex.: São Paulo ou América Latina"></label>
+          <label for="ag-vagas-modelo">Modelo<select id="ag-vagas-modelo" name="modelo"><option>Remoto</option><option>Híbrido</option><option>Presencial</option><option>Qualquer</option></select></label>
+          <label for="ag-vagas-extras">Observações<textarea id="ag-vagas-extras" name="extras" rows="4" placeholder="Ex.: tecnologia, cloud, salário acima de R$ 17 mil"></textarea></label>
+          <button class="btn solid big" type="submit"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>Caçar vagas</button>
+          <div class="quick" id="vagas-links" hidden><b>Busca rápida agora</b><div class="qlinks"></div></div>
+        </form>
+        <div class="agout" data-out="vagas"><div class="empty"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 10h.01M16 10h.01M8.5 15c2 1.5 5 1.5 7 0"/></svg><p>O resultado aparece aqui. O Bit trabalha com o seu CV e o seu perfil.</p></div></div>
+      </div>
+    </section>
+    </div>
+
+    <div class="view" data-view="fit" hidden>
+    <section class="agv">
+      <div class="agh"><span class="agic lg"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg></span><div><h1 class="agt">Raio-X da vaga</h1><p class="lead">Cole uma vaga: nota de encaixe com seu CV, lacunas, palavras-chave de ATS e se vale aplicar.</p></div></div>
+      <div class="agbody">
+        <form class="agform" data-ag="fit">
+          <label for="ag-fit-vaga">Descrição da vaga<textarea id="ag-fit-vaga" name="vaga" rows="9" placeholder="Cole aqui o texto completo da vaga" required></textarea></label>
+          <button class="btn solid big" type="submit"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>Fazer raio-X</button>
+        </form>
+        <div class="agout" data-out="fit"><div class="empty"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 10h.01M16 10h.01M8.5 15c2 1.5 5 1.5 7 0"/></svg><p>O resultado aparece aqui. O Bit trabalha com o seu CV e o seu perfil.</p></div></div>
+      </div>
+    </section>
+    </div>
+
+    <div class="view" data-view="cv" hidden>
+    <section class="agv">
+      <div class="agh"><span class="agic lg"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg></span><div><h1 class="agt">Analista de CV</h1><p class="lead">Nota ATS, problemas, bullets reescritos e resumo profissional novo, sem inventar nada.</p></div></div>
+      <div class="agbody">
+        <form class="agform" data-ag="cv">
+          <label for="ag-cv-alvo">Vaga ou área-alvo (opcional)<input id="ag-cv-alvo" name="alvo" placeholder="Ex.: Sales Ops em empresa de cloud"></label>
+          <label for="ag-cv-cvExtra">Outro CV (opcional)<textarea id="ag-cv-cvExtra" name="cvExtra" rows="4" placeholder="Deixe vazio para usar o CV salvo em Ajustes"></textarea></label>
+          <button class="btn solid big" type="submit"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg>Analisar CV</button>
+        </form>
+        <div class="agout" data-out="cv"><div class="empty"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 10h.01M16 10h.01M8.5 15c2 1.5 5 1.5 7 0"/></svg><p>O resultado aparece aqui. O Bit trabalha com o seu CV e o seu perfil.</p></div></div>
+      </div>
+    </section>
+    </div>
+
+    <div class="view" data-view="entrevista" hidden>
+    <section class="agv">
+      <div class="agh"><span class="agic lg"><svg viewBox="0 0 24 24"><path d="M4 5h16v10H9l-5 4z"/></svg></span><div><h1 class="agt">Coach de entrevista</h1><p class="lead">Perguntas prováveis com respostas STAR do seu CV, pitch de 30 segundos e o que perguntar.</p></div></div>
+      <div class="agbody">
+        <form class="agform" data-ag="entrevista">
+          <label for="ag-entrevista-empresa">Empresa<input id="ag-entrevista-empresa" name="empresa" placeholder="Ex.: General Motors" required></label>
+          <label for="ag-entrevista-vaga">Vaga<input id="ag-entrevista-vaga" name="vaga" placeholder="Ex.: Analista de Planejamento de Vendas" required></label>
+          <label for="ag-entrevista-etapa">Etapa<select id="ag-entrevista-etapa" name="etapa"><option>Triagem com RH</option><option>Entrevista com gestor</option><option>Entrevista técnica</option><option>Painel / final</option><option>Vídeo gravado</option></select></label>
+          <label for="ag-entrevista-descricao">Descrição da vaga (opcional)<textarea id="ag-entrevista-descricao" name="descricao" rows="4" placeholder="Cole a descrição para respostas mais certeiras"></textarea></label>
+          <button class="btn solid big" type="submit"><svg viewBox="0 0 24 24"><path d="M4 5h16v10H9l-5 4z"/></svg>Preparar entrevista</button>
+        </form>
+        <div class="agout" data-out="entrevista"><div class="empty"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 10h.01M16 10h.01M8.5 15c2 1.5 5 1.5 7 0"/></svg><p>O resultado aparece aqui. O Bit trabalha com o seu CV e o seu perfil.</p></div></div>
+      </div>
+    </section>
+    </div>
+
+    <div class="view" data-view="mensagem" hidden>
+    <section class="agv">
+      <div class="agh"><span class="agic lg"><svg viewBox="0 0 24 24"><path d="M3 6h18v12H3z"/><path d="M3 7l9 6 9-6"/></svg></span><div><h1 class="agt">Redator de mensagens</h1><p class="lead">Mensagens prontas para recrutador, gestor, agradecimento, follow-up ou proposta.</p></div></div>
+      <div class="agbody">
+        <form class="agform" data-ag="mensagem">
+          <label for="ag-mensagem-tipo">Tipo<select id="ag-mensagem-tipo" name="tipo"><option>Primeiro contato com recrutador</option><option>Mensagem para o gestor da vaga</option><option>Agradecimento pós-entrevista</option><option>Follow-up de candidatura</option><option>Resposta a proposta</option><option>Recusa educada</option></select></label>
+          <label for="ag-mensagem-para">Para quem<input id="ag-mensagem-para" name="para" placeholder="Ex.: Andreia, recrutadora da GM"></label>
+          <label for="ag-mensagem-empresa">Empresa<input id="ag-mensagem-empresa" name="empresa" placeholder=""></label>
+          <label for="ag-mensagem-vaga">Vaga<input id="ag-mensagem-vaga" name="vaga" placeholder=""></label>
+          <label for="ag-mensagem-idioma">Idioma<select id="ag-mensagem-idioma" name="idioma"><option>português</option><option>inglês</option><option>espanhol</option></select></label>
+          <label for="ag-mensagem-contexto">Contexto<textarea id="ag-mensagem-contexto" name="contexto" rows="4" placeholder="O que aconteceu até agora e o que você quer com a mensagem"></textarea></label>
+          <button class="btn solid big" type="submit"><svg viewBox="0 0 24 24"><path d="M3 6h18v12H3z"/><path d="M3 7l9 6 9-6"/></svg>Escrever mensagens</button>
+        </form>
+        <div class="agout" data-out="mensagem"><div class="empty"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 10h.01M16 10h.01M8.5 15c2 1.5 5 1.5 7 0"/></svg><p>O resultado aparece aqui. O Bit trabalha com o seu CV e o seu perfil.</p></div></div>
+      </div>
+    </section>
+    </div>
+
+    <div class="view" data-view="salario" hidden>
+    <section class="agv">
+      <div class="agh"><span class="agic lg"><svg viewBox="0 0 24 24"><path d="M12 3v18M16 7c0-1.7-1.8-3-4-3s-4 1.3-4 3 1.8 3 4 3 4 1.3 4 3-1.8 3-4 3-4-1.3-4-3"/></svg></span><div><h1 class="agt">Negociador salarial</h1><p class="lead">Faixa estimada, quanto pedir sem furar seu piso e scripts para pretensão e contraproposta.</p></div></div>
+      <div class="agbody">
+        <form class="agform" data-ag="salario">
+          <label for="ag-salario-vaga">Vaga<input id="ag-salario-vaga" name="vaga" placeholder="Ex.: Sales Ops Manager" required></label>
+          <label for="ag-salario-empresa">Empresa<input id="ag-salario-empresa" name="empresa" placeholder=""></label>
+          <label for="ag-salario-local">Local e modelo<input id="ag-salario-local" name="local" placeholder="Ex.: São Paulo, híbrido"></label>
+          <label for="ag-salario-contrato">Contrato<select id="ag-salario-contrato" name="contrato"><option>CLT</option><option>PJ</option><option>Contractor em dólar</option></select></label>
+          <label for="ag-salario-proposta">Proposta ou faixa conhecida<input id="ag-salario-proposta" name="proposta" placeholder="Ex.: ofereceram R$ 15 mil"></label>
+          <button class="btn solid big" type="submit"><svg viewBox="0 0 24 24"><path d="M12 3v18M16 7c0-1.7-1.8-3-4-3s-4 1.3-4 3 1.8 3 4 3 4 1.3 4 3-1.8 3-4 3-4-1.3-4-3"/></svg>Montar negociação</button>
+        </form>
+        <div class="agout" data-out="salario"><div class="empty"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 10h.01M16 10h.01M8.5 15c2 1.5 5 1.5 7 0"/></svg><p>O resultado aparece aqui. O Bit trabalha com o seu CV e o seu perfil.</p></div></div>
+      </div>
+    </section>
+    </div>
+
+    <div class="view" data-view="followup" hidden>
+    <section class="agv">
+      <div class="agh"><span class="agic lg"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 3-6.2M4 4v5h5"/></svg></span><div><h1 class="agt">Follow-up em massa</h1><p class="lead">Escreve follow-ups para todas as candidaturas paradas há 7 dias ou mais, uma por empresa.</p></div></div>
+      <div class="agbody">
+        <form class="agform" data-ag="followup">
+          <p class="sub" id="fu-info">Carregando candidaturas paradas…</p>
+          <button class="btn solid big" type="submit"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 3-6.2M4 4v5h5"/></svg>Gerar follow-ups</button>
+        </form>
+        <div class="agout" data-out="followup"><div class="empty"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 10h.01M16 10h.01M8.5 15c2 1.5 5 1.5 7 0"/></svg><p>O resultado aparece aqui. O Bit trabalha com o seu CV e o seu perfil.</p></div></div>
+      </div>
+    </section>
+    </div>
+
+    <div class="view" data-view="chat" hidden>
+    <section class="agv">
+      <div class="agh"><span class="agic lg"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 10h.01M16 10h.01M8.5 15c2 1.5 5 1.5 7 0"/></svg></span><div><h1 class="agt">Pergunte ao Bit</h1><p class="lead">Converse com o Bit sobre a sua busca: ele conhece seu CV e todas as suas candidaturas.</p></div></div>
+      <div class="agbody">
+        <form class="agform" data-ag="chat">
+          <label for="ag-chat-pergunta">Sua pergunta<textarea id="ag-chat-pergunta" name="pergunta" rows="9" placeholder="Ex.: em quais vagas devo focar esta semana?" required></textarea></label>
+          <button class="btn solid big" type="submit"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 10h.01M16 10h.01M8.5 15c2 1.5 5 1.5 7 0"/></svg>Perguntar</button>
+        </form>
+        <div class="agout" data-out="chat"><div class="empty"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 10h.01M16 10h.01M8.5 15c2 1.5 5 1.5 7 0"/></svg><p>O resultado aparece aqui. O Bit trabalha com o seu CV e o seu perfil.</p></div></div>
+      </div>
+    </section>
+    </div>
+
+    <div class="view" data-view="montarcv" hidden>
+    <section class="agv">
+      <div class="agh"><span class="agic lg"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h5M12 7v3M10.5 8.5h3"/></svg></span><div><h1 class="agt">Montador de CV</h1><p class="lead">Gera um CV sob medida para a vaga, só com fatos do seu CV, e abre a versão pronta para salvar em PDF.</p></div></div>
+      <div class="agbody">
+        <form class="agform" data-ag="montarcv">
+          <label for="ag-montarcv-vaga">Descrição da vaga (opcional)<textarea id="ag-montarcv-vaga" name="vaga" rows="9" placeholder="Cole a vaga para um CV sob medida"></textarea></label>
+          <label for="ag-montarcv-idioma">Idioma<select id="ag-montarcv-idioma" name="idioma"><option>português</option><option>inglês</option><option>espanhol</option></select></label>
+          <button class="btn solid big" type="submit"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h5M12 7v3M10.5 8.5h3"/></svg>Montar CV</button>
+        </form>
+        <div class="agout" data-out="montarcv"><div class="empty"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 10h.01M16 10h.01M8.5 15c2 1.5 5 1.5 7 0"/></svg><p>O resultado aparece aqui. O Bit trabalha com o seu CV e o seu perfil.</p></div></div>
+      </div>
+    </section>
+    </div>
+
+    <div class="view" data-view="linkedin" hidden>
+    <section class="agv">
+      <div class="agh"><span class="agic lg"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10v7M8 7v.01M12 17v-4a2 2 0 0 1 4 0v4M12 10v7"/></svg></span><div><h1 class="agt">Otimizador de LinkedIn</h1><p class="lead">Títulos, seção Sobre, experiência e competências para recrutador te achar.</p></div></div>
+      <div class="agbody">
+        <form class="agform" data-ag="linkedin">
+          <label for="ag-linkedin-objetivo">Objetivo<input id="ag-linkedin-objetivo" name="objetivo" placeholder="Ex.: ser achado para vagas de Sales Ops remotas"></label>
+          <label for="ag-linkedin-atual">Seu perfil atual (opcional)<textarea id="ag-linkedin-atual" name="atual" rows="4" placeholder="Cole o título e o Sobre atuais"></textarea></label>
+          <button class="btn solid big" type="submit"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10v7M8 7v.01M12 17v-4a2 2 0 0 1 4 0v4M12 10v7"/></svg>Otimizar perfil</button>
+        </form>
+        <div class="agout" data-out="linkedin"><div class="empty"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 10h.01M16 10h.01M8.5 15c2 1.5 5 1.5 7 0"/></svg><p>O resultado aparece aqui. O Bit trabalha com o seu CV e o seu perfil.</p></div></div>
+      </div>
+    </section>
+    </div>
+
+    <div class="view" data-view="empresa" hidden>
+    <section class="agv">
+      <div class="agh"><span class="agic lg"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6M9 10h.01M15 10h.01"/></svg></span><div><h1 class="agt">Dossiê da empresa</h1><p class="lead">Briefing da empresa antes da entrevista: negócio, momento, como você ajuda e o que pesquisar.</p></div></div>
+      <div class="agbody">
+        <form class="agform" data-ag="empresa">
+          <label for="ag-empresa-empresa">Empresa<input id="ag-empresa-empresa" name="empresa" placeholder="Ex.: Genesys" required></label>
+          <label for="ag-empresa-vaga">Vaga (opcional)<input id="ag-empresa-vaga" name="vaga" placeholder=""></label>
+          <button class="btn solid big" type="submit"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6M9 10h.01M15 10h.01"/></svg>Montar dossiê</button>
+        </form>
+        <div class="agout" data-out="empresa"><div class="empty"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 10h.01M16 10h.01M8.5 15c2 1.5 5 1.5 7 0"/></svg><p>O resultado aparece aqui. O Bit trabalha com o seu CV e o seu perfil.</p></div></div>
+      </div>
+    </section>
+    </div>
+
+    <div class="view" data-view="plano" hidden>
+    <section class="agv">
+      <div class="agh"><span class="agic lg"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 14h3M8 17h6"/></svg></span><div><h1 class="agt">Plano da semana</h1><p class="lead">Lê seu pipeline e monta a semana: prioridades, tarefas por dia e meta de candidaturas.</p></div></div>
+      <div class="agbody">
+        <form class="agform" data-ag="plano">
+          <label for="ag-plano-horas">Horas por dia<select id="ag-plano-horas" name="horas"><option>2 horas</option><option>4 horas</option><option>6 horas</option><option>Dia inteiro</option></select></label>
+          <label for="ag-plano-foco">Foco (opcional)<input id="ag-plano-foco" name="foco" placeholder="Ex.: vagas remotas em dólar"></label>
+          <button class="btn solid big" type="submit"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 14h3M8 17h6"/></svg>Planejar semana</button>
+        </form>
+        <div class="agout" data-out="plano"><div class="empty"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 10h.01M16 10h.01M8.5 15c2 1.5 5 1.5 7 0"/></svg><p>O resultado aparece aqui. O Bit trabalha com o seu CV e o seu perfil.</p></div></div>
+      </div>
+    </section>
+    </div>
+
+    <div class="view" data-view="ajustes" hidden>
+    <section class="agv">
+      <div class="agh"><span class="agic lg"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></span><div><h1 class="agt">Ajustes</h1><p class="lead">Sua chave de IA, seu CV e seu perfil. Tudo fica salvo só na sua conta Google.</p></div></div>
+      <form class="cfg" id="cfg">
+        <div class="cfgbox">
+          <h3>Chave do Gemini <span class="pill" id="cfg-status">não configurada</span></h3>
+          <p class="sub">Os agentes usam o Gemini, do Google. Crie uma chave grátis em <b>aistudio.google.com/apikey</b> (botão “Create API key”) e cole aqui.</p>
+          <label for="cfg-key">Chave de API<input id="cfg-key" type="password" autocomplete="off" placeholder="Cole a chave aqui"></label>
+          <button type="button" class="lnk" id="cfg-rm">Remover chave salva</button>
+        </div>
+        <div class="cfgbox">
+          <h3>Seu perfil</h3>
+          <div class="g2">
+            <label for="cfg-cargo">Cargo-alvo<input id="cfg-cargo" placeholder="Ex.: Sales Operations / Planejamento Comercial"></label>
+            <label for="cfg-sen">Senioridade<select id="cfg-sen"><option>Pleno</option><option>Sênior</option><option>Especialista</option><option>Coordenação</option><option>Gerência</option></select></label>
+            <label for="cfg-modelo">Modelo preferido<select id="cfg-modelo"><option>Híbrido</option><option>Remoto</option><option>Presencial</option><option>Qualquer</option></select></label>
+            <label for="cfg-piso">Piso salarial<input id="cfg-piso" placeholder="Ex.: R$ 17 mil CLT ou R$ 20 mil PJ"></label>
+            <label class="full" for="cfg-idiomas">Idiomas<input id="cfg-idiomas" placeholder="Ex.: português nativo, inglês e espanhol fluentes"></label>
+          </div>
+        </div>
+        <div class="cfgbox full">
+          <h3>Seu CV</h3>
+          <p class="sub">Cole o texto do seu CV (até 8.500 caracteres). Os agentes usam este texto e nada mais.</p>
+          <label for="cfg-cv"><textarea id="cfg-cv" rows="14" placeholder="Cole aqui o texto do seu CV"></textarea></label>
+          <span class="sub" id="cfg-cvn"></span>
+        </div>
+        <div class="row full"><button class="btn solid big" type="submit">Salvar ajustes</button></div>
+      </form>
+    </section>
+    </div>
+
+    <p class="foot">Órbita · CRM de candidaturas · seus dados ficam na sua planilha do Google</p>
+  </main>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <form id="fnovo">
+    <h3>Nova candidatura</h3>
+    <label>Empresa<input id="n-empresa" required></label>
+    <label>Vaga<input id="n-vaga" required></label>
+    <label>Etapa<select id="n-etapa"><option>Aguardando</option><option>Ação sua</option><option>Em processo</option><option>Encerrada</option></select></label>
+    <label>Aplicou em<input id="n-data" type="date"></label>
+    <label>Modelo<select id="n-modelo"><option>Remoto</option><option>Híbrido</option><option>Presencial</option><option>—</option></select></label>
+    <label>Contato<input id="n-contato"></label>
+    <label>Salário (pretensão ou faixa)<input id="n-salario" placeholder="Ex.: R$ 18 mil CLT"></label>
+    <label class="full">Próxima ação<input id="n-acao" placeholder="Ex.: aguardar retorno"></label>
+    <label class="full">Notas<input id="n-notas" placeholder="Pretensão, link, observações"></label>
+    <div class="row"><button class="btn ghost" type="button" id="n-cancel">Cancelar</button><button class="btn solid" type="submit">Salvar</button></div>
+  </form>
 </div>
 
 <script>
@@ -226,13 +724,81 @@
     });
   }
 
+  function parseData(s) {
+    s = String(s || '');
+    let m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s); if (m) return new Date(+m[1], m[2] - 1, +m[3]);
+    m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s); if (m) return new Date(+m[3], m[2] - 1, +m[1]);
+    return null;
+  }
+  function dias(r) { const d = parseData(r.data); if (!d) return null; const h = new Date(); h.setHours(0, 0, 0, 0); return Math.round((h - d) / 864e5); }
+
+  function salvarCampo(r, campo, valor, td) {
+    if (String(r[campo] || '') === valor) return;
+    td.style.opacity = '.5';
+    google.script.run.withSuccessHandler(res => { load(res); toast('Salvo'); })
+      .withFailureHandler(err => { td.style.opacity = ''; toast('Não salvou: ' + err.message); })
+      .updateRow(r.id, Object.fromEntries([[campo, valor]]));
+  }
+  function editavel(r, campo, cls) {
+    const td = el('td', cls, r[campo]);
+    td.contentEditable = 'true'; td.spellcheck = false;
+    td.setAttribute('aria-label', campo + ' de ' + r.empresa);
+    td.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); td.blur(); } if (ev.key === 'Escape') { td.textContent = r[campo] || ''; td.blur(); } });
+    td.addEventListener('blur', () => salvarCampo(r, campo, td.textContent.trim(), td));
+    return td;
+  }
+
+  function drawFunil() {
+    const svg = $('funil'); svg.replaceChildren(); const box = svg.parentNode;
+    const total = DATA.length;
+    const resp = DATA.filter(r => r.etapa === 'Em processo' || /recusad/i.test(r.proxima_acao || '')).length;
+    const proc = DATA.filter(r => r.etapa === 'Em processo').length;
+    const steps = [['Enviadas', total, '#00e5ff'], ['Com retorno', resp, '#7b5cff'], ['Em processo', proc, '#2bffa0']];
+    const W = 360, top = 14, h = 62, gap = 10, maxW = 330;
+    steps.forEach((st, i) => {
+      const w0 = Math.max(60, maxW * (i === 0 ? 1 : steps[i - 1][1] / (total || 1)));
+      const w1 = Math.max(48, maxW * (st[1] / (total || 1)));
+      const y = top + i * (h + gap), cx = W / 2;
+      const d = 'M ' + (cx - w0 / 2) + ' ' + y + ' L ' + (cx + w0 / 2) + ' ' + y + ' L ' + (cx + w1 / 2) + ' ' + (y + h) + ' L ' + (cx - w1 / 2) + ' ' + (y + h) + ' Z';
+      const g = sv('g', { class: 'stage' });
+      const p = sv('path', { d: d, fill: st[2], 'fill-opacity': '.22', stroke: st[2], 'stroke-width': 1.5 });
+      const t1 = sv('text', { x: cx, y: y + 28, 'text-anchor': 'middle', class: 'vbig' }); t1.style.fontSize = '22px'; t1.textContent = st[1];
+      const pct = i === 0 ? '' : ' · ' + Math.round(st[1] / (total || 1) * 100) + '%';
+      const t2 = sv('text', { x: cx, y: y + 48, 'text-anchor': 'middle', class: 'vlab' }); t2.textContent = st[0] + pct;
+      g.append(p, t1, t2);
+      const tip = st[0] + ': ' + st[1] + (i ? ' de ' + total + pct : '');
+      g.addEventListener('pointerenter', ev => { svg.classList.add('dim'); g.classList.add('on'); showTip(box, ev, tip); });
+      g.addEventListener('pointermove', ev => showTip(box, ev, tip));
+      g.addEventListener('pointerleave', () => { svg.classList.remove('dim'); g.classList.remove('on'); hideTip(box); });
+      svg.append(g);
+    });
+  }
+
+  function drawFollowUp() {
+    const ul = $('fu'); ul.replaceChildren();
+    const rows = DATA.filter(r => r.etapa === 'Aguardando' && (dias(r) || 0) >= 7).sort((a, b) => dias(b) - dias(a));
+    if (!rows.length) { ul.append(el('li', null, 'Nada parado há 7 dias ou mais.')); return; }
+    rows.forEach(r => {
+      const li = el('li'); const d = dias(r);
+      const who = el('span', 'who', r.empresa + ' · ' + r.vaga); who.title = r.empresa + ' · ' + r.vaga;
+      li.append(who, el('span', 'age' + (d >= 14 ? ' hot' : ''), d + ' dias'));
+      ul.append(li);
+    });
+  }
+
   function render() {
-    drawDonut(); drawBars();
+    drawDonut(); drawFunil(); drawFollowUp(); drawBars();
     const n = (e) => DATA.filter(r => r.etapa === e).length;
     const ativas = DATA.filter(r => r.etapa !== 'Encerrada').length;
+    const resp = DATA.filter(r => r.etapa === 'Em processo' || /recusad/i.test(r.proxima_acao || '')).length;
+    const aguDias = DATA.filter(r => r.etapa === 'Aguardando').map(dias).filter(x => x != null);
     $('t-ativas').textContent = ativas; $('t-acao').textContent = n('Ação sua'); $('t-proc').textContent = n('Em processo');
     $('t-agu').textContent = n('Aguardando'); $('t-enc').textContent = n('Encerrada');
+    $('t-taxa').textContent = DATA.length ? Math.round(resp / DATA.length * 100) + '%' : '–';
+    $('t-ativas2').textContent = 'de ' + DATA.length + ' no total';
+    $('t-agu2').textContent = aguDias.length ? 'há ' + Math.round(aguDias.reduce((a, b) => a + b, 0) / aguDias.length) + ' dias, em média' : '';
     $('frase').textContent = ativas + ' candidaturas ativas: ' + n('Ação sua') + ' esperam uma ação sua e ' + n('Em processo') + ' já tiveram resposta.';
+    document.querySelectorAll('.tile').forEach(t => t.classList.toggle('sel', !!t.dataset.f && t.dataset.f === $('f').value));
 
     const board = $('board'); board.replaceChildren();
     ['Ação sua', 'Em processo'].forEach(etapa => {
@@ -245,6 +811,7 @@
         c.append(el('div', 'e', r.empresa), el('div', 'v', r.vaga), el('div', null, r.proxima_acao));
         const ch = el('div', 'chips');
         if (r.prazo) ch.append(el('span', 'chip pz', 'Prazo ' + fmt(r.prazo)));
+        if (r.salario) ch.append(el('span', 'chip', r.salario));
         if (r.contato) ch.append(el('span', 'chip', r.contato));
         if (r.modelo && r.modelo !== '—') ch.append(el('span', 'chip', r.modelo));
         c.append(ch, stageSelect(r));
@@ -253,22 +820,45 @@
       col.append(cards); board.append(col);
     });
 
-    const q = $('q').value.toLowerCase(), f = $('f').value;
+    const q = $('q').value.toLowerCase(), f = $('f').value, fm = $('fm').value;
     const ordem = Object.fromEntries(ETAPAS.map((e, i) => [e, i]));
     const tb = $('tb'); tb.replaceChildren();
-    DATA.filter(r => (!f || r.etapa === f) && (!q || (r.empresa + ' ' + r.vaga).toLowerCase().includes(q)))
-      .sort((a, b) => (ordem[a.etapa] - ordem[b.etapa]) || String(b.data).localeCompare(String(a.data)))
-      .forEach(r => {
-        const tr = el('tr');
-        const st = el('td'); st.append(stageSelect(r));
-        tr.append(el('td', null, r.empresa), el('td', null, r.vaga), st, el('td', null, r.proxima_acao),
-                  el('td', 'd', fmt(r.data)), el('td', null, r.modelo), el('td', null, r.contato), el('td', null, r.notas));
-        tb.append(tr);
-      });
+    const lista = DATA.filter(r => (!f || r.etapa === f) && (!fm || String(r.modelo).toLowerCase().includes(fm)) &&
+        (!q || (r.empresa + ' ' + r.vaga + ' ' + r.contato).toLowerCase().includes(q)))
+      .sort((a, b) => (ordem[a.etapa] - ordem[b.etapa]) || ((dias(b) == null ? -1 : dias(b)) < (dias(a) == null ? -1 : dias(a)) ? 1 : -1));
+    $('cnt').textContent = lista.length + ' de ' + DATA.length;
+    lista.forEach(r => {
+      const tr = el('tr');
+      const st = el('td'); st.append(stageSelect(r));
+      const d = dias(r);
+      tr.append(el('td', null, r.empresa), el('td', null, r.vaga), st, editavel(r, 'proxima_acao'),
+                el('td', 'd', fmt(r.data)), el('td', 'age' + (r.etapa === 'Aguardando' && d >= 7 ? ' hot' : ''), d == null ? '' : d + ' d'),
+                editavel(r, 'salario', 'd'), el('td', null, r.modelo), el('td', null, r.contato), editavel(r, 'notas'));
+      tb.append(tr);
+    });
   }
 
   function load(res) { DATA = res.rows; $('sheet').href = res.sheetUrl; render(); }
-  $('q').oninput = render; $('f').onchange = render;
+  $('q').oninput = render; $('f').onchange = render; $('fm').onchange = render;
+  document.querySelectorAll('.tile').forEach(t => t.addEventListener('click', () => {
+    if (!('f' in t.dataset)) return;
+    $('f').value = $('f').value === t.dataset.f ? '' : t.dataset.f; render();
+    document.querySelector('.tw').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }));
+  const hoje = new Date(); $('n-data').value = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(hoje.getDate()).padStart(2, '0');
+  $('novo').onclick = () => { $('modal').hidden = false; $('n-empresa').focus(); };
+  $('n-cancel').onclick = () => { $('modal').hidden = true; };
+  $('modal').addEventListener('click', ev => { if (ev.target === $('modal')) $('modal').hidden = true; });
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape') $('modal').hidden = true; });
+  $('fnovo').addEventListener('submit', ev => {
+    ev.preventDefault();
+    const rec = { empresa: $('n-empresa').value.trim(), vaga: $('n-vaga').value.trim(), etapa: $('n-etapa').value, data: $('n-data').value,
+      modelo: $('n-modelo').value, contato: $('n-contato').value.trim(), proxima_acao: $('n-acao').value.trim() || 'Aguardar retorno',
+      salario: $('n-salario').value.trim(), notas: $('n-notas').value.trim(), fonte: 'Manual', canal: '' };
+    const b = ev.submitter || $('fnovo').querySelector('[type=submit]'); b.disabled = true;
+    google.script.run.withSuccessHandler(res => { load(res); $('modal').hidden = true; $('fnovo').reset(); b.disabled = false; toast('Candidatura adicionada'); })
+      .withFailureHandler(err => { b.disabled = false; toast('Não salvou: ' + err.message); }).addRow(rec);
+  });
   google.script.run.withSuccessHandler(load).withFailureHandler(e => { $('frase').textContent = 'Não carregou: ' + e.message; }).getData();
 </script>
 <script>
@@ -351,8 +941,239 @@
     img.src = c.toDataURL('image/png');
   }
   (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(function () {
-    particulas(document.getElementById('orb'), { alvo: document.querySelector('.hero'), modo: 'esfera' });
+    particulas(document.getElementById('orb'), { alvo: document.querySelector('.hero'), modo: 'esfera', escala: 1.25 });
   });
+</script>
+
+<script>
+  /* Bit: olhos seguem o mouse, fala a dica do dia; menu lateral acompanha a rolagem. */
+  (function () {
+    var eyes = document.getElementById('bit-eyes'), bit = document.getElementById('bit');
+    document.addEventListener('pointermove', function (ev) {
+      if (!eyes || !bit) return;
+      var r = bit.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height * 0.47;
+      var dx = ev.clientX - cx, dy = ev.clientY - cy, d = Math.sqrt(dx * dx + dy * dy) || 1, k = Math.min(1, d / 300);
+      eyes.setAttribute('transform', 'translate(' + (dx / d * 7 * k).toFixed(2) + ' ' + (dy / d * 5 * k).toFixed(2) + ')');
+    });
+    var d = new Date();
+    var hoje = document.getElementById('hoje');
+    if (hoje) hoje.textContent = d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+
+    var falas = [];
+    function montarFalas() {
+      var acao = DATA.filter(function (r) { return r.etapa === 'Ação sua'; });
+      var proc = DATA.filter(function (r) { return r.etapa === 'Em processo'; });
+      var prazo = acao.concat(proc).filter(function (r) { return r.prazo; }).sort(function (a, b) { return String(a.prazo).localeCompare(String(b.prazo)); })[0];
+      var parado = DATA.filter(function (r) { return r.etapa === 'Aguardando' && (dias(r) || 0) >= 7; }).length;
+      falas = [];
+      if (acao.length) falas.push('Hoje tem <b>' + acao.length + '</b> coisa' + (acao.length > 1 ? 's' : '') + ' esperando por você. Começa pela de cima do quadro.');
+      if (prazo) falas.push('Atenção ao prazo: <b>' + esc(prazo.empresa) + '</b> até ' + fmt(prazo.prazo) + '.');
+      if (proc.length) falas.push('<b>' + proc.length + '</b> processos andando. Responda rápido quem te chamar.');
+      if (parado) falas.push('<b>' + parado + '</b> candidatura' + (parado > 1 ? 's' : '') + ' sem resposta há uma semana ou mais. Bora de follow-up?');
+      if (!falas.length) falas.push('Tudo em dia. Que tal aplicar para mais uma vaga hoje?');
+    }
+    function esc(s) { var x = document.createElement('span'); x.textContent = s || ''; return x.innerHTML; }
+    var i = 0, bubble = document.getElementById('bubble');
+    function falar() { if (!falas.length || !bubble) return; bubble.innerHTML = falas[i % falas.length]; i++; }
+    setInterval(falar, 7000);
+    if (bit) bit.addEventListener('click', falar);
+
+    var renderOriginal = render;
+    render = function () {
+      renderOriginal();
+      var n = DATA.filter(function (r) { return r.etapa === 'Ação sua'; }).length;
+      var b = document.getElementById('nav-acao'); if (b) { b.textContent = n; b.hidden = !n; }
+      var primeira = !falas.length; montarFalas(); if (primeira) falar();
+    };
+
+  })();
+</script>
+<script>
+  /* Navegação, agentes e ajustes */
+  (function () {
+    var NOMES = { painel: 'Visão geral', quadro: 'Quadro', todas: 'Candidaturas', agentes: 'Central de agentes', vagas: 'Caçador de vagas', fit: 'Raio-X da vaga', cv: 'Analista de CV', montarcv: 'Montador de CV', linkedin: 'Otimizador de LinkedIn', empresa: 'Dossiê da empresa', entrevista: 'Coach de entrevista', mensagem: 'Redator de mensagens', salario: 'Negociador salarial', followup: 'Follow-up em massa', plano: 'Plano da semana', chat: 'Pergunte ao Bit', ajustes: 'Ajustes' };
+    var CFG = { temChave: false, cv: '', perfil: {} };
+    var ULT = {};
+
+    function ir(v) {
+      if (!NOMES[v]) v = 'painel';
+      document.querySelectorAll('.view').forEach(function (x) { x.hidden = x.dataset.view !== v; });
+      document.querySelectorAll('.nav [data-ir]').forEach(function (b) { if (b.dataset.ir === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+      var c = document.getElementById('crumb'); if (c) c.textContent = NOMES[v].toUpperCase();
+      if (location.hash !== '#' + v) history.replaceState(null, '', '#' + v);
+      window.scrollTo(0, 0);
+      if (v === 'followup') montarFollowUp();
+    }
+    document.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-ir]'); if (!b) return;
+      e.preventDefault(); ir(b.dataset.ir);
+    });
+    window.addEventListener('hashchange', function () { ir(location.hash.slice(1)); });
+
+    /* Markdown simples e seguro */
+    function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    function inl(s) { return esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/(^|[^*])\*(?!\s)(.+?)\*(?!\*)/g, '$1<em>$2</em>').replace(/`([^`]+)`/g, '<code>$1</code>'); }
+    function md(t) {
+      var out = [], lista = null;
+      function fecha() { if (lista) { out.push('</' + lista + '>'); lista = null; } }
+      String(t).replace(/\r/g, '').split('\n').forEach(function (l) {
+        var m;
+        if (/^\s*$/.test(l)) { fecha(); return; }
+        if ((m = /^(#{1,4})\s+(.*)/.exec(l))) { fecha(); var n = Math.min(3, m[1].length); out.push('<h' + n + '>' + inl(m[2]) + '</h' + n + '>'); return; }
+        if (/^\s*(---|\*\*\*)\s*$/.test(l)) { fecha(); out.push('<hr>'); return; }
+        if ((m = /^\s*[-*•]\s+(.*)/.exec(l))) { if (lista !== 'ul') { fecha(); out.push('<ul>'); lista = 'ul'; } out.push('<li>' + inl(m[1]) + '</li>'); return; }
+        if ((m = /^\s*\d+[.)]\s+(.*)/.exec(l))) { if (lista !== 'ol') { fecha(); out.push('<ol>'); lista = 'ol'; } out.push('<li>' + inl(m[1]) + '</li>'); return; }
+        fecha(); out.push('<p>' + inl(l) + '</p>');
+      });
+      fecha(); return out.join('');
+    }
+    window.orbitaMd = md;
+
+    function caixa(v) { return document.querySelector('[data-out="' + v + '"]'); }
+    function pensando(v) {
+      var frases = { vagas: 'Varrendo o mercado…', fit: 'Comparando a vaga com o seu CV…', cv: 'Lendo seu CV como um ATS…', montarcv: 'Montando seu CV sob medida…', linkedin: 'Reescrevendo seu perfil…', empresa: 'Montando o dossiê…', entrevista: 'Preparando o treino…', mensagem: 'Escrevendo as mensagens…', salario: 'Calculando a negociação…', followup: 'Escrevendo os follow-ups…', plano: 'Organizando sua semana…', chat: 'Pensando…' };
+      caixa(v).innerHTML = '<div class="think"><div class="orbit"></div><span>' + (frases[v] || 'Trabalhando…') + '</span></div>';
+    }
+    function mostrar(v, txt) {
+      ULT[v] = txt;
+      var box = caixa(v);
+      var bar = '<div class="outbar"><button type="button" class="btn sm" data-copiar="' + v + '">Copiar</button>';
+      if (v === 'montarcv') bar += '<button type="button" class="btn sm solid" data-pdf="1">Abrir para salvar em PDF</button>';
+      if (v === 'fit') bar += '<button type="button" class="btn sm solid" data-addfit="1">Adicionar à Central</button>';
+      bar += '</div>';
+      box.innerHTML = bar + '<div class="md">' + md(txt) + '</div>';
+    }
+    function erro(v, msg) {
+      var box = caixa(v);
+      box.innerHTML = '<div class="think"><span class="err">' + esc(msg) + '</span>' + (/Ajustes/.test(msg) ? '<button type="button" class="btn solid" data-ir="ajustes">Ir para Ajustes</button>' : '') + '</div>';
+    }
+
+    document.querySelectorAll('.agform').forEach(function (f) {
+      f.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        var v = f.dataset.ag, dados = {};
+        Array.prototype.forEach.call(f.elements, function (x) { if (x.name && x.type !== 'checkbox') dados[x.name] = x.value.trim(); });
+        if (v === 'followup') {
+          var sel = Array.prototype.slice.call(f.querySelectorAll('input[type=checkbox]:checked')).map(function (c) { return c.value; });
+          if (!sel.length) { toast('Marque pelo menos uma candidatura'); return; }
+          dados.lista = sel.join('\n');
+        }
+        var b = f.querySelector('[type=submit]'); b.disabled = true; pensando(v);
+        google.script.run
+          .withSuccessHandler(function (txt) { b.disabled = false; mostrar(v, txt); })
+          .withFailureHandler(function (e) { b.disabled = false; erro(v, e.message); })
+          .agente(v, dados);
+      });
+    });
+
+    document.addEventListener('click', function (e) {
+      var c = e.target.closest('[data-copiar]');
+      if (c) {
+        var t = ULT[c.dataset.copiar] || '';
+        if (navigator.clipboard) navigator.clipboard.writeText(t).then(function () { toast('Copiado'); }, function () { toast('Selecione e copie o texto'); });
+        else toast('Selecione e copie o texto');
+        return;
+      }
+      if (e.target.closest('[data-pdf]')) { abrirPdf(ULT.montarcv || ''); return; }
+      if (e.target.closest('[data-addfit]')) {
+        var txt = ULT.fit || '', m = /(\d{1,3})\s*(?:\/\s*100|de 100|pontos|%)?/.exec((txt.split(/##/)[1] || ''));
+        document.getElementById('modal').hidden = false;
+        document.getElementById('n-notas').value = m ? 'Raio-X do Bit: nota ' + m[1] : 'Raio-X do Bit feito';
+        document.getElementById('n-empresa').focus();
+      }
+    });
+
+    function abrirPdf(txt) {
+      var w = window.open('', '_blank');
+      if (!w) { toast('O navegador bloqueou a janela. Libere pop-ups para este site.'); return; }
+      var css = 'body{font-family:"Google Sans",Arial,sans-serif;color:#14171f;max-width:780px;margin:32px auto;padding:0 28px;line-height:1.5;font-size:13px}' +
+        'h1{font-size:28px;margin:0;color:#0b1324}h1+p{margin:2px 0 0;color:#5b2bd6;font-size:15px}h1+p+p{color:#556;margin:4px 0 14px;font-size:12px}' +
+        'h2{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#0090b8;border-bottom:2px solid #e3e8f0;padding-bottom:4px;margin:18px 0 8px}' +
+        'h3{font-size:13.5px;margin:12px 0 4px}ul{margin:0 0 8px;padding-left:18px}li{margin:2px 0}p{margin:0 0 6px}strong{color:#0b1324}' +
+        '.bar{position:fixed;top:12px;right:12px}.bar button{font:600 13px Arial;padding:9px 14px;border-radius:8px;border:0;background:#0b1324;color:#fff;cursor:pointer}@media print{.bar{display:none}body{margin:0 auto}}';
+      w.document.open();
+      w.document.write('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>CV</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap"><style>' + css + '</style></head><body><div class="bar"><button onclick="window.print()">Salvar em PDF</button></div>' + md(txt) + '</body></html>');
+      w.document.close();
+    }
+
+    /* Caçador: links de busca prontos */
+    var fv = document.querySelector('[data-ag="vagas"]');
+    function linksVagas() {
+      var cargo = (fv.elements.cargo.value || '').trim(), local = (fv.elements.local.value || '').trim(), mod = fv.elements.modelo.value;
+      var box = document.getElementById('vagas-links'); if (!box) return;
+      if (!cargo) { box.hidden = true; return; }
+      var wt = { 'Remoto': '2', 'Híbrido': '3', 'Presencial': '1' }[mod];
+      var q = encodeURIComponent(cargo), l = encodeURIComponent(local || 'Brasil');
+      var L = [
+        ['LinkedIn', 'https://www.linkedin.com/jobs/search/?keywords=' + q + '&location=' + l + (wt ? '&f_WT=' + wt : '') + '&f_TPR=r604800'],
+        ['Gupy', 'https://portal.gupy.io/job-search/term=' + q],
+        ['Indeed', 'https://br.indeed.com/jobs?q=' + q + '&l=' + l + (mod === 'Remoto' ? '&sc=0kf%3Aattr%28DSQF7%29%3B' : '')],
+        ['Google Vagas', 'https://www.google.com/search?q=' + encodeURIComponent(cargo + ' vagas ' + (local || '') + (mod && mod !== 'Qualquer' ? ' ' + mod.toLowerCase() : '')) + '&ibp=htl;jobs'],
+        ['Glassdoor', 'https://www.glassdoor.com.br/Vaga/vagas.htm?sc.keyword=' + q],
+        ['Remotas no exterior', 'https://www.google.com/search?q=' + encodeURIComponent('"' + cargo + '" remote LATAM site:jobs.lever.co OR site:boards.greenhouse.io OR site:jobs.ashbyhq.com')]
+      ];
+      var c = box.querySelector('.qlinks'); c.replaceChildren();
+      L.forEach(function (x) { var a = document.createElement('a'); a.href = x[1]; a.target = '_blank'; a.rel = 'noopener'; a.textContent = x[0] + ' ↗'; c.append(a); });
+      box.hidden = false;
+    }
+    if (fv) { ['input', 'change'].forEach(function (t) { fv.addEventListener(t, linksVagas); }); }
+
+    /* Follow-up em massa: lista de candidaturas paradas */
+    function montarFollowUp() {
+      var f = document.querySelector('[data-ag="followup"]'); if (!f || typeof DATA === 'undefined') return;
+      var info = document.getElementById('fu-info');
+      var rows = DATA.filter(function (r) { return r.etapa === 'Aguardando' && (dias(r) || 0) >= 7; }).sort(function (a, b) { return dias(b) - dias(a); });
+      var old = f.querySelector('.fu-pick'); if (old) old.remove();
+      info.textContent = rows.length ? rows.length + ' candidaturas paradas há 7 dias ou mais. Marque as que quer reativar:' : 'Nenhuma candidatura parada há 7 dias ou mais. Bom sinal.';
+      if (!rows.length) return;
+      var box = document.createElement('div'); box.className = 'fu-pick';
+      rows.forEach(function (r) {
+        var lb = document.createElement('label'); var cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = true;
+        cb.value = r.empresa + ' | ' + r.vaga + ' | aplicou há ' + dias(r) + ' dias' + (r.contato ? ' | contato: ' + r.contato : '');
+        lb.append(cb, document.createTextNode(' ' + r.empresa + ' · ' + r.vaga + ' (' + dias(r) + ' d)'));
+        box.append(lb);
+      });
+      info.after(box);
+    }
+
+    /* Ajustes */
+    function aplicarCfg(c) {
+      CFG = c; var pf = c.perfil || {};
+      var st = document.getElementById('cfg-status'); st.textContent = c.temChave ? 'configurada' : 'não configurada'; st.classList.toggle('ok', c.temChave);
+      document.getElementById('nav-cfg').hidden = c.temChave && !!c.cv;
+      document.getElementById('cfg-cv').value = c.cv || '';
+      document.getElementById('cfg-cvn').textContent = (c.cv || '').length + ' de 8.500 caracteres';
+      ['cargo', 'piso', 'idiomas'].forEach(function (k) { document.getElementById('cfg-' + k).value = pf[k] || ''; });
+      if (pf.senioridade) document.getElementById('cfg-sen').value = pf.senioridade;
+      if (pf.modelo) document.getElementById('cfg-modelo').value = pf.modelo;
+      if (c.versao) document.getElementById('ver').textContent = c.versao;
+      if (fv && pf.cargo && !fv.elements.cargo.value) { fv.elements.cargo.value = pf.cargo; if (pf.modelo && pf.modelo !== 'Qualquer') fv.elements.modelo.value = pf.modelo; linksVagas(); }
+    }
+    document.getElementById('cfg-cv').addEventListener('input', function (e) { document.getElementById('cfg-cvn').textContent = e.target.value.length + ' de 8.500 caracteres'; });
+    document.getElementById('cfg').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var b = ev.submitter || this.querySelector('[type=submit]'); b.disabled = true;
+      google.script.run.withSuccessHandler(function (c) { b.disabled = false; document.getElementById('cfg-key').value = ''; aplicarCfg(c); toast('Ajustes salvos'); })
+        .withFailureHandler(function (e) { b.disabled = false; toast('Não salvou: ' + e.message); })
+        .salvarConfig({ key: document.getElementById('cfg-key').value, cv: document.getElementById('cfg-cv').value,
+          perfil: { cargo: document.getElementById('cfg-cargo').value.trim(), senioridade: document.getElementById('cfg-sen').value, modelo: document.getElementById('cfg-modelo').value, piso: document.getElementById('cfg-piso').value.trim(), idiomas: document.getElementById('cfg-idiomas').value.trim() } });
+    });
+    document.getElementById('cfg-rm').addEventListener('click', function () {
+      google.script.run.withSuccessHandler(function (c) { aplicarCfg(c); toast('Chave removida'); }).salvarConfig({ removerChave: true });
+    });
+    google.script.run.withSuccessHandler(aplicarCfg).getConfig();
+
+    var r0 = render;
+    render = function () {
+      r0();
+      var t = document.getElementById('nav-total'); if (t) t.textContent = DATA.length;
+      var n = DATA.filter(function (r) { return r.etapa === 'Aguardando' && (dias(r) || 0) >= 7; }).length;
+      var fu = document.getElementById('nav-fu'); if (fu) fu.textContent = n || '';
+      if (!document.querySelector('[data-view="followup"]').hidden) montarFollowUp();
+    };
+
+    ir(location.hash.slice(1) || 'painel');
+  })();
 </script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-# Central de Candidaturas
+# Órbita · CRM de candidaturas
 
 CRM pessoal de candidaturas de emprego em Google Apps Script.
 
@@ -13,3 +13,8 @@ CRM pessoal de candidaturas de emprego em Google Apps Script.
 3. Autorize o acesso às Planilhas na primeira abertura.
 
 Para adicionar ou editar candidaturas, edite a planilha: o web app lê dela a cada abertura.
+
+## Agentes de IA (v2.0)
+
+12 agentes com o Gemini: Caçador de vagas, Raio-X da vaga, Analista de CV, Montador de CV, Otimizador de LinkedIn, Dossiê da empresa, Plano da semana, Coach de entrevista, Redator de mensagens, Negociador salarial, Follow-up em massa e Pergunte ao Bit.
+Cada usuário cola a própria chave do Gemini (grátis em aistudio.google.com/apikey), o CV e o perfil em **Ajustes**. Tudo fica nas Propriedades do usuário do Apps Script.
