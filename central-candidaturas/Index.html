@@ -3,12 +3,12 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Display:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
   /* Layout: painel de comando escuro com grade, vidro e neon ciano/magenta */
   :root { --bg:#05070d; --bg2:#0a1020; --panel:rgba(16,24,44,.62); --fg:#e6f1ff; --muted:#8aa0c2; --line:rgba(0,229,255,.18);
           --cyan:#00e5ff; --mag:#ff2bd6; --vio:#7b5cff; --warn:#ffb020; --ok:#2bffa0; --bad:#ff4d6d;
-          --display:"Orbitron",system-ui,sans-serif; --body:"Inter",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace; color-scheme:dark; }
+          --display:"Google Sans Display","Google Sans","Product Sans",system-ui,sans-serif; --body:"Google Sans","Google Sans Text","Product Sans",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace; color-scheme:dark; }
   * { box-sizing:border-box; }
   body { margin:0; color:var(--fg); font:14px/1.45 var(--body); min-height:100vh;
          background: radial-gradient(1200px 600px at 10% -10%, rgba(123,92,255,.25), transparent 60%),
@@ -81,13 +81,27 @@
   .hero-txt { display:flex; flex-direction:column; gap:12px; align-items:flex-start; position:relative; z-index:1; }
   #orb { width:100%; height:260px; display:block; cursor:crosshair; }
   @media (max-width:760px) { .hero { grid-template-columns:1fr; } #orb { height:220px; } }
+  .ttl { margin:0; width:min(100%,560px); background:none; -webkit-background-clip:initial; background-clip:initial; color:inherit; }
+  .ttl svg { display:block; width:100%; height:auto; overflow:visible; }
+  .ttl text { font:700 50px var(--display); letter-spacing:-.01em; text-transform:none; }
+  @media (prefers-reduced-motion: reduce) { .ttl animate { display:none; } }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="hero">
     <div class="hero-txt">
-      <h1>Central de Candidaturas</h1>
+      <h1 class="ttl"><svg viewBox="0 0 640 64" role="img" aria-label="Central de Candidaturas">
+        <defs>
+          <linearGradient id="gt" x1="0" y1="0" x2="640" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#00e5ff"><animate attributeName="stop-color" values="#00e5ff;#7b5cff;#ff2bd6;#00e5ff" dur="8s" repeatCount="indefinite"/></stop>
+            <stop offset="50%" stop-color="#7b5cff"><animate attributeName="stop-color" values="#7b5cff;#ff2bd6;#00e5ff;#7b5cff" dur="8s" repeatCount="indefinite"/></stop>
+            <stop offset="100%" stop-color="#ff2bd6"><animate attributeName="stop-color" values="#ff2bd6;#00e5ff;#7b5cff;#ff2bd6" dur="8s" repeatCount="indefinite"/></stop>
+          </linearGradient>
+          <filter id="gl" x="-10%" y="-40%" width="120%" height="180%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <text x="0" y="48" fill="url(#gt)" filter="url(#gl)" textLength="630" lengthAdjust="spacingAndGlyphs">Central de Candidaturas</text>
+      </svg></h1>
       <p class="sub" id="frase">Carregando…</p>
       <a class="btn ghost" id="sheet" href="#" target="_blank" rel="noopener">Abrir planilha</a>
     </div>
