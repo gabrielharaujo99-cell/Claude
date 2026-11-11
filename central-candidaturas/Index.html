@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: painel de comando escuro com grade, vidro e neon ciano/magenta */
+  :root { --bg:#05070d; --bg2:#0a1020; --panel:rgba(16,24,44,.62); --fg:#e6f1ff; --muted:#8aa0c2; --line:rgba(0,229,255,.18);
+          --cyan:#00e5ff; --mag:#ff2bd6; --vio:#7b5cff; --warn:#ffb020; --ok:#2bffa0; --bad:#ff4d6d;
+          --display:"Orbitron",system-ui,sans-serif; --body:"Inter",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace; color-scheme:dark; }
+  * { box-sizing:border-box; }
+  body { margin:0; color:var(--fg); font:14px/1.45 var(--body); min-height:100vh;
+         background: radial-gradient(1200px 600px at 10% -10%, rgba(123,92,255,.25), transparent 60%),
+                     radial-gradient(900px 500px at 110% 10%, rgba(0,229,255,.18), transparent 60%), var(--bg);
+         padding:28px max(16px,env(safe-area-inset-left)) 56px max(16px,env(safe-area-inset-right)); }
+  body::before { content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+         background-image: linear-gradient(rgba(0,229,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,.05) 1px, transparent 1px);
+         background-size: 40px 40px; mask-image: linear-gradient(to bottom, #000 0%, transparent 85%); }
+  .wrap { position:relative; z-index:1; max-width:1240px; margin:0 auto; display:flex; flex-direction:column; gap:30px; }
+  h1 { font:700 30px/1.1 var(--display); letter-spacing:.06em; text-transform:uppercase; margin:0 0 6px;
+       background:linear-gradient(90deg,var(--cyan),var(--vio) 55%,var(--mag)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  h2 { font:500 13px var(--display); letter-spacing:.18em; text-transform:uppercase; color:var(--cyan); margin:0 0 12px; display:flex; align-items:center; gap:10px; }
+  h2::after { content:""; flex:1; height:1px; background:linear-gradient(90deg,var(--line),transparent); }
+  .sub { color:var(--muted); margin:0; font-family:var(--mono); font-size:13px; }
+  .top { display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; align-items:end; }
+  .btn { font:500 12px var(--display); letter-spacing:.12em; text-transform:uppercase; text-decoration:none; cursor:pointer;
+         color:var(--cyan); background:rgba(0,229,255,.06); border:1px solid var(--cyan); border-radius:6px; padding:9px 14px;
+         box-shadow:0 0 12px rgba(0,229,255,.25), inset 0 0 12px rgba(0,229,255,.08); transition:box-shadow .2s; }
+  .btn:hover, .btn:focus-visible { box-shadow:0 0 22px rgba(0,229,255,.5), inset 0 0 14px rgba(0,229,255,.15); outline:none; }
+  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; }
+  .tile { position:relative; background:var(--panel); backdrop-filter:blur(10px); border:1px solid var(--line); border-radius:12px; padding:16px 18px; overflow:hidden; }
+  .tile::before { content:""; position:absolute; left:0; top:0; height:2px; width:100%; background:linear-gradient(90deg,var(--cyan),transparent); }
+  .tile .l { font:500 10px var(--display); letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
+  .tile .n { font:700 36px var(--display); font-variant-numeric:tabular-nums; color:var(--fg); text-shadow:0 0 18px rgba(0,229,255,.35); margin-top:4px; }
+  .tile.a::before { background:linear-gradient(90deg,var(--warn),transparent); } .tile.a .n { color:var(--warn); text-shadow:0 0 18px rgba(255,176,32,.45); }
+  .tile.p::before { background:linear-gradient(90deg,var(--ok),transparent); } .tile.p .n { color:var(--ok); text-shadow:0 0 18px rgba(43,255,160,.4); }
+  .tile.e::before { background:linear-gradient(90deg,var(--bad),transparent); } .tile.e .n { color:var(--muted); text-shadow:none; }
+  .board { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:18px; align-items:start; }
+  .col { background:rgba(10,16,32,.55); border:1px solid var(--line); border-radius:14px; padding:14px; min-width:0; backdrop-filter:blur(8px); }
+  .col h3 { margin:0 0 12px; font:500 12px var(--display); letter-spacing:.14em; text-transform:uppercase; display:flex; justify-content:space-between; color:var(--fg); }
+  .col:nth-child(1) h3 span:last-child { color:var(--warn); } .col:nth-child(2) h3 span:last-child { color:var(--ok); }
+  .cards { display:flex; flex-direction:column; gap:10px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-left:2px solid var(--cyan); border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:5px; transition:transform .15s, box-shadow .15s; }
+  .col:nth-child(1) .card { border-left-color:var(--warn); } .col:nth-child(2) .card { border-left-color:var(--ok); }
+  .card:hover { box-shadow:0 0 20px rgba(0,229,255,.15); }
+  @media (prefers-reduced-motion: no-preference) { .card:hover { transform:translateY(-2px); } }
+  .card .e { font-weight:600; letter-spacing:.01em; } .card .v { font-size:12px; color:var(--muted); }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
+  .chip { font:400 11px var(--mono); border:1px solid var(--line); border-radius:4px; padding:1px 7px; color:var(--muted); background:rgba(0,229,255,.04); }
+  .chip.pz { color:var(--mag); border-color:var(--mag); box-shadow:0 0 8px rgba(255,43,214,.3); }
+  select { font:12px var(--mono); padding:5px 8px; border-radius:6px; border:1px solid var(--line); background:#0b1324; color:var(--cyan); max-width:100%; }
+  select:focus-visible, input:focus-visible { outline:1px solid var(--cyan); box-shadow:0 0 10px rgba(0,229,255,.4); }
+  .tw { overflow-x:auto; border:1px solid var(--line); border-radius:12px; background:var(--panel); backdrop-filter:blur(8px); }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:9px 12px; border-bottom:1px solid rgba(0,229,255,.08); vertical-align:top; }
+  th { font:500 10px var(--display); letter-spacing:.14em; text-transform:uppercase; color:var(--cyan); white-space:nowrap; background:rgba(0,229,255,.04); }
+  tbody tr:hover td { background:rgba(123,92,255,.07); }
+  td.d { white-space:nowrap; font:12px var(--mono); color:var(--muted); }
+  .filters { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+  input[type=search] { font:13px var(--mono); padding:7px 12px; border-radius:6px; border:1px solid var(--line); background:#0b1324; color:var(--fg); min-width:220px; }
+  .toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); z-index:5; font:12px var(--mono); color:var(--cyan); background:#0b1324; border:1px solid var(--cyan); box-shadow:0 0 16px rgba(0,229,255,.4); padding:8px 14px; border-radius:6px; }
+  .loading { color:var(--muted); font-family:var(--mono); }
+  .viz { display:grid; grid-template-columns:minmax(240px,1fr) 2fr; gap:18px; }
+  @media (max-width:760px) { .viz { grid-template-columns:1fr; } }
+  .vbox { position:relative; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; min-width:0; backdrop-filter:blur(8px); }
+  .vbox h3 { margin:0 0 8px; font:500 11px var(--display); letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
+  .vbox svg { display:block; width:100%; height:auto; overflow:visible; }
+  .seg, .bar { cursor:pointer; transition:filter .2s, opacity .2s, transform .2s; transform-box:fill-box; transform-origin:center; }
+  .dim .seg:not(.on), .dim .bar:not(.on) { opacity:.25; }
+  .seg.on { filter:drop-shadow(0 0 8px currentColor) drop-shadow(0 0 16px currentColor); }
+  .bar.on { filter:drop-shadow(0 0 6px var(--cyan)) drop-shadow(0 0 14px var(--cyan)); }
+  @media (prefers-reduced-motion: no-preference) { .seg.on { transform:scale(1.04); } }
+  .vlab { fill:var(--muted); font:10px var(--mono); }
+  .vbig { fill:var(--fg); font:700 28px var(--display); }
+  .vtip { position:absolute; pointer-events:none; font:12px var(--mono); color:var(--fg); background:#0b1324; border:1px solid var(--cyan); box-shadow:0 0 14px rgba(0,229,255,.35); border-radius:6px; padding:5px 9px; white-space:nowrap; z-index:3; }
+  .legend { display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:8px; font:11px var(--mono); color:var(--muted); }
+  .legend span::before { content:""; display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:6px; background:currentColor; box-shadow:0 0 6px currentColor; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Central de Candidaturas</h1>
+      <p class="sub" id="frase">Carregando…</p>
+    </div>
+    <a class="btn ghost" id="sheet" href="#" target="_blank" rel="noopener">Abrir planilha</a>
+  </div>
+
+  <div class="tiles">
+    <div class="tile"><div class="l">Ativas</div><div class="n" id="t-ativas">–</div></div>
+    <div class="tile a"><div class="l">Ação sua</div><div class="n" id="t-acao">–</div></div>
+    <div class="tile p"><div class="l">Em processo</div><div class="n" id="t-proc">–</div></div>
+    <div class="tile"><div class="l">Aguardando</div><div class="n" id="t-agu">–</div></div>
+    <div class="tile e"><div class="l">Encerradas</div><div class="n" id="t-enc">–</div></div>
+  </div>
+
+  <section>
+    <h2>Radar</h2>
+    <div class="viz">
+      <div class="vbox"><h3>Por etapa</h3><svg id="donut" viewBox="0 0 220 220" role="img" aria-label="Rosca com a divisão das candidaturas por etapa"></svg><div class="legend" id="leg"></div></div>
+      <div class="vbox"><h3>Candidaturas por dia</h3><svg id="bars" viewBox="0 0 640 220" role="img" aria-label="Barras com o número de candidaturas enviadas por dia"></svg></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Quadro</h2>
+    <div class="board" id="board"><p class="loading">Carregando…</p></div>
+  </section>
+
+  <section>
+    <h2>Todas as candidaturas</h2>
+    <div class="filters">
+      <input type="search" id="q" placeholder="Buscar empresa ou vaga" aria-label="Buscar">
+      <select id="f" aria-label="Filtrar por etapa">
+        <option value="">Todas as etapas</option>
+        <option>Ação sua</option><option>Em processo</option><option>Aguardando</option><option>Encerrada</option>
+      </select>
+    </div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Empresa</th><th>Vaga</th><th>Etapa</th><th>Próxima ação / status</th><th>Aplicou</th><th>Modelo</th><th>Contato</th><th>Notas</th></tr></thead>
+        <tbody id="tb"><tr><td colspan="8" class="loading">Carregando…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+  const ETAPAS = ['Ação sua', 'Em processo', 'Aguardando', 'Encerrada'];
+  let DATA = [];
+  const $ = (id) => document.getElementById(id);
+  const fmt = (s) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ''); return m ? m[3] + '/' + m[2] : (s || ''); };
+  const el = (tag, cls, txt) => { const x = document.createElement(tag); if (cls) x.className = cls; if (txt != null) x.textContent = txt; return x; };
+
+  function toast(msg) { const t = el('div', 'toast', msg); document.body.append(t); setTimeout(() => t.remove(), 2200); }
+
+  function stageSelect(r) {
+    const s = el('select');
+    s.setAttribute('aria-label', 'Etapa de ' + r.empresa);
+    ETAPAS.forEach(e => { const o = new Option(e, e); if (e === r.etapa) o.selected = true; s.append(o); });
+    s.onchange = () => {
+      s.disabled = true;
+      google.script.run.withSuccessHandler(res => { load(res); toast('Etapa atualizada'); })
+        .withFailureHandler(err => { s.disabled = false; toast('Não salvou: ' + err.message); })
+        .updateRow(r.id, { etapa: s.value });
+    };
+    return s;
+  }
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const sv = (tag, at) => { const x = document.createElementNS(NS, tag); Object.keys(at || {}).forEach(k => x.setAttribute(k, at[k])); return x; };
+  const CORES = { 'Ação sua': 'var(--warn)', 'Em processo': 'var(--ok)', 'Aguardando': 'var(--cyan)', 'Encerrada': 'var(--mag)' };
+  function tipFor(box) { let t = box.querySelector('.vtip'); if (!t) { t = el('div', 'vtip'); t.hidden = true; box.append(t); } return t; }
+  function showTip(box, ev, txt) { const t = tipFor(box); const r = box.getBoundingClientRect(); t.textContent = txt; t.hidden = false;
+    t.style.left = Math.min(ev.clientX - r.left + 12, r.width - 170) + 'px'; t.style.top = (ev.clientY - r.top - 34) + 'px'; }
+  function hideTip(box) { const t = box.querySelector('.vtip'); if (t) t.hidden = true; }
+
+  function drawDonut() {
+    const svg = $('donut'); svg.replaceChildren(); const box = svg.parentNode; const leg = $('leg'); leg.replaceChildren();
+    const total = DATA.length || 1; const cx = 110, cy = 110, R = 92, r = 62; let a0 = -Math.PI / 2;
+    const center = sv('text', { x: cx, y: cy + 4, 'text-anchor': 'middle', class: 'vbig' }); center.textContent = DATA.length;
+    const sub = sv('text', { x: cx, y: cy + 22, 'text-anchor': 'middle', class: 'vlab' }); sub.textContent = 'candidaturas';
+    ETAPAS.forEach(e => {
+      const n = DATA.filter(x => x.etapa === e).length; if (!n) return;
+      const a1 = a0 + (n / total) * Math.PI * 2; const big = (a1 - a0) > Math.PI ? 1 : 0;
+      const p = (rad, a) => (cx + rad * Math.cos(a)) + ' ' + (cy + rad * Math.sin(a));
+      const d = 'M ' + p(R, a0) + ' A ' + R + ' ' + R + ' 0 ' + big + ' 1 ' + p(R, a1 - 0.012) + ' L ' + p(r, a1 - 0.012) + ' A ' + r + ' ' + r + ' 0 ' + big + ' 0 ' + p(r, a0) + ' Z';
+      const path = sv('path', { d: d, class: 'seg' }); path.style.fill = CORES[e]; path.style.color = CORES[e];
+      path.addEventListener('pointerenter', ev => { svg.classList.add('dim'); path.classList.add('on'); center.textContent = n; sub.textContent = e.toLowerCase(); showTip(box, ev, e + ': ' + n + ' (' + Math.round(n / total * 100) + '%)'); });
+      path.addEventListener('pointermove', ev => showTip(box, ev, e + ': ' + n + ' (' + Math.round(n / total * 100) + '%)'));
+      path.addEventListener('pointerleave', () => { svg.classList.remove('dim'); path.classList.remove('on'); center.textContent = DATA.length; sub.textContent = 'candidaturas'; hideTip(box); });
+      path.addEventListener('click', () => { $('f').value = e; render(); document.querySelector('.tw').scrollIntoView({ behavior: 'smooth' }); });
+      svg.append(path); a0 = a1;
+      const li = el('span', null, e + ' · ' + n); li.style.color = CORES[e]; leg.append(li);
+    });
+    svg.append(center, sub);
+  }
+
+  function drawBars() {
+    const svg = $('bars'); svg.replaceChildren(); const box = svg.parentNode;
+    const m = new Map(); DATA.forEach(x => { if (x.data) m.set(x.data, (m.get(x.data) || 0) + 1); });
+    const rows = Array.from(m.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    if (!rows.length) return;
+    const W = 640, H = 220, L = 26, B = 28, T = 16, max = Math.max.apply(null, rows.map(x => x[1]));
+    const step = (W - L - 8) / rows.length, bw = Math.max(6, step * 0.62);
+    const y = v => H - B - (v / max) * (H - B - T);
+    for (let g = 0; g <= max; g += Math.max(1, Math.ceil(max / 4))) {
+      svg.append(sv('line', { x1: L, x2: W - 4, y1: y(g), y2: y(g), stroke: 'rgba(0,229,255,.12)', 'stroke-dasharray': '2 4' }));
+      const t = sv('text', { x: L - 6, y: y(g) + 3, 'text-anchor': 'end', class: 'vlab' }); t.textContent = g; svg.append(t);
+    }
+    const defs = sv('defs'); const gr = sv('linearGradient', { id: 'gb', x1: 0, y1: 0, x2: 0, y2: 1 });
+    gr.append(sv('stop', { offset: '0%', 'stop-color': '#00e5ff' }), sv('stop', { offset: '100%', 'stop-color': '#7b5cff' })); defs.append(gr); svg.append(defs);
+    const every = Math.ceil(rows.length / 10);
+    rows.forEach((rw, i) => {
+      const x = L + i * step + (step - bw) / 2;
+      const rect = sv('rect', { x: x, y: y(rw[1]), width: bw, height: (H - B) - y(rw[1]), rx: 3, fill: 'url(#gb)', class: 'bar' });
+      const txt = rw[1] + ' candidatura' + (rw[1] > 1 ? 's' : '') + ' em ' + fmt(rw[0]);
+      rect.addEventListener('pointerenter', ev => { svg.classList.add('dim'); rect.classList.add('on'); showTip(box, ev, txt); });
+      rect.addEventListener('pointermove', ev => showTip(box, ev, txt));
+      rect.addEventListener('pointerleave', () => { svg.classList.remove('dim'); rect.classList.remove('on'); hideTip(box); });
+      svg.append(rect);
+      const v = sv('text', { x: x + bw / 2, y: y(rw[1]) - 5, 'text-anchor': 'middle', class: 'vlab' }); v.textContent = rw[1]; svg.append(v);
+      if (i % every === 0) { const t = sv('text', { x: x + bw / 2, y: H - 10, 'text-anchor': 'middle', class: 'vlab' }); t.textContent = fmt(rw[0]); svg.append(t); }
+    });
+  }
+
+  function render() {
+    drawDonut(); drawBars();
+    const n = (e) => DATA.filter(r => r.etapa === e).length;
+    const ativas = DATA.filter(r => r.etapa !== 'Encerrada').length;
+    $('t-ativas').textContent = ativas; $('t-acao').textContent = n('Ação sua'); $('t-proc').textContent = n('Em processo');
+    $('t-agu').textContent = n('Aguardando'); $('t-enc').textContent = n('Encerrada');
+    $('frase').textContent = ativas + ' candidaturas ativas: ' + n('Ação sua') + ' esperam uma ação sua e ' + n('Em processo') + ' já tiveram resposta.';
+
+    const board = $('board'); board.replaceChildren();
+    ['Ação sua', 'Em processo'].forEach(etapa => {
+      const col = el('div', 'col');
+      const rows = DATA.filter(r => r.etapa === etapa).sort((a, b) => (a.prazo || '9999').localeCompare(b.prazo || '9999'));
+      const h = el('h3'); h.append(el('span', null, etapa), el('span', null, String(rows.length))); col.append(h);
+      const cards = el('div', 'cards');
+      rows.forEach(r => {
+        const c = el('div', 'card');
+        c.append(el('div', 'e', r.empresa), el('div', 'v', r.vaga), el('div', null, r.proxima_acao));
+        const ch = el('div', 'chips');
+        if (r.prazo) ch.append(el('span', 'chip pz', 'Prazo ' + fmt(r.prazo)));
+        if (r.contato) ch.append(el('span', 'chip', r.contato));
+        if (r.modelo && r.modelo !== '—') ch.append(el('span', 'chip', r.modelo));
+        c.append(ch, stageSelect(r));
+        cards.append(c);
+      });
+      col.append(cards); board.append(col);
+    });
+
+    const q = $('q').value.toLowerCase(), f = $('f').value;
+    const ordem = Object.fromEntries(ETAPAS.map((e, i) => [e, i]));
+    const tb = $('tb'); tb.replaceChildren();
+    DATA.filter(r => (!f || r.etapa === f) && (!q || (r.empresa + ' ' + r.vaga).toLowerCase().includes(q)))
+      .sort((a, b) => (ordem[a.etapa] - ordem[b.etapa]) || String(b.data).localeCompare(String(a.data)))
+      .forEach(r => {
+        const tr = el('tr');
+        const st = el('td'); st.append(stageSelect(r));
+        tr.append(el('td', null, r.empresa), el('td', null, r.vaga), st, el('td', null, r.proxima_acao),
+                  el('td', 'd', fmt(r.data)), el('td', null, r.modelo), el('td', null, r.contato), el('td', null, r.notas));
+        tb.append(tr);
+      });
+  }
+
+  function load(res) { DATA = res.rows; $('sheet').href = res.sheetUrl; render(); }
+  $('q').oninput = render; $('f').onchange = render;
+  google.script.run.withSuccessHandler(load).withFailureHandler(e => { $('frase').textContent = 'Não carregou: ' + e.message; }).getData();
+</script>
+</body>
+</html>
