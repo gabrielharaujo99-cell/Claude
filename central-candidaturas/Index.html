@@ -258,7 +258,7 @@
   google.script.run.withSuccessHandler(load).withFailureHandler(e => { $('frase').textContent = 'Não carregou: ' + e.message; }).getData();
 </script>
 <script>
-  /* Partículas (mesmo efeito do Seok/Be Flow): esfera que gira, vira as iniciais e afunda onde o mouse passa. */
+  /* Partículas (mesmo efeito do Seok/Be Flow): esfera que gira e afunda onde o mouse passa. */
   function particulas(canvas, opcoes) {
     var o = Object.assign({ cor: '#00e5ff', corLogo: '#ff2bd6', modo: 'ciclo', escala: 1, texto: 'GA' }, opcoes || {});
     var ctx = canvas.getContext('2d');
@@ -285,7 +285,7 @@
       }
     }
     function mistura(t) {
-      if (o.modo === 'logo') return 1; if (!logo.length) return 0;
+      if (o.modo === 'logo') return 1; if (o.modo === 'esfera' || !logo.length) return 0;
       var c = (t / 1000) % 11, suave = function (x) { return x * x * (3 - 2 * x); };
       if (c < 4) return 0; if (c < 5.4) return suave((c - 4) / 1.4); if (c < 9.6) return 1; return 1 - suave((c - 9.6) / 1.4);
     }
@@ -331,13 +331,13 @@
     img.onload = function () {
       try { logo = amostrarLogo(img); } catch (err) { logo = []; }
       montar();
-      if (quieto) { o.modo = 'logo'; ps.forEach(function (p) { p.x = W / 2; p.y = H / 2; }); for (var k = 0; k < 90; k++) desenhar(0, true); return; }
+      if (quieto) { ps.forEach(function (p) { p.x = W / 2; p.y = H / 2; }); for (var k = 0; k < 90; k++) desenhar(0, true); return; }
       quadro = requestAnimationFrame(desenhar);
     };
     img.src = c.toDataURL('image/png');
   }
   (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(function () {
-    particulas(document.getElementById('orb'), { alvo: document.querySelector('.hero') });
+    particulas(document.getElementById('orb'), { alvo: document.querySelector('.hero'), modo: 'esfera' });
   });
 </script>
 </body>
